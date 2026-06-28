@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { FileSpreadsheet, Loader2, Upload } from 'lucide-react'
+import { Loader2, Upload } from 'lucide-react'
 
 interface CsvUploadZoneProps {
   onFileLoaded: (file: File) => void
@@ -40,59 +40,52 @@ export function CsvUploadZone({ onFileLoaded, isProcessing }: CsvUploadZoneProps
   )
 
   return (
-    <div className="flex flex-col items-center">
-      <div
-        onDragOver={(e) => {
-          e.preventDefault()
-          setIsDragging(true)
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={onDrop}
-        className={`flex w-full max-w-xl flex-col items-center rounded-2xl border-2 border-dashed px-8 py-16 transition-all ${
-          isDragging
-            ? 'border-emerald bg-emerald/5'
-            : 'border-border-warm bg-cream-card shadow-sm hover:border-emerald/40'
-        }`}
-      >
-        {isProcessing ? (
-          <>
-            <Loader2 className="mb-4 h-12 w-12 animate-spin text-emerald" />
-            <p className="font-heading text-xl font-semibold text-ink">Analyzing your report...</p>
-          </>
-        ) : (
-          <>
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-cream">
-              <FileSpreadsheet className="h-8 w-8 text-emerald" />
-            </div>
-            <h2 className="font-heading mb-2 text-2xl font-semibold text-ink">
-              Upload Commission Report
-            </h2>
-            <p className="mb-6 max-w-sm text-center font-sans text-sm text-stone">
-              Drop your TikTok Shop commission report here, or click to browse. We&apos;ll
-              analyze performance and build your filming schedule.
-            </p>
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                accept=".csv,.xlsx"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) handleFile(file)
-                }}
-              />
-              <span className="btn-primary inline-flex items-center gap-2 px-6 py-3 text-sm">
-                <Upload className="h-4 w-4" />
-                Choose File
-              </span>
-            </label>
-          </>
-        )}
-      </div>
-      {fileError && (
-        <p className="mt-4 font-sans text-sm text-tier-deadline">{fileError}</p>
+    <div
+      onDragOver={(e) => {
+        e.preventDefault()
+        setIsDragging(true)
+      }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={onDrop}
+      className={`flex min-h-[calc(100vh-14rem)] w-full flex-col items-center justify-center px-8 py-20 transition-colors ${
+        isDragging ? 'bg-emerald-muted' : 'bg-cream'
+      }`}
+    >
+      {isProcessing ? (
+        <div className="flex flex-col items-center text-center">
+          <Loader2 className="mb-6 h-12 w-12 animate-spin text-emerald" />
+          <p className="font-display text-2xl font-semibold text-ink">Analyzing your report...</p>
+        </div>
+      ) : (
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="font-display text-4xl leading-tight font-bold text-ink md:text-5xl lg:text-[3.25rem] lg:leading-[1.15]">
+            Know exactly what to film. Every sprint.
+          </h2>
+          <p className="mx-auto mt-8 max-w-lg font-sans text-lg leading-relaxed text-stone">
+            Upload your TikTok Shop commission report and get a personalized filming schedule
+            in seconds.
+          </p>
+          <label className="mt-12 inline-block cursor-pointer">
+            <input
+              type="file"
+              accept=".csv,.xlsx"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleFile(file)
+              }}
+            />
+            <span className="btn-cta inline-flex min-w-[300px] items-center justify-center gap-3 px-12 py-5 text-base">
+              <Upload className="h-5 w-5" />
+              Choose File
+            </span>
+          </label>
+          <p className="label-caps mt-10">Supports .csv and .xlsx files</p>
+        </div>
       )}
-      <p className="mt-4 font-sans text-xs text-stone">Supports .csv and .xlsx files</p>
+      {fileError && (
+        <p className="mt-8 font-sans text-sm text-tier-deadline">{fileError}</p>
+      )}
     </div>
   )
 }

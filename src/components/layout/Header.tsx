@@ -1,18 +1,14 @@
-import { Sparkles } from 'lucide-react'
-
 export function Header() {
   return (
-    <header className="border-b border-border-warm bg-cream-card shadow-sm">
-      <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald">
-          <Sparkles className="h-5 w-5 text-cream" />
-        </div>
-        <div>
-          <h1 className="font-heading text-3xl font-semibold tracking-wide text-ink">
+    <header className="bg-cream-card">
+      <div className="mx-auto max-w-7xl px-8 py-10">
+        <div className="inline-block">
+          <h1 className="font-display text-5xl font-bold tracking-tight text-ink md:text-6xl">
             CreatorExec
           </h1>
-          <p className="font-tagline text-stone">Your TikTok Shop Operating System</p>
+          <div className="mt-2 h-0.5 w-full bg-emerald" aria-hidden />
         </div>
+        <p className="label-caps mt-5">Your TikTok Shop Operating System</p>
       </div>
     </header>
   )

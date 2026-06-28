@@ -1,4 +1,3 @@
-import { DollarSign, Package, ShoppingBag, TrendingUp } from 'lucide-react'
 import type { MergedProduct } from '../../types'
 
 interface StatsCardsProps {
@@ -20,21 +19,20 @@ export function StatsCards({ products }: StatsCardsProps) {
   const avgCommission = products.length ? totalCommission / products.length : 0
 
   const stats = [
-    { label: 'Total Products', value: products.length.toString(), icon: Package, color: 'text-emerald' },
-    { label: 'Total Commission', value: formatCurrency(totalCommission), icon: DollarSign, color: 'text-emerald-hover' },
-    { label: 'Total GMV', value: formatCurrency(totalGmv), icon: ShoppingBag, color: 'text-tier-test' },
-    { label: 'Avg Commission', value: formatCurrency(avgCommission), icon: TrendingUp, color: 'text-emerald' },
+    { label: 'Total Products', value: products.length.toString() },
+    { label: 'Total Commission', value: formatCurrency(totalCommission) },
+    { label: 'Total GMV', value: formatCurrency(totalGmv) },
+    { label: 'Avg Commission', value: formatCurrency(avgCommission) },
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => (
-        <div key={stat.label} className="card-panel p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-sans text-sm text-stone">{stat.label}</span>
-            <stat.icon className={`h-5 w-5 ${stat.color}`} />
-          </div>
-          <p className="font-sans text-2xl font-semibold text-ink">{stat.value}</p>
+        <div key={stat.label} className="stat-card px-8 py-7">
+          <span className="label-caps">{stat.label}</span>
+          <p className="font-display mt-3 text-5xl font-bold tracking-tight text-ink lg:text-6xl">
+            {stat.value}
+          </p>
         </div>
       ))}
     </div>

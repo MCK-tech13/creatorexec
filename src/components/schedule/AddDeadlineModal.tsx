@@ -40,21 +40,24 @@ export function AddDeadlineModal({ onClose, onSubmit }: AddDeadlineModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/20 p-4 backdrop-blur-sm">
-      <div className="card-panel w-full max-w-md p-6">
-        <div className="mb-5 flex items-center justify-between">
-          <h3 className="font-heading text-xl font-semibold text-ink">Add Sample / Deadline</h3>
+      <div className="card-panel w-full max-w-md p-8">
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="font-display text-xl font-semibold text-ink">Add Sample / Deadline</h3>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-1 text-stone transition hover:bg-cream hover:text-ink"
+            aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="mb-1.5 block font-sans text-sm text-stone">Product Name</label>
+            <label className="mb-2 block font-sans text-sm font-medium text-stone">
+              Product Name
+            </label>
             <input
               required
               value={form.productName}
@@ -64,7 +67,7 @@ export function AddDeadlineModal({ onClose, onSubmit }: AddDeadlineModalProps) {
             />
           </div>
           <div>
-            <label className="mb-1.5 block font-sans text-sm text-stone">Brand</label>
+            <label className="mb-2 block font-sans text-sm font-medium text-stone">Brand</label>
             <input
               value={form.brand}
               onChange={(e) => setForm({ ...form, brand: e.target.value })}
@@ -73,7 +76,9 @@ export function AddDeadlineModal({ onClose, onSubmit }: AddDeadlineModalProps) {
             />
           </div>
           <div>
-            <label className="mb-1.5 block font-sans text-sm text-stone">Deadline Date</label>
+            <label className="mb-2 block font-sans text-sm font-medium text-stone">
+              Deadline Date
+            </label>
             <input
               required
               type="date"
@@ -84,7 +89,9 @@ export function AddDeadlineModal({ onClose, onSubmit }: AddDeadlineModalProps) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block font-sans text-sm text-stone">Videos Required</label>
+              <label className="mb-2 block font-sans text-sm font-medium text-stone">
+                Videos Required
+              </label>
               <input
                 type="number"
                 min={1}
@@ -96,7 +103,9 @@ export function AddDeadlineModal({ onClose, onSubmit }: AddDeadlineModalProps) {
               />
             </div>
             <div>
-              <label className="mb-1.5 block font-sans text-sm text-stone">Videos Filmed</label>
+              <label className="mb-2 block font-sans text-sm font-medium text-stone">
+                Videos Filmed
+              </label>
               <input
                 type="number"
                 min={0}

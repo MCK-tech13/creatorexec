@@ -13,7 +13,7 @@ import { useFilmingProgress } from '../../hooks/useFilmingProgress'
 import { collapseDayVideos, dayFilmedTotal } from '../../lib/schedule/collapseDayVideos'
 import { formatDeadlineCountdown } from '../../lib/schedule/deadlineUtils'
 import { formatScheduleText } from '../../lib/schedule/scheduleBuilder'
-import { SCHEDULE_TIER_STYLES } from '../../lib/theme/tierStyles'
+import { SCHEDULE_TIER_STYLES, TIER_BADGE_CLASS } from '../../lib/theme/tierStyles'
 import { AddDeadlineModal, type DeadlineFormData } from './AddDeadlineModal'
 
 interface FilmingScheduleProps {
@@ -71,10 +71,10 @@ export function FilmingSchedule({
 
   return (
     <div>
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-heading text-3xl font-semibold text-ink">Your Filming Schedule</h2>
-          <p className="mt-1 font-sans text-sm text-stone">
+          <h2 className="font-display text-3xl font-bold text-ink">Your Filming Schedule</h2>
+          <p className="mt-2 font-sans text-sm text-stone">
             {totalVideos} videos across {schedule.length} days · sorted by tier, then commission
           </p>
         </div>
@@ -82,7 +82,7 @@ export function FilmingSchedule({
           <button
             type="button"
             onClick={() => setShowDeadlineModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-tier-deadline/30 bg-tier-deadline/10 px-4 py-2.5 font-sans text-sm font-medium text-tier-deadline transition hover:border-tier-deadline/50 hover:bg-tier-deadline/15"
+            className="btn-secondary inline-flex items-center gap-2 px-4 py-2.5 text-sm"
           >
             <Plus className="h-4 w-4" />
             Add Sample / Deadline
@@ -90,7 +90,7 @@ export function FilmingSchedule({
           <button
             type="button"
             onClick={copySchedule}
-            className="btn-secondary inline-flex items-center gap-2 px-4 py-2.5 text-sm"
+            className="btn-outline inline-flex items-center gap-2 px-4 py-2.5 text-sm"
           >
             {copied ? (
               <>
@@ -121,19 +121,19 @@ export function FilmingSchedule({
               <button
                 type="button"
                 onClick={() => toggleDay(day.day)}
-                className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-cream/60"
+                className="flex w-full items-center justify-between px-6 py-5 text-left transition hover:bg-cream/80"
               >
                 <div className="flex-1 pr-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-heading text-lg font-semibold text-ink">
+                  <div className="flex flex-wrap items-baseline gap-4">
+                    <span className="font-display text-xl font-semibold text-ink">
                       Day {day.day} — {dayLabel}
                     </span>
-                    <span className="font-sans text-sm text-stone">
+                    <span className="font-sans text-xs font-medium text-stone">
                       {filmedCount}/{totalSlots} filmed
                     </span>
                   </div>
                   {totalSlots > 0 && (
-                    <div className="mt-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-track">
+                    <div className="mt-3 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-track">
                       <div
                         className="h-full rounded-full bg-emerald transition-all duration-300"
                         style={{ width: `${progress}%` }}
@@ -142,13 +142,13 @@ export function FilmingSchedule({
                   )}
                 </div>
                 {isExpanded ? (
-                  <ChevronUp className="h-5 w-5 shrink-0 text-stone" />
+                  <ChevronUp className="h-4 w-4 shrink-0 text-stone" />
                 ) : (
-                  <ChevronDown className="h-5 w-5 shrink-0 text-stone" />
+                  <ChevronDown className="h-4 w-4 shrink-0 text-stone" />
                 )}
               </button>
               {isExpanded && (
-                <div className="border-t border-border-warm px-5 py-3">
+                <div className="border-t border-border-warm px-6 py-4">
                   {collapsedRows.length === 0 ? (
                     <p className="py-2 font-sans text-sm text-stone">No videos scheduled</p>
                   ) : (
@@ -166,10 +166,10 @@ export function FilmingSchedule({
                         return (
                           <li
                             key={row.storageKey}
-                            className={`flex items-center gap-3 rounded-xl px-4 py-3 transition ${
+                            className={`flex items-center gap-3 rounded-lg px-4 py-3 transition ${
                               complete
-                                ? 'border border-emerald/25 bg-emerald/5'
-                                : 'bg-cream/80'
+                                ? 'border border-emerald/20 bg-emerald-muted'
+                                : 'border border-transparent bg-cream/60'
                             }`}
                           >
                             <div className="flex shrink-0 items-center gap-1">
@@ -177,24 +177,22 @@ export function FilmingSchedule({
                                 type="button"
                                 onClick={() => decrement(row.storageKey)}
                                 disabled={filmed === 0}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-warm bg-cream-card font-sans text-stone transition hover:border-emerald/40 hover:text-emerald disabled:cursor-not-allowed disabled:opacity-30"
+                                className="flex h-8 w-8 items-center justify-center border border-border-warm bg-cream-card font-sans text-stone transition hover:border-emerald hover:text-emerald disabled:cursor-not-allowed disabled:opacity-30"
                                 aria-label="Decrement filmed count"
                               >
-                                <Minus className="h-4 w-4" />
+                                <Minus className="h-3.5 w-3.5" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => increment(row.storageKey, row.total)}
                                 disabled={complete}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-warm bg-cream-card font-sans text-stone transition hover:border-emerald/40 hover:text-emerald disabled:cursor-not-allowed disabled:opacity-30"
+                                className="flex h-8 w-8 items-center justify-center border border-border-warm bg-cream-card font-sans text-stone transition hover:border-emerald hover:text-emerald disabled:cursor-not-allowed disabled:opacity-30"
                                 aria-label="Increment filmed count"
                               >
-                                <Plus className="h-4 w-4" />
+                                <Plus className="h-3.5 w-3.5" />
                               </button>
                             </div>
-                            <span
-                              className={`shrink-0 rounded-full border px-2 py-0.5 font-sans text-xs font-medium ${style.bg} ${style.text} ${style.border}`}
-                            >
+                            <span className={`${TIER_BADGE_CLASS} shrink-0 ${style.bg} ${style.text} ${style.border}`}>
                               {row.tier === 'Deadline' ? 'Deadline' : row.tier}
                             </span>
                             <div className="min-w-0 flex-1">
@@ -214,7 +212,7 @@ export function FilmingSchedule({
                                 )}
                               </div>
                               <p
-                                className={`font-sans text-sm ${complete ? 'text-emerald-hover' : 'text-stone'}`}
+                                className={`font-sans text-sm ${complete ? 'text-emerald-light' : 'text-stone'}`}
                               >
                                 {row.suggestedAngle}
                               </p>
@@ -228,17 +226,17 @@ export function FilmingSchedule({
                                 {filmed} / {row.total} filmed
                               </span>
                               {complete && (
-                                <Check className="h-5 w-5 text-emerald" aria-hidden />
+                                <Check className="h-4 w-4 text-emerald" aria-hidden />
                               )}
                               {canRemove && (
                                 <button
                                   type="button"
                                   onClick={() => onRemoveFromSchedule(row.productKey)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-warm bg-cream-card text-stone transition hover:border-tier-cut/50 hover:text-tier-cut"
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-warm bg-cream-card text-stone transition hover:border-tier-cut hover:text-ink"
                                   aria-label="Remove from schedule"
                                   title="Remove from schedule"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               )}
                             </div>
@@ -254,8 +252,8 @@ export function FilmingSchedule({
         })}
       </div>
 
-      <div className="mt-8 flex gap-3">
-        <button type="button" onClick={onBack} className="btn-secondary flex-1 py-3 text-sm">
+      <div className="mt-10 flex gap-3">
+        <button type="button" onClick={onBack} className="btn-outline flex-1 py-3 text-sm">
           Back
         </button>
         <button type="button" onClick={onStartOver} className="btn-primary flex-1 py-3 text-sm">

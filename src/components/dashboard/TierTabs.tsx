@@ -1,5 +1,4 @@
 import type { MergedProduct, Tier } from '../../types'
-import { TIER_TAB_STYLES } from '../../lib/theme/tierStyles'
 
 interface TierTabsProps {
   products: MergedProduct[]
@@ -19,27 +18,34 @@ export function TierTabs({ products, activeTier, onTierChange }: TierTabsProps) 
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {TIERS.map((tier) => {
-        const isActive = activeTier === tier
-        const style = tier !== 'All' ? TIER_TAB_STYLES[tier] : null
-        return (
-          <button
-            key={tier}
-            onClick={() => onTierChange(tier)}
-            className={`rounded-full border px-4 py-1.5 font-sans text-sm font-medium transition ${
-              isActive
-                ? style
-                  ? `${style.bg} ${style.text} ${style.border}`
-                  : 'border-emerald/30 bg-emerald/10 text-emerald'
-                : 'border-border-warm bg-cream-card text-stone hover:border-emerald/30 hover:text-ink'
-            }`}
-          >
-            {tier}{' '}
-            <span className="ml-1 opacity-70">({counts[tier]})</span>
-          </button>
-        )
-      })}
+    <div className="border-b border-border-warm">
+      <div className="flex flex-wrap gap-x-10 gap-y-2">
+        {TIERS.map((tier) => {
+          const isActive = activeTier === tier
+          return (
+            <button
+              key={tier}
+              onClick={() => onTierChange(tier)}
+              className={`relative pb-4 font-sans text-sm transition-colors ${
+                isActive
+                  ? 'font-bold text-ink'
+                  : 'font-normal text-grey hover:text-stone'
+              }`}
+            >
+              {tier}
+              <span className={`ml-1.5 ${isActive ? 'text-stone' : 'text-grey/80'}`}>
+                ({counts[tier]})
+              </span>
+              {isActive && (
+                <span
+                  className="absolute right-0 -bottom-px left-0 h-0.5 bg-emerald"
+                  aria-hidden
+                />
+              )}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

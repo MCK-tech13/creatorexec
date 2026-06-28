@@ -20,17 +20,20 @@ export function SprintConfigForm({
 
   return (
     <div className="mx-auto max-w-lg">
-      <div className="mb-8 text-center">
-        <h2 className="font-heading text-3xl font-semibold text-ink">Configure Your Sprint</h2>
-        <p className="mt-2 font-sans text-sm text-stone">
+      <div className="mb-10 text-center">
+        <h2 className="font-display text-3xl font-bold text-ink">Configure Your Sprint</h2>
+        <p className="mt-3 font-sans text-sm leading-relaxed text-stone">
           Tell us your posting volume and sprint length to generate a personalized filming
           schedule.
         </p>
       </div>
 
-      <div className="card-panel space-y-6 p-6">
+      <div className="card-panel space-y-8 p-8">
         <div>
-          <label htmlFor="videosPerDay" className="mb-2 block font-sans text-sm font-medium text-ink">
+          <label
+            htmlFor="videosPerDay"
+            className="label-caps mb-3 block"
+          >
             Videos per day
           </label>
           <input
@@ -49,23 +52,25 @@ export function SprintConfigForm({
             }}
             className="input-field w-full px-4 py-3"
           />
-          <p className="mt-1.5 font-sans text-xs text-stone">
+          <p className="mt-2 font-sans text-xs text-stone">
             No maximum — enter your actual daily output (e.g. 5, 20, 30+)
           </p>
         </div>
 
         <div>
-          <span className="mb-2 block font-sans text-sm font-medium text-ink">Sprint length</span>
+          <span className="label-caps mb-3 block">
+            Sprint length
+          </span>
           <div className="grid grid-cols-3 gap-2">
             {SPRINT_OPTIONS.map((days) => (
               <button
                 key={days}
                 type="button"
                 onClick={() => onChange({ ...config, sprintDays: days })}
-                className={`rounded-xl border py-3 font-sans text-sm font-medium transition ${
+                className={`border py-3 font-sans text-sm font-medium transition ${
                   config.sprintDays === days
-                    ? 'border-emerald bg-emerald/10 text-emerald'
-                    : 'border-border-warm bg-cream text-stone hover:border-emerald/30 hover:text-ink'
+                    ? 'border-emerald bg-emerald text-white'
+                    : 'border-border-warm bg-cream-card text-stone hover:border-emerald/40 hover:text-emerald'
                 }`}
               >
                 {days} days
@@ -74,21 +79,21 @@ export function SprintConfigForm({
           </div>
         </div>
 
-        <div className="rounded-xl border border-border-warm bg-cream px-4 py-3 text-center">
-          <p className="font-sans text-sm text-stone">Total videos this sprint</p>
-          <p className="font-heading text-3xl font-semibold text-emerald">{totalVideos}</p>
+        <div className="border-l-[3px] border-emerald bg-cream px-6 py-6 text-center">
+          <p className="label-caps">Total videos this sprint</p>
+          <p className="font-display mt-2 text-5xl font-bold text-ink">{totalVideos}</p>
         </div>
       </div>
 
-      <div className="mt-6 flex gap-3">
-        <button type="button" onClick={onBack} className="btn-secondary flex-1 py-3 text-sm">
+      <div className="mt-8 flex gap-3">
+        <button type="button" onClick={onBack} className="btn-outline flex-1 py-3 text-sm">
           Back
         </button>
         <button
           type="button"
           onClick={onSubmit}
           disabled={!videosValid}
-          className="btn-primary flex-1 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn-primary flex-1 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-40"
         >
           Generate Schedule
         </button>

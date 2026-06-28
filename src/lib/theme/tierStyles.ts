@@ -2,27 +2,29 @@ import type { ScheduleTierLabel, Tier } from '../../types'
 
 type TierStyle = { bg: string; text: string; border: string }
 
-/** Solid editorial tier badges with high contrast text. */
+const BADGE_BASE =
+  'badge-compact inline-flex px-2 py-0.5 text-[11px] font-semibold'
+
 export const TIER_STYLES: Record<Tier, TierStyle> = {
   Anchor: {
     bg: 'bg-tier-anchor',
-    text: 'text-cream',
-    border: 'border-tier-anchor',
+    text: 'text-white',
+    border: 'border-0',
   },
   Rising: {
     bg: 'bg-tier-rising',
-    text: 'text-cream',
-    border: 'border-tier-rising',
+    text: 'text-white',
+    border: 'border-0',
   },
   Test: {
     bg: 'bg-tier-test',
-    text: 'text-cream',
-    border: 'border-tier-test',
+    text: 'text-tier-test-text',
+    border: 'border border-border-warm',
   },
   Cut: {
     bg: 'bg-tier-cut',
-    text: 'text-cream',
-    border: 'border-tier-cut',
+    text: 'text-tier-cut-text',
+    border: 'border-0',
   },
 }
 
@@ -30,31 +32,17 @@ export const SCHEDULE_TIER_STYLES: Record<ScheduleTierLabel, TierStyle> = {
   ...TIER_STYLES,
   Deadline: {
     bg: 'bg-tier-deadline',
-    text: 'text-cream',
-    border: 'border-tier-deadline',
+    text: 'text-white',
+    border: 'border-0',
   },
 }
 
-/** Soft tinted variants for tabs and secondary UI. */
-export const TIER_TAB_STYLES: Record<Tier, TierStyle> = {
-  Anchor: {
-    bg: 'bg-tier-anchor/10',
-    text: 'text-tier-anchor',
-    border: 'border-tier-anchor/30',
-  },
-  Rising: {
-    bg: 'bg-tier-rising/10',
-    text: 'text-tier-rising',
-    border: 'border-tier-rising/30',
-  },
-  Test: {
-    bg: 'bg-tier-test/10',
-    text: 'text-tier-test',
-    border: 'border-tier-test/30',
-  },
-  Cut: {
-    bg: 'bg-tier-cut/10',
-    text: 'text-tier-cut',
-    border: 'border-tier-cut/30',
-  },
+export const TIER_BADGE_CLASS = BADGE_BASE
+
+export const TIER_TAB_STYLES: Record<Tier, TierStyle> = TIER_STYLES
+
+export function tierBadgeClass(tier: Tier | ScheduleTierLabel): string {
+  const style =
+    tier === 'Deadline' ? SCHEDULE_TIER_STYLES.Deadline : TIER_STYLES[tier as Tier]
+  return `${BADGE_BASE} ${style.bg} ${style.text} ${style.border}`
 }

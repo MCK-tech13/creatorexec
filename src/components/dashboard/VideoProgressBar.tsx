@@ -15,11 +15,11 @@ export function VideoProgressBar({ filmed, showBadge = true }: VideoProgressBarP
   const ready = isReadyForTierReview(filmed)
 
   return (
-    <div className="mt-1.5 space-y-1">
-      <div className="flex items-center gap-2">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-track">
+    <div className="mt-3 space-y-2">
+      <div className="flex items-center gap-3">
+        <div className="h-2 min-w-[120px] flex-1 overflow-hidden rounded-full bg-track">
           <div
-            className={`h-full rounded-full transition-all ${color}`}
+            className={`h-full rounded-full transition-all duration-300 ${color}`}
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -28,9 +28,7 @@ export function VideoProgressBar({ filmed, showBadge = true }: VideoProgressBarP
         </span>
       </div>
       {showBadge && ready && (
-        <span className="inline-flex rounded-full border border-emerald/30 bg-emerald/10 px-2 py-0.5 font-sans text-[10px] font-medium uppercase tracking-wide text-emerald">
-          Ready for tier review
-        </span>
+        <span className="label-caps inline-flex text-emerald">Ready for tier review</span>
       )}
     </div>
   )

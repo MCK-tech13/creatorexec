@@ -212,10 +212,10 @@ function App() {
   return (
     <AppShell stage={stage}>
       {stage === 'upload' && (
-        <div className="flex flex-col items-center fade-in">
+        <div className="fade-in">
           <CsvUploadZone onFileLoaded={handleFileLoaded} isProcessing={isProcessing} />
           {error && (
-            <div className="mt-6 max-w-xl rounded-xl border border-tier-deadline/30 bg-tier-deadline/10 px-4 py-3 font-sans text-sm text-tier-deadline">
+            <div className="mx-auto mt-6 max-w-xl border border-tier-deadline/30 bg-tier-deadline/10 px-6 py-4 font-sans text-sm text-tier-deadline">
               {error}
             </div>
           )}
@@ -223,11 +223,9 @@ function App() {
       )}
 
       {stage === 'dashboard' && (
-        <div className="space-y-6 fade-in">
+        <div className="space-y-12 fade-in">
           {fileName && (
-            <p className="font-sans text-sm text-stone">
-              Analyzed: <span className="text-ink">{fileName}</span>
-            </p>
+            <p className="font-sans text-sm font-medium text-emerald">Report analyzed ✓</p>
           )}
           <StatsCards products={products} />
           <TierTabs
@@ -245,11 +243,11 @@ function App() {
             Products need 6+ videos filmed before low performers can move to Cut. Uncheck
             &quot;In Rotation&quot; to exclude a product from the sprint schedule.
           </p>
-          <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-4">
             <button
               type="button"
               onClick={() => setShowAddProductModal(true)}
-              className="btn-outline-emerald inline-flex items-center gap-2 px-5 py-3 text-sm"
+              className="btn-secondary inline-flex items-center gap-2 px-5 py-3 text-sm"
             >
               <Plus className="h-4 w-4" />
               Add Product Manually
@@ -257,7 +255,7 @@ function App() {
             <button
               type="button"
               onClick={() => setStage('config')}
-              className="btn-primary px-6 py-3 text-sm"
+              className="btn-primary px-8 py-3 text-sm"
             >
               Configure Sprint →
             </button>
