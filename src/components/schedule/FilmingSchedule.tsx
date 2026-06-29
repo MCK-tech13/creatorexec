@@ -76,8 +76,8 @@ export function FilmingSchedule({
     <div>
       <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-display text-3xl font-bold text-ink">Your Filming Schedule</h2>
-          <p className="mt-2 font-sans text-sm text-stone">
+          <h2 className="font-display text-3xl font-bold text-ink md:text-4xl">Your Filming Schedule</h2>
+          <p className="mt-3 font-body text-sm text-stone">
             {totalVideos} videos across {schedule.length} days · sorted by tier, then commission
           </p>
         </div>
@@ -120,25 +120,25 @@ export function FilmingSchedule({
           const collapsedRows = collapseDayVideos(day.day, day.videos)
 
           return (
-            <div key={day.day} className="card-panel overflow-hidden">
+            <div key={day.day} className="border border-border-warm">
               <button
                 type="button"
                 onClick={() => toggleDay(day.day)}
-                className="flex w-full items-center justify-between px-6 py-5 text-left transition hover:bg-cream/80"
+                className="flex w-full items-center justify-between px-8 py-6 text-left transition hover:bg-white"
               >
                 <div className="flex-1 pr-4">
                   <div className="flex flex-wrap items-baseline gap-4">
-                    <span className="font-display text-xl font-semibold text-ink">
+                    <span className="font-display text-2xl font-bold text-ink">
                       Day {day.day} — {dayLabel}
                     </span>
-                    <span className="font-sans text-xs font-medium text-stone">
+                    <span className="font-body text-xs uppercase tracking-[0.12em] text-stone">
                       {filmedCount}/{totalSlots} filmed
                     </span>
                   </div>
                   {totalSlots > 0 && (
-                    <div className="mt-3 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-track">
+                    <div className="mt-4 h-px w-full max-w-xs bg-track">
                       <div
-                        className="h-full rounded-full bg-emerald transition-all duration-300"
+                        className="h-px bg-blush transition-all duration-300"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
@@ -151,11 +151,11 @@ export function FilmingSchedule({
                 )}
               </button>
               {isExpanded && (
-                <div className="border-t border-border-warm px-6 py-4">
+                <div className="border-t border-border-warm px-8 py-6">
                   {collapsedRows.length === 0 ? (
-                    <p className="py-2 font-sans text-sm text-stone">No videos scheduled</p>
+                    <p className="py-2 font-body text-sm text-stone">No videos scheduled</p>
                   ) : (
-                    <ul className="space-y-2">
+                    <ul className="divide-y divide-border-warm">
                       {collapsedRows.map((row) => {
                         const style = SCHEDULE_TIER_STYLES[row.tier]
                         const filmed = getCount(row.storageKey)
@@ -172,18 +172,14 @@ export function FilmingSchedule({
                         return (
                           <li
                             key={row.storageKey}
-                            className={`flex items-center gap-3 rounded-lg px-4 py-3 transition ${
-                              complete
-                                ? 'border border-emerald/20 bg-emerald-muted'
-                                : 'border border-transparent bg-cream/60'
-                            }`}
+                            className="flex items-center gap-4 py-5"
                           >
                             <div className="flex shrink-0 items-center gap-1">
                               <button
                                 type="button"
                                 onClick={() => decrement(row.storageKey)}
                                 disabled={filmed === 0}
-                                className="flex h-8 w-8 items-center justify-center border border-border-warm bg-cream-card font-sans text-stone transition hover:border-emerald hover:text-emerald disabled:cursor-not-allowed disabled:opacity-30"
+                                className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
                                 aria-label="Decrement filmed count"
                               >
                                 <Minus className="h-3.5 w-3.5" />
@@ -192,7 +188,7 @@ export function FilmingSchedule({
                                 type="button"
                                 onClick={() => increment(row.storageKey, row.total)}
                                 disabled={complete}
-                                className="flex h-8 w-8 items-center justify-center border border-border-warm bg-cream-card font-sans text-stone transition hover:border-emerald hover:text-emerald disabled:cursor-not-allowed disabled:opacity-30"
+                                className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
                                 aria-label="Increment filmed count"
                               >
                                 <Plus className="h-3.5 w-3.5" />
@@ -204,7 +200,7 @@ export function FilmingSchedule({
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p
-                                  className={`font-sans font-medium ${complete ? 'text-emerald' : 'text-ink'}`}
+                                  className={`font-body font-medium ${complete ? 'text-emerald' : 'text-ink'}`}
                                 >
                                   {row.productName}
                                   <span className="ml-2 text-xs font-normal text-stone">
@@ -212,26 +208,24 @@ export function FilmingSchedule({
                                   </span>
                                 </p>
                                 {row.deadlineDate != null && (
-                                  <span className="font-sans text-xs font-medium text-tier-deadline">
+                                  <span className="font-body text-xs font-medium text-stone">
                                     {formatDeadlineCountdown(row.deadlineDate)}
                                   </span>
                                 )}
                               </div>
                               {beginnerMode && scheduleExplanation ? (
-                                <p className="font-sans text-sm text-emerald">
+                                <p className="font-body text-sm text-stone">
                                   {scheduleExplanation}
                                 </p>
                               ) : !beginnerMode ? (
-                                <p
-                                  className={`font-sans text-sm ${complete ? 'text-emerald-light' : 'text-stone'}`}
-                                >
+                                <p className="font-body text-sm text-stone">
                                   {row.suggestedAngle}
                                 </p>
                               ) : null}
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
                               <span
-                                className={`font-sans text-sm font-medium tabular-nums ${
+                                className={`font-body text-sm font-medium tabular-nums ${
                                   complete ? 'text-emerald' : 'text-stone'
                                 }`}
                               >
@@ -244,7 +238,7 @@ export function FilmingSchedule({
                                 <button
                                   type="button"
                                   onClick={() => onRemoveFromSchedule(row.productKey)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-warm bg-cream-card text-stone transition hover:border-tier-cut hover:text-ink"
+                                  className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white text-stone transition hover:border-ink hover:text-ink"
                                   aria-label="Remove from schedule"
                                   title="Remove from schedule"
                                 >
@@ -264,11 +258,11 @@ export function FilmingSchedule({
         })}
       </div>
 
-      <div className="mt-10 flex gap-3">
-        <button type="button" onClick={onBack} className="btn-outline flex-1 py-3 text-sm">
+      <div className="mt-14 flex gap-px">
+        <button type="button" onClick={onBack} className="btn-outline flex-1 py-4">
           Back
         </button>
-        <button type="button" onClick={onStartOver} className="btn-primary flex-1 py-3 text-sm">
+        <button type="button" onClick={onStartOver} className="btn-primary flex-1 py-4">
           Analyze New Report
         </button>
       </div>

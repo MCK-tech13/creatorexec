@@ -3,7 +3,7 @@ import type { ScheduleTierLabel, Tier } from '../../types'
 type TierStyle = { bg: string; text: string; border: string }
 
 const BADGE_BASE =
-  'badge-compact inline-flex px-2 py-0.5 text-[11px] font-semibold'
+  'badge-compact inline-flex px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider'
 
 export const TIER_STYLES: Record<Tier, TierStyle> = {
   Anchor: {
@@ -19,12 +19,12 @@ export const TIER_STYLES: Record<Tier, TierStyle> = {
   Test: {
     bg: 'bg-tier-test',
     text: 'text-tier-test-text',
-    border: 'border border-border-warm',
+    border: 'border-0',
   },
   Cut: {
-    bg: 'bg-tier-cut',
+    bg: 'bg-transparent',
     text: 'text-tier-cut-text',
-    border: 'border-0',
+    border: 'border border-border-warm',
   },
 }
 

@@ -44,7 +44,7 @@ export function TierBadge({ tier, showTooltip = false }: TierBadgeProps) {
           <span
             id={tooltipId}
             role="tooltip"
-            className="absolute top-full left-1/2 z-20 mt-2 w-56 -translate-x-1/2 border border-border-warm bg-cream-card px-3 py-2 font-sans text-xs leading-relaxed text-ink shadow-sm"
+            className="absolute top-full left-1/2 z-20 mt-2 w-56 -translate-x-1/2 border border-border-warm bg-white px-3 py-2 font-body text-xs leading-relaxed text-ink"
           >
             {TIER_TOOLTIPS[tier]}
           </span>

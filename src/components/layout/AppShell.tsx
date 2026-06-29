@@ -25,10 +25,10 @@ export function AppShell({ stage, children, onResetOnboarding }: AppShellProps) 
   const isUpload = stage === 'upload'
 
   return (
-    <div className="flex min-h-screen flex-col bg-cream">
+    <div className="flex min-h-screen flex-col bg-white">
       <Header />
-      <div className="border-b border-border-warm bg-cream-card">
-        <div className="mx-auto max-w-7xl px-8 py-5">
+      <div className="border-b border-border-warm bg-white">
+        <div className="mx-auto max-w-7xl px-8 py-8">
           <div className="flex items-center">
             {STEPS.map((step, i) => {
               const isActive = i === current
@@ -37,36 +37,28 @@ export function AppShell({ stage, children, onResetOnboarding }: AppShellProps) 
 
               return (
                 <div key={step.id} className="flex flex-1 items-center last:flex-none">
-                  <div className="flex shrink-0 flex-col items-center gap-2">
-                    <div
-                      className={`flex h-7 w-7 items-center justify-center rounded-full font-sans text-xs font-semibold transition-colors ${
+                  <div className="flex shrink-0 flex-col items-center gap-3">
+                    <span
+                      className={`font-body text-sm tabular-nums ${
                         isActive
-                          ? 'bg-emerald text-white'
+                          ? 'font-bold text-emerald'
                           : isComplete
-                            ? 'bg-emerald-muted text-emerald'
-                            : 'bg-cream text-grey ring-1 ring-border-warm'
+                            ? 'font-medium text-ink'
+                            : 'font-normal text-grey-light'
                       }`}
                     >
                       {i + 1}
-                    </div>
+                    </span>
                     <span
-                      className={`font-sans text-xs font-medium ${
-                        isActive
-                          ? 'text-emerald'
-                          : isComplete
-                            ? 'text-ink'
-                            : 'text-grey'
+                      className={`font-body text-[10px] uppercase tracking-[0.16em] ${
+                        isActive ? 'font-semibold text-ink' : 'text-stone'
                       }`}
                     >
                       {step.label}
                     </span>
                   </div>
                   {!isLast && (
-                    <div
-                      className={`mx-4 mb-6 h-px flex-1 ${
-                        isComplete ? 'bg-emerald' : 'bg-border-warm'
-                      }`}
-                    />
+                    <div className="mx-6 mb-5 h-px flex-1 bg-border-warm" />
                   )}
                 </div>
               )
@@ -75,8 +67,8 @@ export function AppShell({ stage, children, onResetOnboarding }: AppShellProps) 
         </div>
       </div>
       <main
-        className={`mx-auto w-full flex-1 ${
-          isUpload ? 'max-w-none px-0 py-0' : 'max-w-7xl px-8 py-12'
+        className={`mx-auto w-full flex-1 bg-white ${
+          isUpload ? 'max-w-none px-0 py-0' : 'max-w-7xl px-8 py-16'
         }`}
       >
         {children}

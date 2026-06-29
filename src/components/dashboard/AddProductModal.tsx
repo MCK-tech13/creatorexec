@@ -30,55 +30,51 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/20 p-4 backdrop-blur-sm">
-      <div className="card-panel w-full max-w-md p-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h3 className="font-display text-xl font-semibold text-ink">Add Product Manually</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 p-4">
+      <div className="card-panel w-full max-w-md p-10">
+        <div className="mb-8 flex items-center justify-between">
+          <h3 className="font-display text-xl font-bold text-ink">Add Product Manually</h3>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-stone transition hover:bg-cream hover:text-ink"
+            className="p-1 text-stone transition hover:text-ink"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <label className="block">
-            <span className="mb-2 block font-sans text-sm font-medium text-stone">
-              Product Name
-            </span>
+            <span className="label-caps mb-3 block">Product Name</span>
             <input
               type="text"
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
               required
-              className="input-field w-full px-3 py-2.5"
+              className="input-field w-full px-3 py-3"
               placeholder="Gifted sample, new launch, etc."
             />
           </label>
 
           <label className="block">
-            <span className="mb-2 block font-sans text-sm font-medium text-stone">
-              Commission Amount ($)
-            </span>
+            <span className="label-caps mb-3 block">Commission Amount ($)</span>
             <input
               type="number"
               min={0}
               step={0.01}
               value={commission}
               onChange={(e) => setCommission(e.target.value)}
-              className="input-field w-full px-3 py-2.5"
+              className="input-field w-full px-3 py-3"
             />
           </label>
 
           <label className="block">
-            <span className="mb-2 block font-sans text-sm font-medium text-stone">Tier</span>
+            <span className="label-caps mb-3 block">Tier</span>
             <select
               value={tier}
               onChange={(e) => setTier(e.target.value as ManualTier)}
-              className="input-field w-full px-3 py-2.5"
+              className="input-field w-full px-3 py-3"
             >
               {TIERS.map((t) => (
                 <option key={t} value={t}>
@@ -89,23 +85,21 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
           </label>
 
           <label className="block">
-            <span className="mb-2 block font-sans text-sm font-medium text-stone">
-              Videos Filmed
-            </span>
+            <span className="label-caps mb-3 block">Videos Filmed</span>
             <input
               type="number"
               min={0}
               value={videosFilmed}
               onChange={(e) => setVideosFilmed(e.target.value)}
-              className="input-field w-full px-3 py-2.5"
+              className="input-field w-full px-3 py-3"
             />
           </label>
 
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline flex-1 py-2.5 text-sm">
+          <div className="flex gap-px pt-4">
+            <button type="button" onClick={onClose} className="btn-outline flex-1 py-3">
               Cancel
             </button>
-            <button type="submit" className="btn-primary flex-1 py-2.5 text-sm">
+            <button type="submit" className="btn-primary flex-1 py-3">
               Add Product
             </button>
           </div>

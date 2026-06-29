@@ -17,13 +17,13 @@ export function VideoProgressBar({ filmed, showBadge = true }: VideoProgressBarP
   return (
     <div className="mt-3 space-y-2">
       <div className="flex items-center gap-3">
-        <div className="h-2 min-w-[120px] flex-1 overflow-hidden rounded-full bg-track">
+        <div className="h-1 min-w-[120px] flex-1 overflow-hidden bg-track">
           <div
-            className={`h-full rounded-full transition-all duration-300 ${color}`}
+            className={`h-full transition-all duration-300 ${color}`}
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="shrink-0 font-sans text-xs tabular-nums text-stone">
+        <span className="shrink-0 font-body text-xs tabular-nums text-stone">
           {filmed}/{TIER_REVIEW_VIDEO_COUNT}
         </span>
       </div>

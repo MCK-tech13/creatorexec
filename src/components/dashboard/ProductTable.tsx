@@ -66,18 +66,18 @@ export function ProductTable({
   return (
     <div>
       {beginnerMode && (
-        <div className="mb-6 flex justify-end">
+        <div className="mb-8 flex justify-end">
           <button
             type="button"
             onClick={() => setShowAdvancedControls((v) => !v)}
-            className="font-sans text-sm text-emerald underline-offset-2 hover:underline"
+            className="link-elegant font-body text-sm text-ink"
           >
             {showAdvancedControls ? 'Hide advanced controls' : 'Show advanced controls'}
           </button>
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full text-left font-sans text-sm">
+        <table className="w-full border-collapse text-left font-body text-sm">
           <thead>
             <tr className="border-b border-border-warm">
               {showRotationControls && (
@@ -110,15 +110,14 @@ export function ProductTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((product, index) => {
-              const rowBg = index % 2 === 0 ? 'bg-cream' : 'bg-cream-card'
+            {filtered.map((product) => {
               const isTopEarner = beginnerMode && product.tier === 'Anchor'
               return (
                 <tr
                   key={product.id}
-                  className={`${rowBg} transition hover:bg-emerald-muted/40 ${
-                    !product.inRotation && showRotationControls ? 'opacity-50' : ''
-                  } ${isTopEarner ? 'border-l-[3px] border-l-emerald' : ''}`}
+                  className={`border-b border-border-warm ${
+                    product.tier === 'Rising' ? 'border-t border-t-blush' : ''
+                  } ${!product.inRotation && showRotationControls ? 'opacity-40' : ''}`}
                 >
                   {showRotationControls && (
                     <td className="px-5 py-5">
@@ -128,29 +127,37 @@ export function ProductTable({
                         onChange={(e) =>
                           onInRotationChange(product.id, e.target.checked)
                         }
-                        className="accent-checkbox h-4 w-4 rounded border-border-warm"
+                        className="accent-checkbox h-4 w-4 border-border-warm"
                         aria-label={`In rotation for ${product.productName}`}
                       />
                     </td>
                   )}
                   <td className="max-w-xs px-5 py-5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p
-                        className={`truncate text-ink ${
-                          isTopEarner ? 'font-bold text-emerald' : 'font-semibold'
-                        }`}
-                      >
-                        {product.productName}
-                      </p>
+                      <div className="flex min-w-0 items-center gap-2">
+                        {product.tier === 'Anchor' && (
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald"
+                            aria-hidden
+                          />
+                        )}
+                        <p
+                          className={`truncate text-ink ${
+                            isTopEarner ? 'font-bold' : 'font-medium'
+                          }`}
+                        >
+                          {product.productName}
+                        </p>
+                      </div>
                       {product.isManual && (
-                        <span className="label-caps shrink-0 text-emerald">Manual</span>
+                        <span className="label-caps shrink-0">Manual</span>
                       )}
                     </div>
                   </td>
                   <td className="px-5 py-5">
                     <TierBadge tier={product.tier} showTooltip={beginnerMode} />
                   </td>
-                  <td className="px-5 py-5 font-semibold text-[#1a4a3a]">
+                  <td className="px-5 py-5 font-semibold text-emerald">
                     {formatCurrency(product.commission)}
                   </td>
                   <td className="px-5 py-5 text-ink">{formatCurrency(product.gmv)}</td>
@@ -183,7 +190,7 @@ export function ProductTable({
         </table>
       </div>
       {filtered.length === 0 && (
-        <p className="py-16 text-center font-sans text-stone">No products in this tier.</p>
+        <p className="py-20 text-center font-body text-stone">No products in this tier.</p>
       )}
     </div>
   )

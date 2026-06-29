@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Check } from 'lucide-react'
 import type {
   FilmingApproach,
   MonthlyCommissionLevel,
@@ -60,17 +61,19 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-cream">
-      <div className="flex flex-1 flex-col items-center justify-center px-8 py-16">
-        <div className="w-full max-w-xl">
-          <p className="label-caps mb-8 text-center">{step + 1} / 3</p>
+    <div className="flex min-h-screen flex-col bg-white">
+      <div className="flex flex-1 flex-col items-center px-8 py-16 md:py-20">
+        <p className="mb-12 font-body text-xs tracking-[0.12em] text-grey-light">
+          {step + 1} / 3
+        </p>
 
+        <div className="w-full max-w-xl flex-1">
           {step === 0 && (
-            <div className="fade-in">
-              <h1 className="font-display text-center text-3xl leading-snug font-bold text-ink md:text-4xl">
+            <div key="step-0" className="animate-quiz-question">
+              <h1 className="font-display text-center text-3xl leading-tight font-bold text-ink md:text-4xl">
                 What does your monthly TikTok Shop commission look like?
               </h1>
-              <div className="mt-10 space-y-3">
+              <div className="mt-10 space-y-2">
                 {COMMISSION_OPTIONS.map((opt) => (
                   <OptionCard
                     key={opt.value}
@@ -84,8 +87,8 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
           )}
 
           {step === 1 && (
-            <div className="fade-in">
-              <h1 className="font-display text-center text-3xl leading-snug font-bold text-ink md:text-4xl">
+            <div key="step-1" className="animate-quiz-question">
+              <h1 className="font-display text-center text-3xl leading-tight font-bold text-ink md:text-4xl">
                 How many videos do you post per day?
               </h1>
               <div className="mt-10">
@@ -95,10 +98,10 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
                   step={1}
                   value={videosPerDay}
                   onChange={(e) => setVideosPerDay(e.target.value)}
-                  className="input-field w-full px-5 py-4 text-center font-sans text-2xl font-semibold text-ink"
+                  className="input-field w-full px-5 py-4 text-center font-body text-xl font-semibold text-ink"
                   aria-label="Videos per day"
                 />
-                <p className="mt-4 text-center font-sans text-sm text-stone">
+                <p className="mt-4 text-center font-body text-sm text-stone">
                   Enter your typical daily output — minimum 1
                 </p>
               </div>
@@ -106,11 +109,11 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
           )}
 
           {step === 2 && (
-            <div className="fade-in">
-              <h1 className="font-display text-center text-3xl leading-snug font-bold text-ink md:text-4xl">
+            <div key="step-2" className="animate-quiz-question">
+              <h1 className="font-display text-center text-3xl leading-tight font-bold text-ink md:text-4xl">
                 How do you currently decide what to film?
               </h1>
-              <div className="mt-10 space-y-3">
+              <div className="mt-10 space-y-2">
                 {APPROACH_OPTIONS.map((opt) => (
                   <OptionCard
                     key={opt.value}
@@ -123,26 +126,15 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
             </div>
           )}
 
-          <div className="mt-12 flex justify-center">
-            {step < 2 ? (
-              <button
-                type="button"
-                onClick={advance}
-                disabled={!canContinue}
-                className="btn-primary min-w-[200px] px-10 py-3.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Continue
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={advance}
-                disabled={!canContinue}
-                className="btn-primary min-w-[200px] px-10 py-3.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Get Started
-              </button>
-            )}
+          <div className="mt-14">
+            <button
+              type="button"
+              onClick={advance}
+              disabled={!canContinue}
+              className="btn-primary w-full py-4"
+            >
+              {step < 2 ? 'Continue' : 'Get Started'}
+            </button>
           </div>
         </div>
       </div>
@@ -163,13 +155,14 @@ function OptionCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`w-full border px-6 py-5 text-left font-sans text-base leading-relaxed transition ${
+      className={`flex w-full items-center justify-between gap-3 border bg-transparent px-5 py-3.5 text-left font-body text-base transition ${
         selected
-          ? 'border-emerald bg-emerald-muted text-ink'
-          : 'border-border-warm bg-cream-card text-ink hover:border-emerald/40'
+          ? 'border-border-warm border-l-2 border-l-blush bg-blush-tint font-medium text-ink'
+          : 'border-border-warm text-ink hover:border-blush/60'
       }`}
     >
-      {label}
+      <span>{label}</span>
+      {selected && <Check className="h-4 w-4 shrink-0 text-emerald" strokeWidth={2} />}
     </button>
   )
 }

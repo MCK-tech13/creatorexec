@@ -1,42 +1,47 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Playfair Display", ui-serif, Georgia, serif;
 
-  /* Premium creator brand */
-  --color-cream: #faf7f2;
+  --color-white: #ffffff;
+  --color-cream: #ffffff;
   --color-cream-card: #ffffff;
+  --color-ink: #1a1a1a;
+  --color-stone: #8a8a8a;
+  --color-grey: #b0b0b0;
+  --color-grey-light: #d4d4d4;
+  --color-border-warm: #e8e8e8;
+  --color-border: #e8e8e8;
+  --color-track: #e8e8e8;
   --color-emerald: #1a4a3a;
-  --color-emerald-light: #2d6b56;
-  --color-emerald-muted: #1a4a3a1a;
-  --color-ink: #1c1412;
-  --color-stone: #8a8279;
-  --color-grey: #a39e96;
-  --color-border-warm: #ebe4da;
-  --color-track: #ebe4da;
-  --color-dash: #e5ddd3;
+  --color-emerald-light: #245a48;
+  --color-blush: #c9a99a;
+  --color-blush-light: #d4b8ab;
+  --color-blush-tint: #fdf8f6;
 
   /* Tier badges */
   --color-tier-anchor: #1a4a3a;
-  --color-tier-rising: #2d6b56;
-  --color-tier-test: #faf7f2;
-  --color-tier-cut: #d4cdc4;
-  --color-tier-deadline: #c0392b;
-  --color-tier-test-text: #8a8279;
-  --color-tier-cut-text: #8a8279;
+  --color-tier-rising: #c9a99a;
+  --color-tier-test: #e8e8e8;
+  --color-tier-cut: transparent;
+  --color-tier-deadline: #1a4a3a;
+  --color-tier-test-text: #8a8a8a;
+  --color-tier-cut-text: #8a8a8a;
 }
 
 html {
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #faf7f2;
-  color: #1c1412;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  font-size: 16px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -45,13 +50,13 @@ body {
 }
 
 .fade-in {
-  animation: fadeIn 0.4s ease-out;
+  animation: fadeIn 0.35s ease-out;
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -59,113 +64,172 @@ body {
   }
 }
 
+@keyframes fadeInOnly {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes welcomeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-welcome-headline {
+  opacity: 0;
+  animation: welcomeSlideUp 0.6s ease forwards;
+}
+
+.animate-welcome-fade {
+  opacity: 0;
+  animation: fadeInOnly 0.6s ease forwards;
+}
+
+.animate-quiz-question {
+  animation: fadeInOnly 0.45s ease forwards;
+}
+
+.animate-stat-card {
+  opacity: 0;
+  animation: fadeInOnly 0.5s ease forwards;
+}
+
 @utility font-display {
   font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 @utility font-body {
   font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 @utility label-caps {
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
   font-size: 0.6875rem;
   font-weight: 500;
   font-variant: small-caps;
-  letter-spacing: 0.14em;
-  color: #8a8279;
+  letter-spacing: 0.18em;
+  line-height: 1.6;
+  color: #8a8a8a;
 }
 
 @utility badge-compact {
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 @utility btn-primary {
-  border-radius: 2px;
+  border-radius: 0;
   background-color: #1a4a3a;
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.8125rem;
   color: #ffffff;
   transition: background-color 0.2s ease;
-  &:hover {
-    background-color: #2d6b56;
+  &:hover:not(:disabled) {
+    background-color: #245a48;
   }
   &:disabled {
     cursor: not-allowed;
-    opacity: 0.5;
+    background-color: #e8e8e8;
+    color: #8a8a8a;
+    opacity: 1;
   }
 }
 
 @utility btn-secondary {
-  border-radius: 2px;
-  background-color: #1c1412;
-  font-family: var(--font-sans);
+  border-radius: 0;
+  background-color: #1a1a1a;
+  font-family: var(--font-body);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.8125rem;
   color: #ffffff;
   transition: background-color 0.2s ease;
   &:hover {
-    background-color: #3d3530;
+    background-color: #333333;
   }
 }
 
 @utility btn-outline {
-  border-radius: 2px;
-  border: 1px solid #ebe4da;
+  border-radius: 0;
+  border: 1px solid #e8e8e8;
   background-color: transparent;
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
   font-weight: 500;
-  color: #1c1412;
+  letter-spacing: 0.04em;
+  color: #1a1a1a;
   transition: border-color 0.2s ease, color 0.2s ease;
   &:hover {
-    border-color: #1a4a3a;
-    color: #1a4a3a;
+    border-color: #c9a99a;
+    color: #1a1a1a;
   }
 }
 
 @utility btn-cta {
-  border-radius: 2px;
+  border-radius: 0;
   background-color: #1a4a3a;
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.8125rem;
   color: #ffffff;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: background-color 0.2s ease;
   &:hover {
-    background-color: #2d6b56;
-    transform: translateY(-1px);
+    background-color: #245a48;
   }
 }
 
 @utility card-panel {
   border-radius: 0;
-  border: none;
+  border: 1px solid #e8e8e8;
   background-color: #ffffff;
-  box-shadow: 0 2px 12px rgb(26 74 58 / 0.04), 0 8px 32px rgb(28 20 18 / 0.05);
-}
-
-@utility stat-card {
-  border: none;
-  border-left: 3px solid #1a4a3a;
-  background-color: #ffffff;
-  box-shadow: 0 2px 12px rgb(26 74 58 / 0.05), 0 6px 24px rgb(28 20 18 / 0.04);
+  box-shadow: none;
 }
 
 @utility input-field {
-  border-radius: 2px;
-  border: 1px solid #ebe4da;
+  border-radius: 0;
+  border: 1px solid #e8e8e8;
   background-color: #ffffff;
-  font-family: var(--font-sans);
-  color: #1c1412;
+  font-family: var(--font-body);
+  line-height: 1.6;
+  color: #1a1a1a;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease;
   &:focus {
     border-color: #1a4a3a;
-    box-shadow: 0 0 0 3px rgb(26 74 58 / 0.1);
+    box-shadow: none;
   }
 }
 
 @utility accent-checkbox {
   accent-color: #1a4a3a;
+}
+
+@utility link-elegant {
+  font-family: var(--font-body);
+  line-height: 1.6;
+  color: #1a1a1a;
+  text-decoration: none;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+  &:hover {
+    color: #1a4a3a;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-color: #c9a99a;
+  }
 }

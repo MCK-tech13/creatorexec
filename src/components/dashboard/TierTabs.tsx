@@ -19,28 +19,25 @@ export function TierTabs({ products, activeTier, onTierChange }: TierTabsProps) 
 
   return (
     <div className="border-b border-border-warm">
-      <div className="flex flex-wrap gap-x-10 gap-y-2">
+      <div className="flex flex-wrap gap-x-12 gap-y-2">
         {TIERS.map((tier) => {
           const isActive = activeTier === tier
           return (
             <button
               key={tier}
               onClick={() => onTierChange(tier)}
-              className={`relative pb-4 font-sans text-sm transition-colors ${
+              className={`relative pb-5 font-body text-sm transition-colors ${
                 isActive
                   ? 'font-bold text-ink'
-                  : 'font-normal text-grey hover:text-stone'
+                  : 'font-normal text-stone hover:text-ink'
               }`}
             >
               {tier}
-              <span className={`ml-1.5 ${isActive ? 'text-stone' : 'text-grey/80'}`}>
+              <span className={`ml-1.5 ${isActive ? 'text-stone' : 'text-grey'}`}>
                 ({counts[tier]})
               </span>
               {isActive && (
-                <span
-                  className="absolute right-0 -bottom-px left-0 h-0.5 bg-emerald"
-                  aria-hidden
-                />
+                <span className="absolute right-0 -bottom-px left-0 h-px bg-emerald" aria-hidden />
               )}
             </button>
           )

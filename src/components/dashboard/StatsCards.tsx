@@ -13,6 +13,8 @@ function formatCurrency(n: number): string {
   }).format(n)
 }
 
+const BORDER_ACCENTS = ['border-emerald', 'border-blush', 'border-emerald', 'border-blush'] as const
+
 export function StatsCards({ products }: StatsCardsProps) {
   const totalCommission = products.reduce((s, p) => s + p.commission, 0)
   const totalGmv = products.reduce((s, p) => s + p.gmv, 0)
@@ -27,10 +29,14 @@ export function StatsCards({ products }: StatsCardsProps) {
 
   return (
     <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-      {stats.map((stat) => (
-        <div key={stat.label} className="stat-card px-8 py-7">
+      {stats.map((stat, index) => (
+        <div
+          key={stat.label}
+          className={`animate-stat-card border-t-2 ${BORDER_ACCENTS[index]} bg-white px-6 pt-5 pb-6`}
+          style={{ animationDelay: `${index * 0.1}s` }}
+        >
           <span className="label-caps">{stat.label}</span>
-          <p className="font-display mt-3 text-5xl font-bold tracking-tight text-ink lg:text-6xl">
+          <p className="font-display mt-4 text-5xl font-bold text-ink lg:text-6xl">
             {stat.value}
           </p>
         </div>

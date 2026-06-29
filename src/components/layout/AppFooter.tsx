@@ -4,12 +4,12 @@ interface AppFooterProps {
 
 export function AppFooter({ onResetOnboarding }: AppFooterProps) {
   return (
-    <footer className="border-t border-border-warm bg-cream-card">
-      <div className="mx-auto max-w-7xl px-8 py-6 text-center">
+    <footer className="border-t border-border-warm bg-white">
+      <div className="mx-auto max-w-7xl px-8 py-8 text-center">
         <button
           type="button"
           onClick={onResetOnboarding}
-          className="font-sans text-xs text-stone transition hover:text-emerald"
+          className="link-elegant font-body text-xs uppercase tracking-[0.14em] text-stone"
         >
           Reset onboarding
         </button>

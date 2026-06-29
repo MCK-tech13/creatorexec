@@ -297,7 +297,7 @@ function App() {
         <div className="fade-in">
           <CsvUploadZone onFileLoaded={handleFileLoaded} isProcessing={isProcessing} />
           {error && (
-            <div className="mx-auto mt-6 max-w-xl border border-tier-deadline/30 bg-tier-deadline/10 px-6 py-4 font-sans text-sm text-tier-deadline">
+            <div className="mx-auto mt-6 max-w-xl border border-border-warm px-6 py-4 font-body text-sm text-stone">
               {error}
             </div>
           )}
@@ -305,24 +305,26 @@ function App() {
       )}
 
       {stage === 'dashboard' && (
-        <div className="space-y-12 fade-in">
+        <div className="space-y-8 fade-in">
           {fileName && (
-            <p className="font-sans text-sm font-medium text-emerald">Report analyzed ✓</p>
+            <p className="font-body text-sm font-medium text-emerald">Report analyzed ✓</p>
           )}
           {isBeginnerMode && (
-            <div className="border-l-[3px] border-emerald bg-emerald-muted px-6 py-5">
-              <p className="font-sans text-base leading-relaxed text-ink">
+            <div className="border-t-2 border-emerald pt-6">
+              <p className="font-body text-base leading-relaxed text-stone">
                 Here are your products ranked by performance. Your top earners are highlighted
-                in green.
+                in bold.
               </p>
             </div>
           )}
           <StatsCards products={products} />
-          <TierTabs
+          <div className="mt-16">
+            <TierTabs
             products={products}
             activeTier={activeTier}
             onTierChange={setActiveTier}
           />
+          </div>
           <ProductTable
             products={products}
             activeTier={activeTier}
@@ -331,7 +333,7 @@ function App() {
             onInRotationChange={handleInRotationChange}
           />
           {!isBeginnerMode && (
-            <p className="font-sans text-xs text-stone">
+            <p className="font-body text-xs text-stone">
               Products need 6+ videos filmed before low performers can move to Cut. Uncheck
               &quot;In Rotation&quot; to exclude a product from the sprint schedule.
             </p>
@@ -358,7 +360,7 @@ function App() {
               <button
                 type="button"
                 onClick={handleSwitchToAdvanced}
-                className="font-sans text-sm text-stone underline-offset-2 hover:text-emerald hover:underline"
+                className="link-elegant font-body text-sm text-stone"
               >
                 Switch to Advanced Mode
               </button>
