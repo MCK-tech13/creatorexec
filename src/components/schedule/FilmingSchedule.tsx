@@ -14,11 +14,13 @@ import { collapseDayVideos, dayFilmedTotal } from '../../lib/schedule/collapseDa
 import { formatDeadlineCountdown } from '../../lib/schedule/deadlineUtils'
 import { formatScheduleText } from '../../lib/schedule/scheduleBuilder'
 import { SCHEDULE_TIER_STYLES, TIER_BADGE_CLASS } from '../../lib/theme/tierStyles'
+import { getScheduleTierExplanation } from '../../lib/onboarding/beginnerCopy'
 import { AddDeadlineModal, type DeadlineFormData } from './AddDeadlineModal'
 
 interface FilmingScheduleProps {
   schedule: DaySchedule[]
   products: MergedProduct[]
+  beginnerMode?: boolean
   onAddDeadline: (data: DeadlineFormData) => void
   onRemoveFromSchedule: (productKey: string) => void
   onBack: () => void
@@ -30,6 +32,7 @@ const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 export function FilmingSchedule({
   schedule,
   products,
+  beginnerMode = false,
   onAddDeadline,
   onRemoveFromSchedule,
   onBack,
@@ -162,6 +165,9 @@ export function FilmingSchedule({
                           row.videosFilmed,
                         )
                         const canRemove = !row.productKey.startsWith('deadline:')
+                        const scheduleExplanation = beginnerMode
+                          ? getScheduleTierExplanation(row.tier)
+                          : null
 
                         return (
                           <li
@@ -211,11 +217,17 @@ export function FilmingSchedule({
                                   </span>
                                 )}
                               </div>
-                              <p
-                                className={`font-sans text-sm ${complete ? 'text-emerald-light' : 'text-stone'}`}
-                              >
-                                {row.suggestedAngle}
-                              </p>
+                              {beginnerMode && scheduleExplanation ? (
+                                <p className="font-sans text-sm text-emerald">
+                                  {scheduleExplanation}
+                                </p>
+                              ) : !beginnerMode ? (
+                                <p
+                                  className={`font-sans text-sm ${complete ? 'text-emerald-light' : 'text-stone'}`}
+                                >
+                                  {row.suggestedAngle}
+                                </p>
+                              ) : null}
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
                               <span

@@ -1,4 +1,5 @@
 import type { SprintConfig, SprintDays } from '../../types'
+import { loadOnboardingProfile } from '../../lib/onboarding/storage'
 
 interface SprintConfigFormProps {
   config: SprintConfig
@@ -17,6 +18,7 @@ export function SprintConfigForm({
 }: SprintConfigFormProps) {
   const totalVideos = config.videosPerDay * config.sprintDays
   const videosValid = Number.isInteger(config.videosPerDay) && config.videosPerDay >= 1
+  const onboardingVideos = loadOnboardingProfile()?.videosPerDay
 
   return (
     <div className="mx-auto max-w-lg">
@@ -52,6 +54,12 @@ export function SprintConfigForm({
             }}
             className="input-field w-full px-4 py-3"
           />
+          {onboardingVideos != null && onboardingVideos >= 1 && (
+            <p className="mt-2 font-sans text-xs text-stone">
+              Pre-filled from your onboarding answer ({onboardingVideos} videos/day). Adjust if
+              needed.
+            </p>
+          )}
           <p className="mt-2 font-sans text-xs text-stone">
             No maximum — enter your actual daily output (e.g. 5, 20, 30+)
           </p>

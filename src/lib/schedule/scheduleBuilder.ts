@@ -5,18 +5,15 @@ import type {
   ScheduledVideo,
   ScheduleTierLabel,
   SprintConfig,
-  Tier,
 } from '../../types'
 import { formatDeadlineCountdown } from './deadlineUtils'
 import { formatScheduleProductName } from './scheduleDisplay'
-
-type ScheduleTier = Exclude<Tier, 'Cut'>
-
-const TOP_ANCHOR_COUNT = 3
-const TOP_ANCHOR_VIDEOS_PER_DAY = 3
-const SECONDARY_ANCHOR_RANK_START = 4
-const SECONDARY_ANCHOR_RANK_END = 10
-const RISING_VIDEOS_PER_PRODUCT = 2
+import {
+  computeProductSlotAllocations,
+  totalDeadlineSlotsNeeded,
+  type ProductSlotAllocation,
+  type ScheduleTier,
+} from './slotAllocation'
 
 const TIER_ANGLES: Record<ScheduleTier, string> = {
   Anchor: 'UGC testimonial / before-after',
@@ -49,8 +46,7 @@ function toScheduledVideo(product: MergedProduct, tier: ScheduleTier): Scheduled
 
 function buildDeadlineVideos(deadlineProducts: DeadlineProduct[]): ScheduledVideo[] {
   const sorted = [...deadlineProducts].sort(
-    (a, b) =>
-      new Date(a.deadlineDate).getTime() - new Date(b.deadlineDate).getTime(),
+    (a, b) => new Date(a.deadlineDate).getTime() - new Date(b.deadlineDate).getTime(),
   )
 
   const videos: ScheduledVideo[] = []
@@ -133,63 +129,129 @@ function tryPushVideo(
   return true
 }
 
-function allocateTopAnchors(
+function placeDeadlineVideos(
   perDay: ScheduledVideo[][],
-  topAnchors: MergedProduct[],
+  deadlineVideos: ScheduledVideo[],
+  cap: number,
+): void {
+  let cursor = 0
+  for (const video of deadlineVideos) {
+    const slot = nextDayWithRoom(perDay, cap, cursor)
+    if (!slot) break
+    tryPushVideo(perDay, slot.day, video, cap)
+    cursor = slot.nextCursor
+  }
+}
+
+function buildRemainingCounts(
+  allocations: ProductSlotAllocation[],
+): Map<string, { product: MergedProduct; tier: ScheduleTier; remaining: number }> {
+  const map = new Map<string, { product: MergedProduct; tier: ScheduleTier; remaining: number }>()
+  for (const row of allocations) {
+    map.set(row.product.id, {
+      product: row.product,
+      tier: row.tier,
+      remaining: row.slots,
+    })
+  }
+  return map
+}
+
+function placeTopAnchorsDaily(
+  perDay: ScheduledVideo[][],
+  topAnchorIds: Set<string>,
+  counts: Map<string, { product: MergedProduct; tier: ScheduleTier; remaining: number }>,
+  cap: number,
   sprintDays: number,
 ): void {
-  for (let d = 0; d < sprintDays; d++) {
+  const topAnchors = [...counts.values()]
+    .filter((row) => topAnchorIds.has(row.product.id) && row.tier === 'Anchor')
+    .map((row) => row.product)
+    .sort((a, b) => b.commission - a.commission)
+
+  for (let day = 0; day < sprintDays; day++) {
     for (const product of topAnchors) {
-      for (let v = 0; v < TOP_ANCHOR_VIDEOS_PER_DAY; v++) {
-        perDay[d].push(toScheduledVideo(product, 'Anchor'))
+      const entry = counts.get(product.id)
+      if (!entry || entry.remaining <= 0) continue
+      if (tryPushVideo(perDay, day, toScheduledVideo(product, 'Anchor'), cap)) {
+        entry.remaining -= 1
       }
     }
   }
 }
 
-function allocateCappedSchedule(
-  topAnchors: MergedProduct[],
-  secondaryAnchors: MergedProduct[],
-  rising: MergedProduct[],
-  tests: MergedProduct[],
+function placeRemainingSlots(
+  perDay: ScheduledVideo[][],
+  counts: Map<string, { product: MergedProduct; tier: ScheduleTier; remaining: number }>,
+  cap: number,
+  tierOrder: ScheduleTier[],
+): void {
+  const ordered = [...counts.values()]
+    .filter((row) => row.remaining > 0)
+    .sort((a, b) => {
+      const tierDiff = tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier)
+      if (tierDiff !== 0) return tierDiff
+      return b.product.commission - a.product.commission
+    })
+
+  let progress = true
+  while (progress) {
+    progress = false
+    for (const row of ordered) {
+      if (row.remaining <= 0) continue
+      const day = dayWithMostRoom(perDay, cap)
+      if (day === -1) return
+      if (tryPushVideo(perDay, day, toScheduledVideo(row.product, row.tier), cap)) {
+        row.remaining -= 1
+        progress = true
+      }
+    }
+  }
+}
+
+function placeTestSlotsEvenly(
+  perDay: ScheduledVideo[][],
+  counts: Map<string, { product: MergedProduct; tier: ScheduleTier; remaining: number }>,
+  cap: number,
+  sprintDays: number,
+): void {
+  const tests = [...counts.values()]
+    .filter((row) => row.tier === 'Test' && row.remaining > 0)
+    .sort((a, b) => b.product.commission - a.product.commission)
+
+  tests.forEach((row, index) => {
+    if (row.remaining <= 0) return
+    const preferredDay = index % sprintDays
+    if (tryPushVideo(perDay, preferredDay, toScheduledVideo(row.product, 'Test'), cap)) {
+      row.remaining -= 1
+      return
+    }
+    const fallback = dayWithMostRoom(perDay, cap)
+    if (fallback !== -1) {
+      tryPushVideo(perDay, fallback, toScheduledVideo(row.product, 'Test'), cap)
+      row.remaining -= 1
+    }
+  })
+}
+
+function allocateSchedule(
+  allocations: ProductSlotAllocation[],
+  topAnchorIds: Set<string>,
   deadlineVideos: ScheduledVideo[],
   sprintDays: number,
   cap: number,
 ): ScheduledVideo[][] {
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
 
-  allocateTopAnchors(perDay, topAnchors, sprintDays)
+  placeDeadlineVideos(perDay, deadlineVideos, cap)
 
-  let deadlineCursor = 0
-  for (const video of deadlineVideos) {
-    const slot = nextDayWithRoom(perDay, cap, deadlineCursor)
-    if (!slot) break
-    tryPushVideo(perDay, slot.day, video, cap)
-    deadlineCursor = slot.nextCursor
-  }
+  const counts = buildRemainingCounts(allocations)
 
-  const sortedSecondary = [...secondaryAnchors].sort((a, b) => b.commission - a.commission)
-  let secondaryCursor = 0
-  for (const product of sortedSecondary) {
-    const slot = nextDayWithRoom(perDay, cap, secondaryCursor)
-    if (!slot) break
-    tryPushVideo(perDay, slot.day, toScheduledVideo(product, 'Anchor'), cap)
-    secondaryCursor = slot.nextCursor
-  }
+  placeTopAnchorsDaily(perDay, topAnchorIds, counts, cap, sprintDays)
 
-  for (const product of rising) {
-    for (let v = 0; v < RISING_VIDEOS_PER_PRODUCT; v++) {
-      const day = dayWithMostRoom(perDay, cap)
-      if (day === -1) break
-      tryPushVideo(perDay, day, toScheduledVideo(product, 'Rising'), cap)
-    }
-  }
+  placeTestSlotsEvenly(perDay, counts, cap, sprintDays)
 
-  for (const product of tests) {
-    const day = dayWithMostRoom(perDay, cap)
-    if (day === -1) break
-    tryPushVideo(perDay, day, toScheduledVideo(product, 'Test'), cap)
-  }
+  placeRemainingSlots(perDay, counts, cap, ['Anchor', 'Rising', 'Test'])
 
   return perDay
 }
@@ -211,14 +273,9 @@ export function buildFilmingSchedule(
     (p) => p.tier !== 'Cut' && p.inRotation && !excludedIds.has(p.id),
   )
 
-  const byCommission = [...scheduleProducts].sort((a, b) => b.commission - a.commission)
-
-  const topAnchors = byCommission.slice(0, TOP_ANCHOR_COUNT)
-  const topAnchorIds = new Set(topAnchors.map((p) => p.id))
-
-  const secondaryAnchors = byCommission
-    .slice(SECONDARY_ANCHOR_RANK_START - 1, SECONDARY_ANCHOR_RANK_END)
-    .filter((p) => !topAnchorIds.has(p.id))
+  const anchors = scheduleProducts
+    .filter((p) => p.tier === 'Anchor')
+    .sort((a, b) => b.commission - a.commission)
 
   const rising = scheduleProducts
     .filter((p) => p.tier === 'Rising')
@@ -228,15 +285,26 @@ export function buildFilmingSchedule(
     .filter((p) => p.tier === 'Test')
     .sort((a, b) => b.commission - a.commission)
 
+  const topAnchorIds = new Set(anchors.slice(0, 3).map((p) => p.id))
+
   const { sprintDays, videosPerDay } = config
   const cap = Math.max(1, videosPerDay)
+  const totalSlots = cap * sprintDays
+  const deadlineSlotsNeeded = totalDeadlineSlotsNeeded(deadlineProducts)
 
-  const deadlineVideos = buildDeadlineVideos(deadlineProducts)
-  const perDay = allocateCappedSchedule(
-    topAnchors,
-    secondaryAnchors,
+  const allocations = computeProductSlotAllocations(
+    anchors,
     rising,
     tests,
+    totalSlots,
+    deadlineSlotsNeeded,
+    sprintDays,
+  )
+
+  const deadlineVideos = buildDeadlineVideos(deadlineProducts)
+  const perDay = allocateSchedule(
+    allocations,
+    topAnchorIds,
     deadlineVideos,
     sprintDays,
     cap,

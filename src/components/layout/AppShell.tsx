@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { AppStage } from '../../types'
+import { AppFooter } from './AppFooter'
 import { Header } from './Header'
 
 const STEPS: { id: AppStage; label: string }[] = [
@@ -12,13 +13,14 @@ const STEPS: { id: AppStage; label: string }[] = [
 interface AppShellProps {
   stage: AppStage
   children: ReactNode
+  onResetOnboarding: () => void
 }
 
 function stageIndex(stage: AppStage): number {
   return STEPS.findIndex((s) => s.id === stage)
 }
 
-export function AppShell({ stage, children }: AppShellProps) {
+export function AppShell({ stage, children, onResetOnboarding }: AppShellProps) {
   const current = stageIndex(stage)
   const isUpload = stage === 'upload'
 
@@ -79,6 +81,7 @@ export function AppShell({ stage, children }: AppShellProps) {
       >
         {children}
       </main>
+      <AppFooter onResetOnboarding={onResetOnboarding} />
     </div>
   )
 }

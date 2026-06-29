@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { AppShell } from './components/layout/AppShell'
+import { OnboardingQuiz } from './components/onboarding/OnboardingQuiz'
 import { CsvUploadZone } from './components/upload/CsvUploadZone'
 import { StatsCards } from './components/dashboard/StatsCards'
 import { TierTabs } from './components/dashboard/TierTabs'
@@ -13,6 +14,12 @@ import { parseCommissionFile, isParseError } from './lib/csv/parser'
 import { tierProducts, computeScore } from './lib/analysis/tierEngine'
 import { buildFilmingSchedule } from './lib/schedule/scheduleBuilder'
 import { clearFilmingProgress } from './hooks/useFilmingProgress'
+import {
+  clearOnboardingProfile,
+  loadOnboardingProfile,
+  saveOnboardingProfile,
+  updateUserMode,
+} from './lib/onboarding/storage'
 import type {
   AppStage,
   DaySchedule,
@@ -22,24 +29,36 @@ import type {
   SprintConfig,
   Tier,
 } from './types'
+import type { OnboardingProfile, UserMode } from './types/onboarding'
 
-const DEFAULT_SPRINT_CONFIG: SprintConfig = {
-  videosPerDay: 5,
-  sprintDays: 7,
+function initialSprintConfig(): SprintConfig {
+  const stored = loadOnboardingProfile()?.videosPerDay
+  return {
+    videosPerDay: stored && stored >= 1 ? stored : 5,
+    sprintDays: 7,
+  }
 }
 
 function App() {
+  const [onboardingComplete, setOnboardingComplete] = useState(
+    () => loadOnboardingProfile() !== null,
+  )
+  const [userMode, setUserMode] = useState<UserMode>(
+    () => loadOnboardingProfile()?.mode ?? 'beginner',
+  )
   const [stage, setStage] = useState<AppStage>('upload')
   const [products, setProducts] = useState<MergedProduct[]>([])
   const [deadlineProducts, setDeadlineProducts] = useState<DeadlineProduct[]>([])
   const [excludedFromSchedule, setExcludedFromSchedule] = useState<Set<string>>(new Set())
   const [activeTier, setActiveTier] = useState<Tier | 'All'>('All')
-  const [sprintConfig, setSprintConfig] = useState<SprintConfig>(DEFAULT_SPRINT_CONFIG)
+  const [sprintConfig, setSprintConfig] = useState<SprintConfig>(initialSprintConfig)
   const [schedule, setSchedule] = useState<DaySchedule[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [showAddProductModal, setShowAddProductModal] = useState(false)
+
+  const isBeginnerMode = userMode === 'beginner'
 
   const rebuildSchedule = useCallback(
     (
@@ -52,6 +71,35 @@ function App() {
     },
     [],
   )
+
+  const handleOnboardingComplete = useCallback((profile: OnboardingProfile) => {
+    saveOnboardingProfile(profile)
+    setUserMode(profile.mode)
+    setSprintConfig((prev) => ({ ...prev, videosPerDay: profile.videosPerDay }))
+    setOnboardingComplete(true)
+    setStage('upload')
+  }, [])
+
+  const handleSwitchToAdvanced = useCallback(() => {
+    setUserMode('advanced')
+    updateUserMode('advanced')
+  }, [])
+
+  const handleResetOnboarding = useCallback(() => {
+    clearOnboardingProfile()
+    setOnboardingComplete(false)
+    setUserMode('beginner')
+    setStage('upload')
+    setProducts([])
+    setDeadlineProducts([])
+    setExcludedFromSchedule(new Set())
+    setSchedule([])
+    setError(null)
+    setFileName(null)
+    setSprintConfig({ videosPerDay: 5, sprintDays: 7 })
+    setActiveTier('All')
+    clearFilmingProgress()
+  }, [])
 
   const handleFileLoaded = useCallback(async (file: File) => {
     setIsProcessing(true)
@@ -205,12 +253,19 @@ function App() {
     setSchedule([])
     setError(null)
     setFileName(null)
-    setSprintConfig(DEFAULT_SPRINT_CONFIG)
+    setSprintConfig((prev) => ({
+      videosPerDay: loadOnboardingProfile()?.videosPerDay ?? prev.videosPerDay,
+      sprintDays: 7,
+    }))
     clearFilmingProgress()
   }
 
+  if (!onboardingComplete) {
+    return <OnboardingQuiz onComplete={handleOnboardingComplete} />
+  }
+
   return (
-    <AppShell stage={stage}>
+    <AppShell stage={stage} onResetOnboarding={handleResetOnboarding}>
       {stage === 'upload' && (
         <div className="fade-in">
           <CsvUploadZone onFileLoaded={handleFileLoaded} isProcessing={isProcessing} />
@@ -227,6 +282,14 @@ function App() {
           {fileName && (
             <p className="font-sans text-sm font-medium text-emerald">Report analyzed ✓</p>
           )}
+          {isBeginnerMode && (
+            <div className="border-l-[3px] border-emerald bg-emerald-muted px-6 py-5">
+              <p className="font-sans text-base leading-relaxed text-ink">
+                Here are your products ranked by performance. Your top earners are highlighted
+                in green.
+              </p>
+            </div>
+          )}
           <StatsCards products={products} />
           <TierTabs
             products={products}
@@ -236,13 +299,16 @@ function App() {
           <ProductTable
             products={products}
             activeTier={activeTier}
+            beginnerMode={isBeginnerMode}
             onVideosFilmedChange={handleVideosFilmedChange}
             onInRotationChange={handleInRotationChange}
           />
-          <p className="font-sans text-xs text-stone">
-            Products need 6+ videos filmed before low performers can move to Cut. Uncheck
-            &quot;In Rotation&quot; to exclude a product from the sprint schedule.
-          </p>
+          {!isBeginnerMode && (
+            <p className="font-sans text-xs text-stone">
+              Products need 6+ videos filmed before low performers can move to Cut. Uncheck
+              &quot;In Rotation&quot; to exclude a product from the sprint schedule.
+            </p>
+          )}
           <div className="flex flex-wrap items-center justify-end gap-3 pt-4">
             <button
               type="button"
@@ -260,6 +326,17 @@ function App() {
               Configure Sprint →
             </button>
           </div>
+          {isBeginnerMode && (
+            <p className="text-center">
+              <button
+                type="button"
+                onClick={handleSwitchToAdvanced}
+                className="font-sans text-sm text-stone underline-offset-2 hover:text-emerald hover:underline"
+              >
+                Switch to Advanced Mode
+              </button>
+            </p>
+          )}
         </div>
       )}
 
@@ -276,6 +353,7 @@ function App() {
         <FilmingSchedule
           schedule={schedule}
           products={products}
+          beginnerMode={isBeginnerMode}
           onAddDeadline={handleAddDeadline}
           onRemoveFromSchedule={handleRemoveFromSchedule}
           onBack={() => setStage('config')}
