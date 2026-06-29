@@ -1,11 +1,12 @@
 export type UserMode = 'beginner' | 'advanced'
 
-export type AffiliateExperience = 'just_starting' | 'growing' | 'established'
+/** Q1: monthly TikTok Shop commission tier */
+export type MonthlyCommissionLevel = 'just_starting' | 'growing' | 'established'
 
 export type FilmingApproach = 'whatever_samples' | 'rough_system' | 'solid_system'
 
 export interface OnboardingAnswers {
-  experience: AffiliateExperience
+  monthlyCommission: MonthlyCommissionLevel
   videosPerDay: number
   filmingApproach: FilmingApproach
 }

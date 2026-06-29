@@ -1,4 +1,4 @@
-import type { OnboardingProfile, UserMode } from '../../types/onboarding'
+import type { MonthlyCommissionLevel, OnboardingProfile, UserMode } from '../../types/onboarding'
 
 const STORAGE_KEY = 'creatorexec-onboarding'
 
@@ -6,11 +6,19 @@ export function loadOnboardingProfile(): OnboardingProfile | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as OnboardingProfile
+    const parsed = JSON.parse(raw) as OnboardingProfile & {
+      answers?: OnboardingProfile['answers'] & { experience?: MonthlyCommissionLevel }
+    }
     if (parsed?.completed !== true || !parsed.mode || !parsed.videosPerDay) {
       return null
     }
-    return parsed
+    if (parsed.answers?.experience && !parsed.answers.monthlyCommission) {
+      parsed.answers.monthlyCommission = parsed.answers.experience
+    }
+    if (!parsed.answers?.monthlyCommission) {
+      return null
+    }
+    return parsed as OnboardingProfile
   } catch {
     return null
   }

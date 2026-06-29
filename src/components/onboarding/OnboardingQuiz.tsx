@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type {
-  AffiliateExperience,
   FilmingApproach,
+  MonthlyCommissionLevel,
   OnboardingProfile,
 } from '../../types/onboarding'
 import {
@@ -13,10 +13,10 @@ interface OnboardingQuizProps {
   onComplete: (profile: OnboardingProfile) => void
 }
 
-const EXPERIENCE_OPTIONS: { value: AffiliateExperience; label: string }[] = [
-  { value: 'just_starting', label: 'Just getting started (under 3 months)' },
-  { value: 'growing', label: 'Growing (3–12 months)' },
-  { value: 'established', label: 'Established (1+ year)' },
+const COMMISSION_OPTIONS: { value: MonthlyCommissionLevel; label: string }[] = [
+  { value: 'just_starting', label: 'Just getting started (under $500/month)' },
+  { value: 'growing', label: 'Growing ($500 – $2,000/month)' },
+  { value: 'established', label: 'Established ($2,000+/month)' },
 ]
 
 const APPROACH_OPTIONS: { value: FilmingApproach; label: string }[] = [
@@ -27,7 +27,7 @@ const APPROACH_OPTIONS: { value: FilmingApproach; label: string }[] = [
 
 export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
   const [step, setStep] = useState(0)
-  const [experience, setExperience] = useState<AffiliateExperience | null>(null)
+  const [monthlyCommission, setMonthlyCommission] = useState<MonthlyCommissionLevel | null>(null)
   const [videosPerDay, setVideosPerDay] = useState('5')
   const [filmingApproach, setFilmingApproach] = useState<FilmingApproach | null>(null)
 
@@ -35,7 +35,11 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
   const videosValid = Number.isInteger(parsedVideos) && parsedVideos >= 1
 
   const canContinue =
-    step === 0 ? experience !== null : step === 1 ? videosValid : filmingApproach !== null
+    step === 0
+      ? monthlyCommission !== null
+      : step === 1
+        ? videosValid
+        : filmingApproach !== null
 
   const advance = () => {
     if (!canContinue) return
@@ -43,9 +47,9 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
       setStep((s) => s + 1)
       return
     }
-    if (experience === null || filmingApproach === null || !videosValid) return
+    if (monthlyCommission === null || filmingApproach === null || !videosValid) return
 
-    const answers = buildOnboardingAnswers(experience, parsedVideos, filmingApproach)
+    const answers = buildOnboardingAnswers(monthlyCommission, parsedVideos, filmingApproach)
     const mode = resolveModeFromAnswers(answers)
     onComplete({
       completed: true,
@@ -64,15 +68,15 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
           {step === 0 && (
             <div className="fade-in">
               <h1 className="font-display text-center text-3xl leading-snug font-bold text-ink md:text-4xl">
-                How long have you been a TikTok Shop affiliate?
+                What does your monthly TikTok Shop commission look like?
               </h1>
               <div className="mt-10 space-y-3">
-                {EXPERIENCE_OPTIONS.map((opt) => (
+                {COMMISSION_OPTIONS.map((opt) => (
                   <OptionCard
                     key={opt.value}
                     label={opt.label}
-                    selected={experience === opt.value}
-                    onSelect={() => setExperience(opt.value)}
+                    selected={monthlyCommission === opt.value}
+                    onSelect={() => setMonthlyCommission(opt.value)}
                   />
                 ))}
               </div>
