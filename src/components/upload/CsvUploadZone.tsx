@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { ChevronDown, Loader2, Upload } from 'lucide-react'
+import { REPORT_DOWNLOAD_STEPS } from '../../lib/onboarding/reportDownloadSteps'
 
 interface CsvUploadZoneProps {
   onFileLoaded: (file: File) => void
@@ -7,15 +8,6 @@ interface CsvUploadZoneProps {
 }
 
 const ACCEPTED_EXTENSIONS = ['.csv', '.xlsx']
-
-const DOWNLOAD_STEPS = [
-  'Open TikTok Shop for Creators and go to the Earnings page',
-  'Tap Affiliate Orders',
-  'Tap the download arrow in the top right corner',
-  'Select your date range',
-  'Under filter, select Video',
-  'Download the file — it will save as an .xlsx file',
-]
 
 function isAcceptedFile(file: File): boolean {
   const name = file.name.toLowerCase()
@@ -46,7 +38,7 @@ function ReportDownloadHelp() {
             Downloading your TikTok Shop report
           </h3>
           <ol className="mt-5 space-y-4 font-body text-[0.9375rem] leading-relaxed text-stone">
-            {DOWNLOAD_STEPS.map((step, index) => (
+            {REPORT_DOWNLOAD_STEPS.map((step, index) => (
               <li key={step} className="flex gap-3">
                 <span className="shrink-0 font-medium text-grey">{index + 1}.</span>
                 <span>{step}</span>
@@ -104,17 +96,6 @@ export function CsvUploadZone({ onFileLoaded, isProcessing }: CsvUploadZoneProps
         </div>
       ) : (
         <div className="mx-auto w-full max-w-2xl text-center">
-          <section className="mb-16">
-            <h2 className="font-display text-2xl font-semibold text-ink md:text-3xl">
-              Your TikTok Shop command center.
-            </h2>
-            <p className="mx-auto mt-5 max-w-xl font-body text-base leading-relaxed text-stone md:text-lg">
-              CreatorExec analyzes your commission data, ranks your products by performance, and
-              builds a personalized filming schedule for your next sprint — so you always know
-              exactly what to film and when.
-            </p>
-          </section>
-
           <h2 className="font-display text-4xl leading-tight font-bold text-ink md:text-5xl lg:text-[3.25rem] lg:leading-[1.15]">
             Know exactly what to film. Every sprint.
           </h2>

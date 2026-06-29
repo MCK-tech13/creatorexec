@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { AppShell } from './components/layout/AppShell'
 import { OnboardingQuiz } from './components/onboarding/OnboardingQuiz'
+import { WelcomeScreen } from './components/onboarding/WelcomeScreen'
 import { CsvUploadZone } from './components/upload/CsvUploadZone'
 import { StatsCards } from './components/dashboard/StatsCards'
 import { TierTabs } from './components/dashboard/TierTabs'
@@ -20,6 +21,11 @@ import {
   saveOnboardingProfile,
   updateUserMode,
 } from './lib/onboarding/storage'
+import {
+  clearWelcomeSeen,
+  isWelcomeSeen,
+  markWelcomeSeen,
+} from './lib/onboarding/welcomeStorage'
 import type {
   AppStage,
   DaySchedule,
@@ -39,7 +45,17 @@ function initialSprintConfig(): SprintConfig {
   }
 }
 
+function initialWelcomeSeen(): boolean {
+  if (isWelcomeSeen()) return true
+  if (loadOnboardingProfile() !== null) {
+    markWelcomeSeen()
+    return true
+  }
+  return false
+}
+
 function App() {
+  const [welcomeSeen, setWelcomeSeen] = useState(initialWelcomeSeen)
   const [onboardingComplete, setOnboardingComplete] = useState(
     () => loadOnboardingProfile() !== null,
   )
@@ -72,6 +88,11 @@ function App() {
     [],
   )
 
+  const handleWelcomeContinue = useCallback(() => {
+    markWelcomeSeen()
+    setWelcomeSeen(true)
+  }, [])
+
   const handleOnboardingComplete = useCallback((profile: OnboardingProfile) => {
     saveOnboardingProfile(profile)
     setUserMode(profile.mode)
@@ -87,6 +108,8 @@ function App() {
 
   const handleResetOnboarding = useCallback(() => {
     clearOnboardingProfile()
+    clearWelcomeSeen()
+    setWelcomeSeen(false)
     setOnboardingComplete(false)
     setUserMode('beginner')
     setStage('upload')
@@ -258,6 +281,10 @@ function App() {
       sprintDays: 7,
     }))
     clearFilmingProgress()
+  }
+
+  if (!welcomeSeen) {
+    return <WelcomeScreen onContinue={handleWelcomeContinue} />
   }
 
   if (!onboardingComplete) {
