@@ -17,6 +17,7 @@ interface AppShellProps {
 }
 
 function stageIndex(stage: AppStage): number {
+  if (stage === 'sample') return 0
   return STEPS.findIndex((s) => s.id === stage)
 }
 

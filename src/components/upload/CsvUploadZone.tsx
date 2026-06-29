@@ -5,6 +5,7 @@ import { EditorialMark } from '../ui/EditorialMark'
 
 interface CsvUploadZoneProps {
   onFileLoaded: (file: File) => void
+  onEnterSampleMode: () => void
   isProcessing?: boolean
 }
 
@@ -48,7 +49,7 @@ function ReportDownloadHelp() {
   )
 }
 
-export function CsvUploadZone({ onFileLoaded, isProcessing }: CsvUploadZoneProps) {
+export function CsvUploadZone({ onFileLoaded, onEnterSampleMode, isProcessing }: CsvUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [fileError, setFileError] = useState<string | null>(null)
 
@@ -120,6 +121,14 @@ export function CsvUploadZone({ onFileLoaded, isProcessing }: CsvUploadZoneProps
               </span>
             </label>
           </div>
+
+          <button
+            type="button"
+            onClick={onEnterSampleMode}
+            className="mt-6 font-body text-sm text-emerald transition hover:underline hover:underline-offset-4 hover:decoration-blush"
+          >
+            No sales data yet? Add your samples &amp; favorites →
+          </button>
 
           <ReportDownloadHelp />
 

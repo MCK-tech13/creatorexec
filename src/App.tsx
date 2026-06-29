@@ -4,6 +4,7 @@ import { AppShell } from './components/layout/AppShell'
 import { OnboardingQuiz } from './components/onboarding/OnboardingQuiz'
 import { WelcomeScreen } from './components/onboarding/WelcomeScreen'
 import { CsvUploadZone } from './components/upload/CsvUploadZone'
+import { SampleModeScreen } from './components/sample/SampleModeScreen'
 import { StatsCards } from './components/dashboard/StatsCards'
 import { TierTabs } from './components/dashboard/TierTabs'
 import { ProductTable } from './components/dashboard/ProductTable'
@@ -14,6 +15,10 @@ import type { DeadlineFormData } from './components/schedule/AddDeadlineModal'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
 import { tierProducts, computeScore } from './lib/analysis/tierEngine'
 import { buildFilmingSchedule } from './lib/schedule/scheduleBuilder'
+import {
+  buildSampleModeSchedule,
+  sampleProductsToMerged,
+} from './lib/schedule/sampleModeSchedule'
 import { clearFilmingProgress } from './hooks/useFilmingProgress'
 import {
   clearOnboardingProfile,
@@ -32,6 +37,7 @@ import type {
   DeadlineProduct,
   ManualProductFormData,
   MergedProduct,
+  SampleProduct,
   SprintConfig,
   Tier,
 } from './types'
@@ -73,6 +79,8 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [showAddProductModal, setShowAddProductModal] = useState(false)
+  const [isSampleMode, setIsSampleMode] = useState(false)
+  const [sampleProducts, setSampleProducts] = useState<SampleProduct[]>([])
 
   const isBeginnerMode = userMode === 'beginner'
 
@@ -122,6 +130,8 @@ function App() {
     setSprintConfig({ videosPerDay: 5, sprintDays: 7 })
     setActiveTier('All')
     clearFilmingProgress()
+    setIsSampleMode(false)
+    setSampleProducts([])
   }, [])
 
   const handleFileLoaded = useCallback(async (file: File) => {
@@ -139,6 +149,8 @@ function App() {
 
       const tiered = tierProducts(result.products)
       setProducts(tiered)
+      setIsSampleMode(false)
+      setSampleProducts([])
       setDeadlineProducts([])
       setExcludedFromSchedule(new Set())
       setActiveTier('All')
@@ -233,9 +245,45 @@ function App() {
   )
 
   const handleGenerateSchedule = () => {
-    rebuildSchedule(products, deadlineProducts, sprintConfig, excludedFromSchedule)
+    if (isSampleMode) {
+      setSchedule(buildSampleModeSchedule(products, sprintConfig))
+    } else {
+      rebuildSchedule(products, deadlineProducts, sprintConfig, excludedFromSchedule)
+    }
     setStage('schedule')
   }
+
+  const handleEnterSampleMode = useCallback(() => {
+    setError(null)
+    setIsSampleMode(false)
+    setProducts([])
+    setSampleProducts([])
+    setSchedule([])
+    setFileName(null)
+    setStage('sample')
+  }, [])
+
+  const handleSampleBuildSchedule = useCallback((items: SampleProduct[]) => {
+    setSampleProducts(items)
+    setProducts(sampleProductsToMerged(items))
+    setIsSampleMode(true)
+    setDeadlineProducts([])
+    setExcludedFromSchedule(new Set())
+    setStage('config')
+  }, [])
+
+  const handleUploadReport = useCallback(() => {
+    setIsSampleMode(false)
+    setProducts([])
+    setSampleProducts([])
+    setDeadlineProducts([])
+    setExcludedFromSchedule(new Set())
+    setSchedule([])
+    setError(null)
+    setFileName(null)
+    setStage('upload')
+    clearFilmingProgress()
+  }, [])
 
   const handleAddDeadline = useCallback(
     (data: DeadlineFormData) => {
@@ -276,6 +324,8 @@ function App() {
     setSchedule([])
     setError(null)
     setFileName(null)
+    setIsSampleMode(false)
+    setSampleProducts([])
     setSprintConfig((prev) => ({
       videosPerDay: loadOnboardingProfile()?.videosPerDay ?? prev.videosPerDay,
       sprintDays: 7,
@@ -295,13 +345,25 @@ function App() {
     <AppShell stage={stage} onResetOnboarding={handleResetOnboarding}>
       {stage === 'upload' && (
         <div className="fade-in">
-          <CsvUploadZone onFileLoaded={handleFileLoaded} isProcessing={isProcessing} />
+          <CsvUploadZone
+            onFileLoaded={handleFileLoaded}
+            onEnterSampleMode={handleEnterSampleMode}
+            isProcessing={isProcessing}
+          />
           {error && (
             <div className="mx-auto mt-6 max-w-xl border border-border-warm px-6 py-4 font-body text-sm text-stone">
               {error}
             </div>
           )}
         </div>
+      )}
+
+      {stage === 'sample' && (
+        <SampleModeScreen
+          initialProducts={sampleProducts}
+          onBuildSchedule={handleSampleBuildSchedule}
+          onBack={() => setStage('upload')}
+        />
       )}
 
       {stage === 'dashboard' && (
@@ -374,7 +436,7 @@ function App() {
           config={sprintConfig}
           onChange={setSprintConfig}
           onSubmit={handleGenerateSchedule}
-          onBack={() => setStage('dashboard')}
+          onBack={() => setStage(isSampleMode ? 'sample' : 'dashboard')}
         />
       )}
 
@@ -383,10 +445,12 @@ function App() {
           schedule={schedule}
           products={products}
           beginnerMode={isBeginnerMode}
+          sampleMode={isSampleMode}
           onAddDeadline={handleAddDeadline}
           onRemoveFromSchedule={handleRemoveFromSchedule}
           onBack={() => setStage('config')}
           onStartOver={handleStartOver}
+          onUploadReport={isSampleMode ? handleUploadReport : undefined}
         />
       )}
 

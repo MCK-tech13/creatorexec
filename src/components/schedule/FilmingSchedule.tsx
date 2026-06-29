@@ -21,10 +21,12 @@ interface FilmingScheduleProps {
   schedule: DaySchedule[]
   products: MergedProduct[]
   beginnerMode?: boolean
+  sampleMode?: boolean
   onAddDeadline: (data: DeadlineFormData) => void
   onRemoveFromSchedule: (productKey: string) => void
   onBack: () => void
   onStartOver: () => void
+  onUploadReport?: () => void
 }
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -33,10 +35,12 @@ export function FilmingSchedule({
   schedule,
   products,
   beginnerMode = false,
+  sampleMode = false,
   onAddDeadline,
   onRemoveFromSchedule,
   onBack,
   onStartOver,
+  onUploadReport,
 }: FilmingScheduleProps) {
   const [expandedDays, setExpandedDays] = useState<Set<number>>(
     () => new Set(schedule.map((d) => d.day)),
@@ -74,14 +78,33 @@ export function FilmingSchedule({
 
   return (
     <div>
+      {sampleMode && onUploadReport && (
+        <div className="mb-8 flex flex-col gap-4 border border-border-warm p-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-body text-base text-ink">
+            You&apos;re in Sample Mode. Once you have sales data, upload your commission report
+            to unlock full product rankings.
+          </p>
+          <button
+            type="button"
+            onClick={onUploadReport}
+            className="btn-primary shrink-0 px-6 py-3 text-sm"
+          >
+            Upload Report
+          </button>
+        </div>
+      )}
+
       <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-display text-3xl font-bold text-ink md:text-4xl">Your Filming Schedule</h2>
           <p className="mt-3 font-body text-sm text-stone">
-            {totalVideos} videos across {schedule.length} days · sorted by tier, then commission
+            {sampleMode
+              ? `${totalVideos} videos across ${schedule.length} days · evenly distributed`
+              : `${totalVideos} videos across ${schedule.length} days · sorted by tier, then commission`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {!sampleMode && (
           <button
             type="button"
             onClick={() => setShowDeadlineModal(true)}
@@ -90,6 +113,7 @@ export function FilmingSchedule({
             <Plus className="h-4 w-4" />
             Add Sample / Deadline
           </button>
+          )}
           <button
             type="button"
             onClick={copySchedule}
@@ -263,7 +287,7 @@ export function FilmingSchedule({
           Back
         </button>
         <button type="button" onClick={onStartOver} className="btn-primary flex-1 py-4">
-          Analyze New Report
+          {sampleMode ? 'Start Over' : 'Analyze New Report'}
         </button>
       </div>
 

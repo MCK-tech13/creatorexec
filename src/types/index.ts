@@ -66,7 +66,17 @@ export interface DaySchedule {
   videos: ScheduledVideo[]
 }
 
-export type AppStage = 'upload' | 'dashboard' | 'config' | 'schedule'
+export type AppStage = 'upload' | 'sample' | 'dashboard' | 'config' | 'schedule'
+
+export type SampleProductType = 'sample' | 'favorite'
+
+export interface SampleProduct {
+  id: string
+  productName: string
+  brand: string
+  dateReceived: string
+  type: SampleProductType
+}
 
 export interface ColumnMapping {
   productName: number
