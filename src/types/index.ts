@@ -66,7 +66,9 @@ export interface DaySchedule {
   videos: ScheduledVideo[]
 }
 
-export type AppStage = 'upload' | 'sample' | 'dashboard' | 'config' | 'schedule'
+export type AppStage = 'upload' | 'sample' | 'momentum' | 'dashboard' | 'config' | 'schedule'
+
+export type ScheduleMode = 'full' | 'sample' | 'momentum'
 
 export type SampleProductType = 'sample' | 'favorite'
 

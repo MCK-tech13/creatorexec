@@ -6,6 +6,7 @@ import { EditorialMark } from '../ui/EditorialMark'
 interface CsvUploadZoneProps {
   onFileLoaded: (file: File) => void
   onEnterSampleMode: () => void
+  onEnterMomentumMode: () => void
   isProcessing?: boolean
 }
 
@@ -49,7 +50,12 @@ function ReportDownloadHelp() {
   )
 }
 
-export function CsvUploadZone({ onFileLoaded, onEnterSampleMode, isProcessing }: CsvUploadZoneProps) {
+export function CsvUploadZone({
+  onFileLoaded,
+  onEnterSampleMode,
+  onEnterMomentumMode,
+  isProcessing,
+}: CsvUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [fileError, setFileError] = useState<string | null>(null)
 
@@ -122,13 +128,32 @@ export function CsvUploadZone({ onFileLoaded, onEnterSampleMode, isProcessing }:
             </label>
           </div>
 
-          <button
-            type="button"
-            onClick={onEnterSampleMode}
-            className="mt-6 font-body text-sm text-emerald transition hover:underline hover:underline-offset-4 hover:decoration-blush"
-          >
-            No sales data yet? Add your samples &amp; favorites →
-          </button>
+          <div className="mt-8 space-y-6">
+            <div>
+              <button
+                type="button"
+                onClick={onEnterSampleMode}
+                className="font-body text-sm font-medium text-emerald transition hover:underline hover:underline-offset-4 hover:decoration-blush"
+              >
+                New to TikTok Shop? Start with your samples →
+              </button>
+              <p className="mt-1 font-body text-xs text-stone">
+                No commission report needed — just add your current samples
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={onEnterMomentumMode}
+                className="font-body text-sm font-medium text-emerald transition hover:underline hover:underline-offset-4 hover:decoration-blush"
+              >
+                Have some sales but not many? Try Momentum Mode →
+              </button>
+              <p className="mt-1 font-body text-xs text-stone">
+                Upload your report and we&apos;ll build a balanced starter schedule
+              </p>
+            </div>
+          </div>
 
           <ReportDownloadHelp />
 

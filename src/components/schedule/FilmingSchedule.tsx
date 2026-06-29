@@ -22,6 +22,7 @@ interface FilmingScheduleProps {
   products: MergedProduct[]
   beginnerMode?: boolean
   sampleMode?: boolean
+  momentumMode?: boolean
   onAddDeadline: (data: DeadlineFormData) => void
   onRemoveFromSchedule: (productKey: string) => void
   onBack: () => void
@@ -36,6 +37,7 @@ export function FilmingSchedule({
   products,
   beginnerMode = false,
   sampleMode = false,
+  momentumMode = false,
   onAddDeadline,
   onRemoveFromSchedule,
   onBack,
@@ -78,6 +80,14 @@ export function FilmingSchedule({
 
   return (
     <div>
+      {momentumMode && (
+        <div className="mb-8 border border-blush/40 bg-blush-tint px-6 py-5">
+          <p className="font-body text-base text-ink">
+            Momentum Mode — filming all your products consistently to find your winners.
+          </p>
+        </div>
+      )}
+
       {sampleMode && onUploadReport && (
         <div className="mb-8 flex flex-col gap-4 border border-border-warm p-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="font-body text-base text-ink">
@@ -100,7 +110,9 @@ export function FilmingSchedule({
           <p className="mt-3 font-body text-sm text-stone">
             {sampleMode
               ? `${totalVideos} videos across ${schedule.length} days · evenly distributed`
-              : `${totalVideos} videos across ${schedule.length} days · sorted by tier, then commission`}
+              : momentumMode
+                ? `${totalVideos} videos across ${schedule.length} days · balanced rotation`
+                : `${totalVideos} videos across ${schedule.length} days · sorted by tier, then commission`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

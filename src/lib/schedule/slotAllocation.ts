@@ -18,7 +18,7 @@ function sortedByCommission(products: MergedProduct[]): MergedProduct[] {
 }
 
 /** Split `pool` slots across `products` with at least `minEach` per product when pool allows. */
-function distributeWithMinimum(
+export function distributeWithMinimum(
   products: MergedProduct[],
   pool: number,
   minEach: number,
@@ -97,7 +97,7 @@ function allocateTopAnchors(
 }
 
 /** Test tier: at most 1 slot per product, commission priority when pool is tight. */
-function allocateTestProducts(
+export function allocateTestProducts(
   pool: number,
   tests: MergedProduct[],
 ): { counts: Map<string, number>; unused: number } {

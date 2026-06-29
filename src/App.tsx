@@ -5,6 +5,8 @@ import { OnboardingQuiz } from './components/onboarding/OnboardingQuiz'
 import { WelcomeScreen } from './components/onboarding/WelcomeScreen'
 import { CsvUploadZone } from './components/upload/CsvUploadZone'
 import { SampleModeScreen } from './components/sample/SampleModeScreen'
+import { MomentumModeScreen } from './components/momentum/MomentumModeScreen'
+import { MomentumModePromptModal } from './components/momentum/MomentumModePromptModal'
 import { StatsCards } from './components/dashboard/StatsCards'
 import { TierTabs } from './components/dashboard/TierTabs'
 import { ProductTable } from './components/dashboard/ProductTable'
@@ -14,7 +16,14 @@ import { FilmingSchedule } from './components/schedule/FilmingSchedule'
 import type { DeadlineFormData } from './components/schedule/AddDeadlineModal'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
 import { tierProducts, computeScore } from './lib/analysis/tierEngine'
+import {
+  formatTopEarnerLine,
+  retierProductsForMode,
+  shouldSuggestMomentumMode,
+  tierProductsMomentum,
+} from './lib/analysis/momentumMode'
 import { buildFilmingSchedule } from './lib/schedule/scheduleBuilder'
+import { buildMomentumModeSchedule } from './lib/schedule/momentumModeSchedule'
 import {
   buildSampleModeSchedule,
   sampleProductsToMerged,
@@ -38,6 +47,7 @@ import type {
   ManualProductFormData,
   MergedProduct,
   SampleProduct,
+  ScheduleMode,
   SprintConfig,
   Tier,
 } from './types'
@@ -60,6 +70,22 @@ function initialWelcomeSeen(): boolean {
   return false
 }
 
+function buildScheduleForMode(
+  mode: ScheduleMode,
+  products: MergedProduct[],
+  config: SprintConfig,
+  deadlines: DeadlineProduct[],
+  excluded: Set<string>,
+): DaySchedule[] {
+  if (mode === 'sample') {
+    return buildSampleModeSchedule(products, config)
+  }
+  if (mode === 'momentum') {
+    return buildMomentumModeSchedule(products, config, deadlines, excluded)
+  }
+  return buildFilmingSchedule(products, config, deadlines, excluded)
+}
+
 function App() {
   const [welcomeSeen, setWelcomeSeen] = useState(initialWelcomeSeen)
   const [onboardingComplete, setOnboardingComplete] = useState(
@@ -79,10 +105,14 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [showAddProductModal, setShowAddProductModal] = useState(false)
-  const [isSampleMode, setIsSampleMode] = useState(false)
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('full')
   const [sampleProducts, setSampleProducts] = useState<SampleProduct[]>([])
+  const [pendingProducts, setPendingProducts] = useState<MergedProduct[] | null>(null)
+  const [showMomentumPrompt, setShowMomentumPrompt] = useState(false)
 
   const isBeginnerMode = userMode === 'beginner'
+  const isSampleMode = scheduleMode === 'sample'
+  const isMomentumMode = scheduleMode === 'momentum'
 
   const rebuildSchedule = useCallback(
     (
@@ -90,8 +120,43 @@ function App() {
       deadlines: DeadlineProduct[],
       config: SprintConfig,
       excluded: Set<string>,
+      mode: ScheduleMode,
     ) => {
-      setSchedule(buildFilmingSchedule(productList, config, deadlines, excluded))
+      setSchedule(buildScheduleForMode(mode, productList, config, deadlines, excluded))
+    },
+    [],
+  )
+
+  const retierPreservingManual = useCallback(
+    (updated: MergedProduct[], mode: ScheduleMode): MergedProduct[] => {
+      if (mode === 'sample') {
+        return updated
+      }
+      const base = updated.map((p) => {
+        if (p.isManual) {
+          return { ...p }
+        }
+        const { score, tier, rankInTier, ...rest } = p
+        return rest
+      })
+      if (mode === 'momentum') {
+        return tierProductsMomentum(base)
+      }
+      return tierProducts(base)
+    },
+    [],
+  )
+
+  const finishUpload = useCallback(
+    (tiered: MergedProduct[], mode: ScheduleMode) => {
+      setProducts(tiered)
+      setScheduleMode(mode)
+      setSampleProducts([])
+      setDeadlineProducts([])
+      setExcludedFromSchedule(new Set())
+      setActiveTier('All')
+      setIsProcessing(false)
+      setStage('dashboard')
     },
     [],
   )
@@ -130,45 +195,94 @@ function App() {
     setSprintConfig({ videosPerDay: 5, sprintDays: 7 })
     setActiveTier('All')
     clearFilmingProgress()
-    setIsSampleMode(false)
+    setScheduleMode('full')
     setSampleProducts([])
+    setPendingProducts(null)
+    setShowMomentumPrompt(false)
   }, [])
 
-  const handleFileLoaded = useCallback(async (file: File) => {
-    setIsProcessing(true)
-    setError(null)
-    setFileName(file.name)
+  const handleFileLoaded = useCallback(
+    async (file: File, options?: { fromMomentumEntry?: boolean }) => {
+      setIsProcessing(true)
+      setError(null)
+      setFileName(file.name)
 
-    try {
-      const result = await parseCommissionFile(file)
-      if (isParseError(result)) {
-        setError(result.message)
+      try {
+        const result = await parseCommissionFile(file)
+        if (isParseError(result)) {
+          setError(result.message)
+          setIsProcessing(false)
+          return
+        }
+
+        const fullTiered = tierProducts(result.products)
+
+        if (options?.fromMomentumEntry) {
+          finishUpload(tierProductsMomentum(result.products), 'momentum')
+          return
+        }
+
+        if (shouldSuggestMomentumMode(fullTiered)) {
+          setPendingProducts(fullTiered)
+          setShowMomentumPrompt(true)
+          setIsProcessing(false)
+          return
+        }
+
+        finishUpload(fullTiered, 'full')
+      } catch {
+        setError('Failed to read the file. Please try again.')
         setIsProcessing(false)
-        return
       }
+    },
+    [finishUpload],
+  )
 
-      const tiered = tierProducts(result.products)
-      setProducts(tiered)
-      setIsSampleMode(false)
-      setSampleProducts([])
-      setDeadlineProducts([])
-      setExcludedFromSchedule(new Set())
-      setActiveTier('All')
-      setIsProcessing(false)
-      setStage('dashboard')
-    } catch {
-      setError('Failed to read the file. Please try again.')
-      setIsProcessing(false)
-    }
-  }, [])
-
-  const retierPreservingManual = useCallback((updated: MergedProduct[]): MergedProduct[] => {
-    const base = updated.map((p) => {
+  const handleMomentumPromptConfirm = useCallback(() => {
+    if (!pendingProducts) return
+    const inputs = pendingProducts.map((p) => {
       const { score, tier, rankInTier, ...rest } = p
-      return p.isManual ? { ...rest, tier } : rest
+      return rest
     })
-    return tierProducts(base)
-  }, [])
+    finishUpload(tierProductsMomentum(inputs), 'momentum')
+    setPendingProducts(null)
+    setShowMomentumPrompt(false)
+  }, [pendingProducts, finishUpload])
+
+  const handleMomentumPromptDecline = useCallback(() => {
+    if (!pendingProducts) return
+    finishUpload(pendingProducts, 'full')
+    setPendingProducts(null)
+    setShowMomentumPrompt(false)
+  }, [pendingProducts, finishUpload])
+
+  const handleSwitchScheduleMode = useCallback(
+    (mode: 'full' | 'momentum') => {
+      if (scheduleMode === 'sample' || scheduleMode === mode) return
+      setScheduleMode(mode)
+      setProducts((prev) => {
+        const tiered = retierProductsForMode(prev, mode)
+        if (stage === 'schedule') {
+          rebuildSchedule(
+            tiered,
+            deadlineProducts,
+            sprintConfig,
+            excludedFromSchedule,
+            mode,
+          )
+        }
+        return tiered
+      })
+    },
+    [
+      scheduleMode,
+      stage,
+      rebuildSchedule,
+      deadlineProducts,
+      sprintConfig,
+      excludedFromSchedule,
+    ],
+  )
 
   const handleVideosFilmedChange = useCallback(
     (productId: string, videosFilmed: number) => {
@@ -176,15 +290,22 @@ function App() {
         const updated = prev.map((p) =>
           p.id === productId ? { ...p, videosFilmed } : p,
         )
-        const tiered = retierPreservingManual(updated)
+        const tiered = retierPreservingManual(updated, scheduleMode)
         if (stage === 'schedule') {
-          rebuildSchedule(tiered, deadlineProducts, sprintConfig, excludedFromSchedule)
+          rebuildSchedule(
+            tiered,
+            deadlineProducts,
+            sprintConfig,
+            excludedFromSchedule,
+            scheduleMode,
+          )
         }
         return tiered
       })
     },
     [
       stage,
+      scheduleMode,
       rebuildSchedule,
       deadlineProducts,
       sprintConfig,
@@ -200,12 +321,25 @@ function App() {
           p.id === productId ? { ...p, inRotation } : p,
         )
         if (stage === 'schedule') {
-          rebuildSchedule(updated, deadlineProducts, sprintConfig, excludedFromSchedule)
+          rebuildSchedule(
+            updated,
+            deadlineProducts,
+            sprintConfig,
+            excludedFromSchedule,
+            scheduleMode,
+          )
         }
         return updated
       })
     },
-    [stage, rebuildSchedule, deadlineProducts, sprintConfig, excludedFromSchedule],
+    [
+      stage,
+      scheduleMode,
+      rebuildSchedule,
+      deadlineProducts,
+      sprintConfig,
+      excludedFromSchedule,
+    ],
   )
 
   const handleAddManualProduct = useCallback(
@@ -227,15 +361,22 @@ function App() {
       }
 
       setProducts((prev) => {
-        const combined = retierPreservingManual([...prev, newProduct])
+        const combined = retierPreservingManual([...prev, newProduct], scheduleMode)
         if (stage === 'schedule') {
-          rebuildSchedule(combined, deadlineProducts, sprintConfig, excludedFromSchedule)
+          rebuildSchedule(
+            combined,
+            deadlineProducts,
+            sprintConfig,
+            excludedFromSchedule,
+            scheduleMode,
+          )
         }
         return combined
       })
     },
     [
       stage,
+      scheduleMode,
       rebuildSchedule,
       deadlineProducts,
       sprintConfig,
@@ -245,17 +386,19 @@ function App() {
   )
 
   const handleGenerateSchedule = () => {
-    if (isSampleMode) {
-      setSchedule(buildSampleModeSchedule(products, sprintConfig))
-    } else {
-      rebuildSchedule(products, deadlineProducts, sprintConfig, excludedFromSchedule)
-    }
+    rebuildSchedule(
+      products,
+      deadlineProducts,
+      sprintConfig,
+      excludedFromSchedule,
+      scheduleMode,
+    )
     setStage('schedule')
   }
 
   const handleEnterSampleMode = useCallback(() => {
     setError(null)
-    setIsSampleMode(false)
+    setScheduleMode('full')
     setProducts([])
     setSampleProducts([])
     setSchedule([])
@@ -263,17 +406,27 @@ function App() {
     setStage('sample')
   }, [])
 
+  const handleEnterMomentumMode = useCallback(() => {
+    setError(null)
+    setScheduleMode('full')
+    setProducts([])
+    setSampleProducts([])
+    setSchedule([])
+    setFileName(null)
+    setStage('momentum')
+  }, [])
+
   const handleSampleBuildSchedule = useCallback((items: SampleProduct[]) => {
     setSampleProducts(items)
     setProducts(sampleProductsToMerged(items))
-    setIsSampleMode(true)
+    setScheduleMode('sample')
     setDeadlineProducts([])
     setExcludedFromSchedule(new Set())
     setStage('config')
   }, [])
 
   const handleUploadReport = useCallback(() => {
-    setIsSampleMode(false)
+    setScheduleMode('full')
     setProducts([])
     setSampleProducts([])
     setDeadlineProducts([])
@@ -297,11 +450,11 @@ function App() {
       }
       setDeadlineProducts((prev) => {
         const next = [...prev, newDeadline]
-        rebuildSchedule(products, next, sprintConfig, excludedFromSchedule)
+        rebuildSchedule(products, next, sprintConfig, excludedFromSchedule, scheduleMode)
         return next
       })
     },
-    [products, rebuildSchedule, sprintConfig, excludedFromSchedule],
+    [products, rebuildSchedule, sprintConfig, excludedFromSchedule, scheduleMode],
   )
 
   const handleRemoveFromSchedule = useCallback(
@@ -309,11 +462,11 @@ function App() {
       setExcludedFromSchedule((prev) => {
         const next = new Set(prev)
         next.add(productKey)
-        rebuildSchedule(products, deadlineProducts, sprintConfig, next)
+        rebuildSchedule(products, deadlineProducts, sprintConfig, next, scheduleMode)
         return next
       })
     },
-    [products, deadlineProducts, sprintConfig, rebuildSchedule],
+    [products, deadlineProducts, sprintConfig, rebuildSchedule, scheduleMode],
   )
 
   const handleStartOver = () => {
@@ -324,14 +477,18 @@ function App() {
     setSchedule([])
     setError(null)
     setFileName(null)
-    setIsSampleMode(false)
+    setScheduleMode('full')
     setSampleProducts([])
+    setPendingProducts(null)
+    setShowMomentumPrompt(false)
     setSprintConfig((prev) => ({
       videosPerDay: loadOnboardingProfile()?.videosPerDay ?? prev.videosPerDay,
       sprintDays: 7,
     }))
     clearFilmingProgress()
   }
+
+  const topEarnerLine = isMomentumMode ? formatTopEarnerLine(products) : null
 
   if (!welcomeSeen) {
     return <WelcomeScreen onContinue={handleWelcomeContinue} />
@@ -346,8 +503,9 @@ function App() {
       {stage === 'upload' && (
         <div className="fade-in">
           <CsvUploadZone
-            onFileLoaded={handleFileLoaded}
+            onFileLoaded={(file) => handleFileLoaded(file)}
             onEnterSampleMode={handleEnterSampleMode}
+            onEnterMomentumMode={handleEnterMomentumMode}
             isProcessing={isProcessing}
           />
           {error && (
@@ -366,12 +524,35 @@ function App() {
         />
       )}
 
+      {stage === 'momentum' && (
+        <div className="fade-in">
+          <MomentumModeScreen
+            onFileLoaded={(file) => handleFileLoaded(file, { fromMomentumEntry: true })}
+            onBack={() => setStage('upload')}
+            isProcessing={isProcessing}
+          />
+          {error && (
+            <div className="mx-auto mt-6 max-w-xl border border-border-warm px-6 py-4 font-body text-sm text-stone">
+              {error}
+            </div>
+          )}
+        </div>
+      )}
+
       {stage === 'dashboard' && (
         <div className="space-y-8 fade-in">
           {fileName && (
             <p className="font-body text-sm font-medium text-emerald">Report analyzed ✓</p>
           )}
-          {isBeginnerMode && (
+          {isMomentumMode && (
+            <div className="border border-blush/40 bg-blush-tint px-6 py-5">
+              <p className="font-body text-base text-ink">
+                You&apos;re in Momentum Mode. Keep filming consistently and your top products
+                will surface over time. Upload a new report each sprint to track your progress.
+              </p>
+            </div>
+          )}
+          {isBeginnerMode && !isMomentumMode && (
             <div className="border-t-2 border-emerald pt-6">
               <p className="font-body text-base leading-relaxed text-stone">
                 Here are your products ranked by performance. Your top earners are highlighted
@@ -380,21 +561,24 @@ function App() {
             </div>
           )}
           <StatsCards products={products} />
+          {topEarnerLine && (
+            <p className="font-body text-base text-stone">{topEarnerLine}</p>
+          )}
           <div className="mt-16">
             <TierTabs
-            products={products}
-            activeTier={activeTier}
-            onTierChange={setActiveTier}
-          />
+              products={products}
+              activeTier={activeTier}
+              onTierChange={setActiveTier}
+            />
           </div>
           <ProductTable
             products={products}
             activeTier={activeTier}
-            beginnerMode={isBeginnerMode}
+            beginnerMode={isBeginnerMode && !isMomentumMode}
             onVideosFilmedChange={handleVideosFilmedChange}
             onInRotationChange={handleInRotationChange}
           />
-          {!isBeginnerMode && (
+          {!isBeginnerMode && !isMomentumMode && (
             <p className="font-body text-xs text-stone">
               Products need 6+ videos filmed before low performers can move to Cut. Uncheck
               &quot;In Rotation&quot; to exclude a product from the sprint schedule.
@@ -417,7 +601,28 @@ function App() {
               Configure Sprint →
             </button>
           </div>
-          {isBeginnerMode && (
+          {!isSampleMode && (
+            <p className="text-center">
+              {isMomentumMode ? (
+                <button
+                  type="button"
+                  onClick={() => handleSwitchScheduleMode('full')}
+                  className="link-elegant font-body text-sm text-emerald"
+                >
+                  Switch to Full Mode
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSwitchScheduleMode('momentum')}
+                  className="link-elegant font-body text-sm text-emerald"
+                >
+                  Switch to Momentum Mode
+                </button>
+              )}
+            </p>
+          )}
+          {isBeginnerMode && !isMomentumMode && (
             <p className="text-center">
               <button
                 type="button"
@@ -444,8 +649,9 @@ function App() {
         <FilmingSchedule
           schedule={schedule}
           products={products}
-          beginnerMode={isBeginnerMode}
+          beginnerMode={isBeginnerMode && !isMomentumMode}
           sampleMode={isSampleMode}
+          momentumMode={isMomentumMode}
           onAddDeadline={handleAddDeadline}
           onRemoveFromSchedule={handleRemoveFromSchedule}
           onBack={() => setStage('config')}
@@ -458,6 +664,13 @@ function App() {
         <AddProductModal
           onClose={() => setShowAddProductModal(false)}
           onSubmit={handleAddManualProduct}
+        />
+      )}
+
+      {showMomentumPrompt && (
+        <MomentumModePromptModal
+          onConfirm={handleMomentumPromptConfirm}
+          onDecline={handleMomentumPromptDecline}
         />
       )}
     </AppShell>
