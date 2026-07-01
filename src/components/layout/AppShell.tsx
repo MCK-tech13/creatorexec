@@ -14,6 +14,7 @@ interface AppShellProps {
   stage: AppStage
   mainSection: MainSection
   onSectionChange: (section: MainSection) => void
+  onGoHome: () => void
   children: ReactNode
   onResetOnboarding: () => void
 }
@@ -27,6 +28,7 @@ export function AppShell({
   stage,
   mainSection,
   onSectionChange,
+  onGoHome,
   children,
   onResetOnboarding,
 }: AppShellProps) {
@@ -36,7 +38,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <Header mainSection={mainSection} onSectionChange={onSectionChange} />
+      <Header mainSection={mainSection} onSectionChange={onSectionChange} onGoHome={onGoHome} />
       {showStepper && (
       <div className="border-b border-border-warm bg-white">
         <div className="mx-auto max-w-7xl px-8 py-8">

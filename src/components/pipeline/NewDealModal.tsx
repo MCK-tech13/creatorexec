@@ -36,7 +36,7 @@ export function NewDealModal({ onClose, onSubmit }: NewDealModalProps) {
     >
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto border border-border-warm bg-white p-8 fade-in">
         <h2 className="font-display text-2xl font-bold text-ink">New Deal</h2>
-        <p className="mt-2 font-body text-sm text-stone">
+        <p className="form-helper-text mt-2 font-body text-sm text-stone">
           Brand name and stage are all you need — add retainer details now or later.
         </p>
 

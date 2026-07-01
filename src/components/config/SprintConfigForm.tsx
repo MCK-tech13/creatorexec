@@ -52,12 +52,12 @@ export function SprintConfigForm({
             className="input-field w-full px-4 py-4"
           />
           {onboardingVideos != null && onboardingVideos >= 1 && (
-            <p className="mt-3 font-body text-xs text-stone">
+            <p className="form-helper-text mt-3 font-body text-xs text-stone">
               Pre-filled from your onboarding answer ({onboardingVideos} videos/day). Adjust if
               needed.
             </p>
           )}
-          <p className="mt-3 font-body text-xs text-stone">
+          <p className="form-helper-text mt-3 font-body text-xs text-stone">
             No maximum — enter your actual daily output (e.g. 5, 20, 30+)
           </p>
         </div>

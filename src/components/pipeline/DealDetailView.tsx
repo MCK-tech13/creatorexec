@@ -2,8 +2,8 @@ import { Trash2 } from 'lucide-react'
 import type { BrandDeal, DealStage, DealType } from '../../types/pipeline'
 import { DEAL_STAGES } from '../../types/pipeline'
 import { calcRetainerProgress, countVideosCompleted } from '../../lib/pipeline/retainerUtils'
-import { CopyableField } from './CopyableField'
 import { RetainerFields } from './RetainerFields'
+import { VideoDeliverablesEditor } from './VideoDeliverablesEditor'
 
 interface DealDetailViewProps {
   deal: BrandDeal
@@ -187,20 +187,6 @@ export function DealDetailView({
             Contract Signed
           </label>
 
-          <CopyableField
-            label="Video Link"
-            value={deal.videoLink ?? ''}
-            placeholder="Paste TikTok or drive link"
-            onChange={(v) => onUpdate({ videoLink: v || undefined })}
-          />
-
-          <CopyableField
-            label="Ad Code"
-            value={deal.adCode ?? ''}
-            placeholder="Spark / ad authorization code"
-            onChange={(v) => onUpdate({ adCode: v || undefined })}
-          />
-
           <div>
             <label className="label-caps mb-2 block">Notes</label>
             <textarea
@@ -231,6 +217,8 @@ export function DealDetailView({
               </ul>
             </div>
           )}
+
+          <VideoDeliverablesEditor deal={deal} onUpdate={onUpdate} />
 
           <button
             type="button"

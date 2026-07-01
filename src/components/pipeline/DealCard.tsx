@@ -1,4 +1,5 @@
 import type { BrandDeal } from '../../types/pipeline'
+import { firstVideoDeliverablePreview, hasAnyVideoDeliverableData } from '../../lib/pipeline/videoDeliverableUtils'
 import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 
@@ -44,6 +45,9 @@ export function DealCard({ deal, onClick, onDragStart, onDragEnd }: DealCardProp
     setTimeout(() => setCopiedField(null), 2000)
   }
 
+  const preview = firstVideoDeliverablePreview(deal)
+  const showDeliverables = hasAnyVideoDeliverableData(deal)
+
   return (
     <article
       draggable
@@ -74,16 +78,16 @@ export function DealCard({ deal, onClick, onDragStart, onDragEnd }: DealCardProp
         {deadline && <span>Due {deadline}</span>}
         {deal.isRetainer && <span className="text-emerald">Retainer</span>}
       </div>
-      {(deal.videoLink || deal.adCode) && (
+      {showDeliverables && (
         <div className="mt-3 space-y-1.5 border-t border-border-warm pt-3">
-          {deal.videoLink && (
+          {preview.videoLink && (
             <div className="flex items-center gap-2">
               <span className="min-w-0 flex-1 truncate font-body text-xs text-stone">
-                {deal.videoLink}
+                {preview.videoLink}
               </span>
               <button
                 type="button"
-                onClick={(e) => copyValue(e, deal.videoLink!, 'link')}
+                onClick={(e) => copyValue(e, preview.videoLink!, 'link')}
                 className="shrink-0 text-stone hover:text-emerald"
                 aria-label="Copy video link"
               >
@@ -95,14 +99,14 @@ export function DealCard({ deal, onClick, onDragStart, onDragEnd }: DealCardProp
               </button>
             </div>
           )}
-          {deal.adCode && (
+          {preview.adCode && (
             <div className="flex items-center gap-2">
               <span className="min-w-0 flex-1 truncate font-body text-xs text-stone">
-                {deal.adCode}
+                {preview.adCode}
               </span>
               <button
                 type="button"
-                onClick={(e) => copyValue(e, deal.adCode!, 'code')}
+                onClick={(e) => copyValue(e, preview.adCode!, 'code')}
                 className="shrink-0 text-stone hover:text-emerald"
                 aria-label="Copy ad code"
               >

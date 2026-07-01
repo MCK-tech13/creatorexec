@@ -14,6 +14,7 @@ import { AddProductModal } from './components/dashboard/AddProductModal'
 import { SprintConfigForm } from './components/config/SprintConfigForm'
 import { FilmingSchedule } from './components/schedule/FilmingSchedule'
 import { RetainerDeals } from './components/pipeline/RetainerDeals'
+import { IncomeTracker } from './components/income/IncomeTracker'
 import { SprintEmptyState } from './components/sprint/SprintEmptyState'
 import type { DeadlineFormData } from './components/schedule/AddDeadlineModal'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
@@ -44,7 +45,7 @@ import {
   saveOnboardingProfile,
   updateUserMode,
 } from './lib/onboarding/storage'
-import { stageFromMonthlyCommission } from './lib/onboarding/routing'
+import { stageFromMonthlyCommission, resolveHomeView } from './lib/onboarding/routing'
 import {
   clearSprintEntrySeen,
   hasSeenSprintEntry,
@@ -89,17 +90,11 @@ function initialWelcomeSeen(): boolean {
 }
 
 function initialAppStage(): AppStage {
-  const profile = loadOnboardingProfile()
-  if (!profile) return 'upload'
-  if (!hasSeenSprintEntry()) {
-    return stageFromMonthlyCommission(profile.answers.monthlyCommission)
-  }
-  return 'upload'
+  return resolveHomeView().stage
 }
 
 function initialUploadLandingMode(): 'routed' | 'empty' {
-  if (!loadOnboardingProfile()) return 'routed'
-  return hasSeenSprintEntry() ? 'empty' : 'routed'
+  return resolveHomeView().uploadLandingMode
 }
 
 function buildScheduleForMode(
@@ -612,6 +607,11 @@ function App() {
     setMainSection(section)
   }, [])
 
+  const handleGoHome = useCallback(() => {
+    // True app landing: WelcomeScreen (welcomeSeen === false). View state only — no localStorage.
+    setWelcomeSeen(false)
+  }, [])
+
   const handleAddRetainerFromEmpty = useCallback(() => {
     setOpenNewRetainerDeal(true)
     setMainSection('retainers')
@@ -658,6 +658,7 @@ function App() {
       stage={stage}
       mainSection={mainSection}
       onSectionChange={handleSectionChange}
+      onGoHome={handleGoHome}
       onResetOnboarding={handleResetOnboarding}
     >
       {mainSection === 'retainers' ? (
@@ -672,6 +673,8 @@ function App() {
           openNewDealRequest={openNewRetainerDeal}
           onNewDealOpenHandled={() => setOpenNewRetainerDeal(false)}
         />
+      ) : mainSection === 'income' ? (
+        <IncomeTracker />
       ) : (
         <>
       {showSprintEmptyState ? (

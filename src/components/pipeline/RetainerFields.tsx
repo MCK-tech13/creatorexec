@@ -111,7 +111,7 @@ export function RetainerFields({
           )}
         </div>
       ) : (
-        <p className="mt-3 font-body text-xs text-stone">
+        <p className="form-helper-text mt-3 font-body text-xs text-stone">
           Enable to set video count, deadline, and auto-sync to your sprint schedule.
         </p>
       )}

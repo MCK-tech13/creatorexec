@@ -12,6 +12,15 @@ export type DealType = 'video' | 'live' | 'bundle'
 export interface FilmingChecklistItem {
   id: string
   completed: boolean
+  videoLink?: string
+  adCode?: string
+}
+
+/** Standalone video link/code row when deal has no filming checklist yet. */
+export interface DealVideoDeliverable {
+  id: string
+  videoLink?: string
+  adCode?: string
 }
 
 /** Brand deal record — shape mirrors a future Supabase `brand_deals` row. */
@@ -27,8 +36,8 @@ export interface BrandDeal {
   deadlineDate?: string
   contractSigned: boolean
   notes?: string
-  videoLink?: string
-  adCode?: string
+  /** Used when no videos-required checklist exists; otherwise link/code live on checklist items. */
+  videoDeliverables: DealVideoDeliverable[]
   isRetainer: boolean
   retainerTotalVideos?: number
   retainerDeadlineDate?: string

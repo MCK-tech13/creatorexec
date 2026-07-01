@@ -101,7 +101,7 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
                   className="input-field w-full px-5 py-4 text-center font-body text-xl font-semibold text-ink"
                   aria-label="Videos per day"
                 />
-                <p className="mt-4 text-center font-body text-sm text-stone">
+                <p className="form-helper-text mt-4 text-center font-body text-sm text-stone">
                   Enter your typical daily output — minimum 1
                 </p>
               </div>

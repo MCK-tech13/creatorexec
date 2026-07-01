@@ -1,4 +1,5 @@
 import type { BrandDeal, BrandDealInsert, DealStage } from '../../types/pipeline'
+import { normalizeDealVideoDeliverables } from './videoDeliverableUtils'
 
 const STORAGE_KEY = 'creatorexec-brand-deals'
 
@@ -16,8 +17,7 @@ function defaultDeal(partial: BrandDealInsert): BrandDeal {
     deadlineDate: partial.deadlineDate,
     contractSigned: partial.contractSigned ?? false,
     notes: partial.notes,
-    videoLink: partial.videoLink,
-    adCode: partial.adCode,
+    videoDeliverables: partial.videoDeliverables ?? [{ id: crypto.randomUUID() }],
     isRetainer: partial.isRetainer ?? false,
     retainerTotalVideos: partial.retainerTotalVideos,
     retainerDeadlineDate: partial.retainerDeadlineDate,
@@ -33,13 +33,16 @@ export function loadBrandDeals(): BrandDeal[] {
     if (!raw) return []
     const parsed = JSON.parse(raw) as BrandDeal[]
     if (!Array.isArray(parsed)) return []
-    return parsed.map((deal) => ({
-      ...deal,
-      isRetainer: deal.isRetainer ?? false,
-      contractSigned: deal.contractSigned ?? false,
-      filmingChecklist: deal.filmingChecklist ?? [],
-      product: deal.product ?? '',
-    }))
+    return parsed.map((deal) =>
+      normalizeDealVideoDeliverables({
+        ...deal,
+        isRetainer: deal.isRetainer ?? false,
+        contractSigned: deal.contractSigned ?? false,
+        filmingChecklist: deal.filmingChecklist ?? [],
+        product: deal.product ?? '',
+        videoDeliverables: deal.videoDeliverables ?? [],
+      }),
+    )
   } catch {
     return []
   }
