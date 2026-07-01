@@ -55,7 +55,7 @@ export function MomentumModeScreen({
       }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
-      className={`mx-auto w-full max-w-xl fade-in ${
+      className={`w-full fade-in ${
         isDragging ? 'outline outline-1 outline-ink' : ''
       }`}
     >

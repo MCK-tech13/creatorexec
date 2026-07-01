@@ -13,9 +13,9 @@ import { useFilmingProgress } from '../../hooks/useFilmingProgress'
 import { collapseDayVideos, dayFilmedTotal } from '../../lib/schedule/collapseDayVideos'
 import { formatDeadlineCountdown } from '../../lib/schedule/deadlineUtils'
 import { formatScheduleText } from '../../lib/schedule/scheduleBuilder'
-import { SCHEDULE_TIER_STYLES, TIER_BADGE_CLASS } from '../../lib/theme/tierStyles'
 import { getScheduleTierExplanation } from '../../lib/onboarding/beginnerCopy'
 import { ProductChoosingTips } from '../sample/ProductChoosingTips'
+import { TierBadge } from '../dashboard/TierBadge'
 import { AddDeadlineModal, type DeadlineFormData } from './AddDeadlineModal'
 
 interface FilmingScheduleProps {
@@ -209,7 +209,6 @@ export function FilmingSchedule({
                   ) : (
                     <ul className="divide-y divide-border-warm">
                       {collapsedRows.map((row) => {
-                        const style = SCHEDULE_TIER_STYLES[row.tier]
                         const filmed = getCount(row.storageKey)
                         const complete = filmed >= row.total
                         const productFilmed = getProductFilmedCount(
@@ -248,13 +247,7 @@ export function FilmingSchedule({
                                 <Plus className="h-3.5 w-3.5" />
                               </button>
                             </div>
-                            <span className={`${TIER_BADGE_CLASS} shrink-0 ${style.bg} ${style.text} ${style.border}`}>
-                              {row.tier === 'Deadline'
-                                ? 'Deadline'
-                                : row.tier === 'Retainer'
-                                  ? 'Retainer'
-                                  : row.tier}
-                            </span>
+                            <TierBadge tier={row.tier} />
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p

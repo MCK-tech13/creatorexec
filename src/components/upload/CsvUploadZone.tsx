@@ -91,7 +91,7 @@ export function CsvUploadZone({
       }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
-      className={`flex min-h-[calc(100vh-14rem)] w-full flex-col items-center justify-center bg-white px-8 py-16 transition-colors ${
+      className={`flex min-h-[calc(100vh-14rem)] w-full flex-col items-center justify-center bg-white transition-colors ${
         isDragging ? 'bg-white outline outline-1 outline-ink' : ''
       }`}
     >
@@ -101,7 +101,7 @@ export function CsvUploadZone({
           <p className="font-display text-2xl font-bold text-ink">Analyzing your report...</p>
         </div>
       ) : (
-        <div className="mx-auto w-full max-w-xl text-center">
+        <div className="w-full text-center">
           <div className="mb-5 flex justify-center">
             <EditorialMark />
           </div>

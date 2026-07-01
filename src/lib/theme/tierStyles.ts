@@ -1,30 +1,33 @@
 import type { ScheduleTierLabel, Tier } from '../../types'
 
-type TierStyle = { bg: string; text: string; border: string }
+type TierStyle = { bg: string; text: string; border: string; dot: string }
 
-const BADGE_BASE =
-  'badge-compact inline-flex px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider'
+const BADGE_BASE = 'tier-badge'
 
 export const TIER_STYLES: Record<Tier, TierStyle> = {
   Anchor: {
     bg: 'bg-tier-anchor',
-    text: 'text-white',
+    text: 'text-tier-anchor-text',
     border: 'border-0',
+    dot: 'bg-tier-anchor-text',
   },
   Rising: {
     bg: 'bg-tier-rising',
-    text: 'text-white',
+    text: 'text-tier-rising-text',
     border: 'border-0',
+    dot: 'bg-tier-rising-dot',
   },
   Test: {
-    bg: 'bg-tier-test',
+    bg: 'bg-white',
     text: 'text-tier-test-text',
-    border: 'border-0',
+    border: 'border border-tier-test-border',
+    dot: 'bg-tier-test-dot',
   },
   Cut: {
-    bg: 'bg-transparent',
+    bg: 'bg-white',
     text: 'text-tier-cut-text',
-    border: 'border border-border-warm',
+    border: 'border border-tier-cut-border',
+    dot: 'bg-tier-cut-dot',
   },
 }
 
@@ -32,13 +35,15 @@ export const SCHEDULE_TIER_STYLES: Record<ScheduleTierLabel, TierStyle> = {
   ...TIER_STYLES,
   Retainer: {
     bg: 'bg-tier-retainer',
-    text: 'text-white',
+    text: 'text-tier-rising-text',
     border: 'border-0',
+    dot: 'bg-tier-rising-dot',
   },
   Deadline: {
     bg: 'bg-tier-deadline',
-    text: 'text-white',
+    text: 'text-tier-anchor-text',
     border: 'border-0',
+    dot: 'bg-tier-anchor-text',
   },
 }
 
@@ -46,12 +51,15 @@ export const TIER_BADGE_CLASS = BADGE_BASE
 
 export const TIER_TAB_STYLES: Record<Tier, TierStyle> = TIER_STYLES
 
+export function tierStyleFor(tier: Tier | ScheduleTierLabel): TierStyle {
+  return SCHEDULE_TIER_STYLES[tier]
+}
+
 export function tierBadgeClass(tier: Tier | ScheduleTierLabel): string {
-  const style =
-    tier === 'Deadline'
-      ? SCHEDULE_TIER_STYLES.Deadline
-      : tier === 'Retainer'
-        ? SCHEDULE_TIER_STYLES.Retainer
-        : TIER_STYLES[tier as Tier]
+  const style = tierStyleFor(tier)
   return `${BADGE_BASE} ${style.bg} ${style.text} ${style.border}`
+}
+
+export function tierBadgeDotClass(tier: Tier | ScheduleTierLabel): string {
+  return `tier-badge-dot ${tierStyleFor(tier).dot}`
 }

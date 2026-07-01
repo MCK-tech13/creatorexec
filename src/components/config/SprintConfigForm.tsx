@@ -21,7 +21,7 @@ export function SprintConfigForm({
   const onboardingVideos = loadOnboardingProfile()?.videosPerDay
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div>
       <div className="mb-10 text-center">
         <h2 className="font-display text-3xl font-bold text-ink md:text-4xl">Configure Your Sprint</h2>
         <p className="mt-5 font-body text-base leading-relaxed text-stone">

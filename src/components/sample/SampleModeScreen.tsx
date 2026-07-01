@@ -62,7 +62,7 @@ export function SampleModeScreen({
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl fade-in">
+    <div className="w-full fade-in">
       <div className="mb-5 flex justify-center">
         <EditorialMark />
       </div>

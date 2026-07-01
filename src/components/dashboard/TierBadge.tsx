@@ -1,32 +1,46 @@
 import { useId, useState } from 'react'
 import { HelpCircle } from 'lucide-react'
-import type { Tier } from '../../types'
-import { TIER_BADGE_CLASS, TIER_STYLES } from '../../lib/theme/tierStyles'
+import type { ScheduleTierLabel, Tier } from '../../types'
+import {
+  TIER_BADGE_CLASS,
+  TIER_STYLES,
+  tierBadgeDotClass,
+  tierStyleFor,
+} from '../../lib/theme/tierStyles'
 import { TIER_TOOLTIPS } from '../../lib/onboarding/beginnerCopy'
 
 interface TierBadgeProps {
-  tier: Tier
+  tier: Tier | ScheduleTierLabel
   showTooltip?: boolean
 }
 
+function isProductTier(tier: Tier | ScheduleTierLabel): tier is Tier {
+  return tier in TIER_STYLES
+}
+
+function tierLabel(tier: Tier | ScheduleTierLabel): string {
+  return tier
+}
+
 export function TierBadge({ tier, showTooltip = false }: TierBadgeProps) {
-  const style = TIER_STYLES[tier]
+  const style = tierStyleFor(tier)
   const tooltipId = useId()
   const [open, setOpen] = useState(false)
 
-  if (!showTooltip) {
-    return (
-      <span className={`${TIER_BADGE_CLASS} ${style.bg} ${style.text} ${style.border}`}>
-        {tier}
-      </span>
-    )
+  const badge = (
+    <span className={`${TIER_BADGE_CLASS} ${style.bg} ${style.text} ${style.border}`}>
+      <span className={tierBadgeDotClass(tier)} aria-hidden />
+      {tierLabel(tier)}
+    </span>
+  )
+
+  if (!showTooltip || !isProductTier(tier)) {
+    return badge
   }
 
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={`${TIER_BADGE_CLASS} ${style.bg} ${style.text} ${style.border}`}>
-        {tier}
-      </span>
+      {badge}
       <span className="relative inline-flex">
         <button
           type="button"

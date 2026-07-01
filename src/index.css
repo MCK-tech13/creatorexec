@@ -21,15 +21,26 @@
   --color-blush-light: #d4b8ab;
   --color-blush-tint: #fdf8f6;
 
+  /* Stat cards */
+  --color-stat-sage: #eef2ee;
+  --color-stat-forest: #0f3328;
+  --color-stat-muted: #4a4a45;
+  --color-stat-label: #8a8578;
+
   /* Tier badges */
-  --color-tier-anchor: #1a4a3a;
-  --color-tier-rising: #c9a99a;
-  --color-tier-test: #e8e8e8;
-  --color-tier-cut: transparent;
-  --color-tier-deadline: #1a4a3a;
-  --color-tier-retainer: #245a48;
-  --color-tier-test-text: #8a8a8a;
-  --color-tier-cut-text: #8a8a8a;
+  --color-tier-anchor: #0f3328;
+  --color-tier-anchor-text: #eef2ee;
+  --color-tier-rising: #1a4a3a;
+  --color-tier-rising-text: #eef2ee;
+  --color-tier-rising-dot: #a8c4b8;
+  --color-tier-test-border: #d8d2c4;
+  --color-tier-test-text: #8a8578;
+  --color-tier-test-dot: #c9a99a;
+  --color-tier-cut-border: #e5e0d5;
+  --color-tier-cut-text: #b3aca0;
+  --color-tier-cut-dot: #d8d2c4;
+  --color-tier-deadline: #0f3328;
+  --color-tier-retainer: #1a4a3a;
 }
 
 html {
@@ -127,6 +138,45 @@ body {
 
 @utility form-helper-text {
   font-weight: 600;
+}
+
+@utility stat-label {
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant: small-caps;
+  letter-spacing: 0.18em;
+  line-height: 1.6;
+  color: #8a8578;
+}
+
+@utility stat-card-primary {
+  background-color: #eef2ee;
+  box-shadow: 0 2px 8px rgba(26, 74, 58, 0.06);
+}
+
+@utility stat-card-secondary {
+  background-color: #ffffff;
+  box-shadow: 0 1px 4px rgba(26, 74, 58, 0.04);
+}
+
+@utility tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 3px;
+  padding: 5px 14px 5px 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+@utility tier-badge-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 9999px;
 }
 
 @utility badge-compact {

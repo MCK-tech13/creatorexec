@@ -199,9 +199,9 @@ export function IncomeTracker() {
 
           {selectedEntry ? (
             <>
-              <div className="mb-8 border border-emerald/30 bg-white px-6 py-8 text-center">
-                <p className="label-caps text-stone">Total Income</p>
-                <p className="mt-2 font-display text-4xl font-bold text-emerald md:text-5xl">
+              <div className="stat-card-primary mb-8 px-6 py-8 text-center">
+                <p className="stat-label">Total Income</p>
+                <p className="font-display mt-3 text-[34px] leading-none font-bold text-stat-forest">
                   {formatCurrency(selectedTotal)}
                 </p>
                 <p className="form-helper-text mt-3 font-body text-sm text-stone">

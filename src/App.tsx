@@ -617,6 +617,12 @@ function App() {
     !showUploadPanel &&
     !showProductEntry
 
+  const useWideContent =
+    mainSection === 'retainers' ||
+    mainSection === 'income' ||
+    stage === 'schedule' ||
+    showRetainerOnlySchedule
+
   const handleSectionChange = useCallback((section: MainSection) => {
     setMainSection(section)
   }, [])
@@ -674,6 +680,7 @@ function App() {
       onSectionChange={handleSectionChange}
       onGoHome={handleGoHome}
       onResetOnboarding={handleResetOnboarding}
+      contentWidth={useWideContent ? 'wide' : 'narrow'}
     >
       {mainSection === 'retainers' ? (
         <RetainerDeals
@@ -724,7 +731,7 @@ function App() {
             isProcessing={isProcessing}
           />
           {error && (
-            <div className="mx-auto mt-6 max-w-xl border border-border-warm px-6 py-4 font-body text-sm text-stone">
+            <div className="mt-6 border border-border-warm px-6 py-4 font-body text-sm text-stone">
               {error}
             </div>
           )}
@@ -749,7 +756,7 @@ function App() {
             isProcessing={isProcessing}
           />
           {error && (
-            <div className="mx-auto mt-6 max-w-xl border border-border-warm px-6 py-4 font-body text-sm text-stone">
+            <div className="mt-6 border border-border-warm px-6 py-4 font-body text-sm text-stone">
               {error}
             </div>
           )}

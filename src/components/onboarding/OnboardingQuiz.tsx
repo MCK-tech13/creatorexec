@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check } from 'lucide-react'
+import { PageContainer } from '../layout/PageContainer'
 import type {
   FilmingApproach,
   MonthlyCommissionLevel,
@@ -62,12 +63,12 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <div className="flex flex-1 flex-col items-center px-8 py-16 md:py-20">
+      <PageContainer className="flex flex-1 flex-col items-center py-16 md:py-20">
         <p className="mb-12 font-body text-xs tracking-[0.12em] text-grey-light">
           {step + 1} / 3
         </p>
 
-        <div className="w-full max-w-xl flex-1">
+        <div className="w-full flex-1">
           {step === 0 && (
             <div key="step-0" className="animate-quiz-question">
               <h1 className="font-display text-center text-3xl leading-tight font-bold text-ink md:text-4xl">
@@ -137,7 +138,7 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
             </button>
           </div>
         </div>
-      </div>
+      </PageContainer>
     </div>
   )
 }

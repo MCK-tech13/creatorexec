@@ -1,3 +1,4 @@
+import { PageContainer } from '../layout/PageContainer'
 import { EditorialMark } from '../ui/EditorialMark'
 
 interface WelcomeScreenProps {
@@ -30,8 +31,7 @@ const WHATS_INSIDE = [
 export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <div className="flex flex-1 flex-col items-center justify-center px-8 py-16 md:py-20">
-        <div className="mx-auto w-full max-w-xl">
+      <PageContainer className="flex flex-1 flex-col items-center justify-center py-16 md:py-20">
           <div className="mb-12 text-center">
             <div className="inline-flex flex-col items-center">
               <h1 className="font-display text-5xl font-bold text-ink md:text-6xl">
@@ -93,12 +93,15 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
           </p>
 
           <div className="animate-welcome-fade mt-3" style={{ animationDelay: '0.45s' }}>
-            <button type="button" onClick={onContinue} className="btn-primary w-full py-4">
+            <button
+              type="button"
+              onClick={onContinue}
+              className="btn-primary inline-flex w-full items-center justify-center px-8 py-4"
+            >
               Get Started →
             </button>
           </div>
-        </div>
-      </div>
+      </PageContainer>
     </div>
   )
 }

@@ -24,7 +24,7 @@ export function SprintEmptyState({
   }
 
   return (
-    <div className="mx-auto max-w-xl px-8 py-16 fade-in">
+    <div className="fade-in">
       <div className="flex flex-col items-center text-center">
         <div className="mb-5 flex justify-center">
           <EditorialMark />

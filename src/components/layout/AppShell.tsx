@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { AppStage, MainSection } from '../../types'
 import { AppFooter } from './AppFooter'
 import { Header } from './Header'
+import { PageContainer, type PageContainerVariant } from './PageContainer'
 
 const STEPS: { id: AppStage; label: string }[] = [
   { id: 'upload', label: 'Upload' },
@@ -17,6 +18,7 @@ interface AppShellProps {
   onGoHome: () => void
   children: ReactNode
   onResetOnboarding: () => void
+  contentWidth?: PageContainerVariant
 }
 
 function stageIndex(stage: AppStage): number {
@@ -31,9 +33,10 @@ export function AppShell({
   onGoHome,
   children,
   onResetOnboarding,
+  contentWidth = 'narrow',
 }: AppShellProps) {
   const current = stageIndex(stage)
-  const isUpload = stage === 'upload'
+  const isSprintUpload = mainSection === 'sprint' && stage === 'upload'
   const showStepper = mainSection === 'sprint'
 
   return (
@@ -80,14 +83,8 @@ export function AppShell({
         </div>
       </div>
       )}
-      <main
-        className={`mx-auto w-full flex-1 bg-white ${
-          isUpload && mainSection === 'sprint'
-            ? 'max-w-none px-0 py-0'
-            : 'max-w-7xl px-8 py-16'
-        }`}
-      >
-        {children}
+      <main className={`flex-1 bg-white ${isSprintUpload ? '' : 'py-16'}`}>
+        <PageContainer variant={contentWidth}>{children}</PageContainer>
       </main>
       <AppFooter onResetOnboarding={onResetOnboarding} />
     </div>
