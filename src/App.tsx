@@ -168,6 +168,7 @@ function App() {
   const [mainSection, setMainSection] = useState<MainSection>('sprint')
   const [showUploadPanel, setShowUploadPanel] = useState(false)
   const [openNewRetainerDeal, setOpenNewRetainerDeal] = useState(false)
+  const [showProductEntry, setShowProductEntry] = useState(false)
 
   const {
     deals: brandDeals,
@@ -284,6 +285,7 @@ function App() {
     setPendingProducts(null)
     setShowMomentumPrompt(false)
     setUploadLandingMode('routed')
+    setShowProductEntry(false)
   }, [])
 
   const handleFileLoaded = useCallback(
@@ -490,6 +492,7 @@ function App() {
     setFileName(null)
     setUploadLandingMode('routed')
     setStage('sample')
+    setShowProductEntry(false)
   }, [])
 
   const handleEnterMomentumMode = useCallback(() => {
@@ -501,12 +504,21 @@ function App() {
     setFileName(null)
     setUploadLandingMode('routed')
     setStage('momentum')
+    setShowProductEntry(false)
   }, [])
 
   const handleEnterUpload = useCallback(() => {
     setError(null)
     setUploadLandingMode('routed')
     setStage('upload')
+  }, [])
+
+  const handleAddProductsFromRetainer = useCallback(() => {
+    setShowProductEntry(true)
+    setUploadLandingMode('routed')
+    setStage('upload')
+    setShowUploadPanel(false)
+    setError(null)
   }, [])
 
   const handleSampleBuildSchedule = useCallback((items: SampleProduct[]) => {
@@ -564,6 +576,7 @@ function App() {
   )
 
   const handleStartOver = () => {
+    setShowProductEntry(false)
     setUploadLandingMode('empty')
     setStage('upload')
     setProducts([])
@@ -601,7 +614,8 @@ function App() {
     hasActiveRetainers &&
     !hasProductData &&
     stage === 'upload' &&
-    !showUploadPanel
+    !showUploadPanel &&
+    !showProductEntry
 
   const handleSectionChange = useCallback((section: MainSection) => {
     setMainSection(section)
@@ -685,6 +699,15 @@ function App() {
         />
       ) : stage === 'upload' && !showRetainerOnlySchedule ? (
         <div className="fade-in">
+          {showProductEntry && hasActiveRetainers && (
+            <button
+              type="button"
+              onClick={() => setShowProductEntry(false)}
+              className="link-elegant mb-6 font-body text-sm text-stone"
+            >
+              ← Back to retainer schedule
+            </button>
+          )}
           {showUploadPanel && (
             <button
               type="button"
@@ -851,7 +874,9 @@ function App() {
           onBack={
             showRetainerOnlySchedule ? () => {} : () => setStage('config')
           }
-          onStartOver={handleStartOver}
+          onStartOver={
+            showRetainerOnlySchedule ? handleAddProductsFromRetainer : handleStartOver
+          }
           onUploadReport={isSampleMode ? handleUploadReport : undefined}
           retainerOnly={showRetainerOnlySchedule}
         />
