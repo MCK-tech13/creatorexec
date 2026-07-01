@@ -4,6 +4,29 @@ interface WelcomeScreenProps {
   onContinue: () => void
 }
 
+const WHATS_INSIDE = [
+  {
+    label: 'Sprint Scheduling',
+    description:
+      'Upload your commission report and get a personalized filming schedule, ranked by product performance.',
+  },
+  {
+    label: 'Retainer Deal Tracking',
+    description:
+      'Manage brand deals from negotiation to signed, with video requirements auto-added to your sprint.',
+  },
+  {
+    label: 'Income Tracker',
+    description:
+      'Log your monthly GMV, commission, and brand deal income in one place — no more spreadsheets.',
+  },
+  {
+    label: 'Product Tiering',
+    description:
+      "Every product ranked Anchor, Rising, Test, or Cut, so you always know what's worth filming.",
+  },
+] as const
+
 export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -32,19 +55,44 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
               className="animate-welcome-fade mx-auto mt-6 max-w-lg font-body text-base text-stone"
               style={{ animationDelay: '0.2s' }}
             >
-              CreatorExec analyzes your commission data, ranks your products by performance, and
-              builds a personalized filming schedule for your next sprint — so you always know
-              exactly what to film and when.
-            </p>
-            <p
-              className="animate-welcome-fade mx-auto mt-3 max-w-lg font-body text-sm font-normal text-stone"
-              style={{ animationDelay: '0.28s' }}
-            >
-              Takes 30 seconds. Then your schedule&apos;s ready.
+              Everything you need to run your TikTok Shop business, all in one place.
             </p>
           </div>
 
-          <div className="animate-welcome-fade mt-14" style={{ animationDelay: '0.35s' }}>
+          <section
+            className="animate-welcome-fade mt-14"
+            style={{ animationDelay: '0.35s' }}
+            aria-labelledby="whats-inside-heading"
+          >
+            <h3
+              id="whats-inside-heading"
+              className="font-display text-center text-2xl font-bold text-ink md:text-3xl"
+            >
+              What&apos;s Inside
+            </h3>
+            <ul className="mt-10 space-y-4">
+              {WHATS_INSIDE.map((item) => (
+                <li
+                  key={item.label}
+                  className="border border-border-warm bg-white p-6 text-left"
+                >
+                  <p className="font-body text-base font-semibold text-emerald">{item.label}</p>
+                  <p className="mt-2 font-body text-base leading-relaxed text-stone">
+                    {item.description}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <p
+            className="animate-welcome-fade mx-auto mt-14 max-w-lg text-center font-body text-sm font-normal text-stone"
+            style={{ animationDelay: '0.28s' }}
+          >
+            Takes 30 seconds. Then your schedule&apos;s ready.
+          </p>
+
+          <div className="animate-welcome-fade mt-3" style={{ animationDelay: '0.45s' }}>
             <button type="button" onClick={onContinue} className="btn-primary w-full py-4">
               Get Started →
             </button>
