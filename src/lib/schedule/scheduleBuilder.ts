@@ -24,11 +24,12 @@ const TIER_ANGLES: Record<ScheduleTier, string> = {
 const DEADLINE_ANGLE = 'Sample / deadline content — film ASAP'
 
 const TIER_DAY_ORDER: Record<ScheduleTierLabel, number> = {
-  Deadline: 0,
-  Anchor: 1,
-  Rising: 2,
-  Test: 3,
-  Cut: 4,
+  Retainer: 0,
+  Deadline: 1,
+  Anchor: 2,
+  Rising: 3,
+  Test: 4,
+  Cut: 5,
 }
 
 function toScheduledVideo(product: MergedProduct, tier: ScheduleTier): ScheduledVideo {
@@ -127,6 +128,27 @@ function tryPushVideo(
   if (remainingCapacity(perDay, day, cap) <= 0) return false
   perDay[day].push(video)
   return true
+}
+
+function placeRetainerVideos(
+  perDay: ScheduledVideo[][],
+  retainerVideos: ScheduledVideo[],
+  cap: number,
+): void {
+  let cursor = 0
+  for (const video of retainerVideos) {
+    let placed = false
+    for (let attempt = 0; attempt < perDay.length; attempt++) {
+      const day = (cursor + attempt) % perDay.length
+      if (remainingCapacity(perDay, day, cap) > 0) {
+        tryPushVideo(perDay, day, video, cap)
+        cursor = (day + 1) % perDay.length
+        placed = true
+        break
+      }
+    }
+    if (!placed) break
+  }
 }
 
 function placeDeadlineVideos(
@@ -237,12 +259,14 @@ function placeTestSlotsEvenly(
 function allocateSchedule(
   allocations: ProductSlotAllocation[],
   topAnchorIds: Set<string>,
+  retainerVideos: ScheduledVideo[],
   deadlineVideos: ScheduledVideo[],
   sprintDays: number,
   cap: number,
 ): ScheduledVideo[][] {
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
 
+  placeRetainerVideos(perDay, retainerVideos, cap)
   placeDeadlineVideos(perDay, deadlineVideos, cap)
 
   const counts = buildRemainingCounts(allocations)
@@ -268,6 +292,7 @@ export function buildFilmingSchedule(
   config: SprintConfig,
   deadlineProducts: DeadlineProduct[] = [],
   excludedIds: Set<string> = new Set(),
+  retainerVideos: ScheduledVideo[] = [],
 ): DaySchedule[] {
   const scheduleProducts = products.filter(
     (p) => p.tier !== 'Cut' && p.inRotation && !excludedIds.has(p.id),
@@ -291,13 +316,14 @@ export function buildFilmingSchedule(
   const cap = Math.max(1, videosPerDay)
   const totalSlots = cap * sprintDays
   const deadlineSlotsNeeded = totalDeadlineSlotsNeeded(deadlineProducts)
+  const retainerSlotsNeeded = retainerVideos.length
 
   const allocations = computeProductSlotAllocations(
     anchors,
     rising,
     tests,
     totalSlots,
-    deadlineSlotsNeeded,
+    deadlineSlotsNeeded + retainerSlotsNeeded,
     sprintDays,
   )
 
@@ -305,6 +331,7 @@ export function buildFilmingSchedule(
   const perDay = allocateSchedule(
     allocations,
     topAnchorIds,
+    retainerVideos,
     deadlineVideos,
     sprintDays,
     cap,

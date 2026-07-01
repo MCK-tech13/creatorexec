@@ -7,7 +7,8 @@ import { ProductChoosingTips } from './ProductChoosingTips'
 interface SampleModeScreenProps {
   initialProducts?: SampleProduct[]
   onBuildSchedule: (products: SampleProduct[]) => void
-  onBack: () => void
+  onEnterUpload?: () => void
+  onEnterMomentum?: () => void
 }
 
 const TYPE_OPTIONS: { value: SampleProductType; label: string }[] = [
@@ -27,7 +28,8 @@ function formatDisplayDate(iso: string): string {
 export function SampleModeScreen({
   initialProducts = [],
   onBuildSchedule,
-  onBack,
+  onEnterUpload,
+  onEnterMomentum,
 }: SampleModeScreenProps) {
   const [products, setProducts] = useState<SampleProduct[]>(initialProducts)
   const [productName, setProductName] = useState('')
@@ -61,20 +63,12 @@ export function SampleModeScreen({
 
   return (
     <div className="mx-auto w-full max-w-xl fade-in">
-      <button
-        type="button"
-        onClick={onBack}
-        className="link-elegant mb-8 font-body text-sm text-stone"
-      >
-        ← Back to upload
-      </button>
-
       <div className="mb-5 flex justify-center">
         <EditorialMark />
       </div>
 
       <h1 className="font-display text-center text-3xl font-bold text-ink md:text-4xl">
-        Build your first filming schedule
+        Add your samples and favorites
       </h1>
       <p className="mx-auto mt-4 max-w-lg text-center font-body text-base text-stone">
         Add your current samples and any products you love filming — we&apos;ll build your sprint
@@ -204,6 +198,29 @@ export function SampleModeScreen({
           Build My Schedule
         </button>
       </div>
+
+      {(onEnterUpload || onEnterMomentum) && (
+        <div className="mt-10 space-y-3 border-t border-border-warm pt-8 text-center">
+          {onEnterUpload && (
+            <button
+              type="button"
+              onClick={onEnterUpload}
+              className="link-elegant block w-full font-body text-sm text-stone"
+            >
+              Have sales data? Upload your report instead
+            </button>
+          )}
+          {onEnterMomentum && (
+            <button
+              type="button"
+              onClick={onEnterMomentum}
+              className="link-elegant block w-full font-body text-sm text-stone"
+            >
+              Have some sales but not many? Try Momentum Mode instead
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

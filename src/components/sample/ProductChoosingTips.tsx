@@ -16,14 +16,28 @@ const SECTIONS = [
   },
 ] as const
 
-export function ProductChoosingTips() {
-  const [open, setOpen] = useState(false)
+interface ProductChoosingTipsProps {
+  id?: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}
+
+export function ProductChoosingTips({ id, open: openProp, onOpenChange }: ProductChoosingTipsProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp : internalOpen
+
+  const toggle = () => {
+    const next = !open
+    onOpenChange?.(next)
+    if (!isControlled) setInternalOpen(next)
+  }
 
   return (
-    <div className="border-y border-border-warm py-6">
+    <div id={id} className="border-y border-border-warm py-6">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="flex w-full items-center gap-2 font-body text-sm font-medium text-emerald transition hover:text-emerald-light"
         aria-expanded={open}
       >

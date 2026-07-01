@@ -30,6 +30,11 @@ export const TIER_STYLES: Record<Tier, TierStyle> = {
 
 export const SCHEDULE_TIER_STYLES: Record<ScheduleTierLabel, TierStyle> = {
   ...TIER_STYLES,
+  Retainer: {
+    bg: 'bg-tier-retainer',
+    text: 'text-white',
+    border: 'border-0',
+  },
   Deadline: {
     bg: 'bg-tier-deadline',
     text: 'text-white',
@@ -43,6 +48,10 @@ export const TIER_TAB_STYLES: Record<Tier, TierStyle> = TIER_STYLES
 
 export function tierBadgeClass(tier: Tier | ScheduleTierLabel): string {
   const style =
-    tier === 'Deadline' ? SCHEDULE_TIER_STYLES.Deadline : TIER_STYLES[tier as Tier]
+    tier === 'Deadline'
+      ? SCHEDULE_TIER_STYLES.Deadline
+      : tier === 'Retainer'
+        ? SCHEDULE_TIER_STYLES.Retainer
+        : TIER_STYLES[tier as Tier]
   return `${BADGE_BASE} ${style.bg} ${style.text} ${style.border}`
 }

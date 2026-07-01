@@ -4,7 +4,8 @@ import { EditorialMark } from '../ui/EditorialMark'
 
 interface MomentumModeScreenProps {
   onFileLoaded: (file: File) => void
-  onBack: () => void
+  onEnterUpload?: () => void
+  onEnterSampleMode?: () => void
   isProcessing?: boolean
 }
 
@@ -17,7 +18,8 @@ function isAcceptedFile(file: File): boolean {
 
 export function MomentumModeScreen({
   onFileLoaded,
-  onBack,
+  onEnterUpload,
+  onEnterSampleMode,
   isProcessing,
 }: MomentumModeScreenProps) {
   const [isDragging, setIsDragging] = useState(false)
@@ -57,14 +59,6 @@ export function MomentumModeScreen({
         isDragging ? 'outline outline-1 outline-ink' : ''
       }`}
     >
-      <button
-        type="button"
-        onClick={onBack}
-        className="link-elegant mb-8 font-body text-sm text-stone"
-      >
-        ← Back to upload
-      </button>
-
       {isProcessing ? (
         <div className="flex flex-col items-center py-16 text-center">
           <Loader2 className="mb-6 h-9 w-9 animate-spin text-emerald" />
@@ -102,6 +96,29 @@ export function MomentumModeScreen({
           </div>
 
           <p className="label-caps mt-8 text-center">Supports .csv and .xlsx files</p>
+
+          {(onEnterUpload || onEnterSampleMode) && (
+            <div className="mt-10 space-y-3 border-t border-border-warm pt-8 text-center">
+              {onEnterSampleMode && (
+                <button
+                  type="button"
+                  onClick={onEnterSampleMode}
+                  className="link-elegant block w-full font-body text-sm text-stone"
+                >
+                  New to TikTok Shop? Start with your samples instead
+                </button>
+              )}
+              {onEnterUpload && (
+                <button
+                  type="button"
+                  onClick={onEnterUpload}
+                  className="link-elegant block w-full font-body text-sm text-stone"
+                >
+                  Established seller? Use full analysis upload instead
+                </button>
+              )}
+            </div>
+          )}
         </>
       )}
 

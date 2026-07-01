@@ -15,6 +15,7 @@ import { formatDeadlineCountdown } from '../../lib/schedule/deadlineUtils'
 import { formatScheduleText } from '../../lib/schedule/scheduleBuilder'
 import { SCHEDULE_TIER_STYLES, TIER_BADGE_CLASS } from '../../lib/theme/tierStyles'
 import { getScheduleTierExplanation } from '../../lib/onboarding/beginnerCopy'
+import { ProductChoosingTips } from '../sample/ProductChoosingTips'
 import { AddDeadlineModal, type DeadlineFormData } from './AddDeadlineModal'
 
 interface FilmingScheduleProps {
@@ -28,6 +29,7 @@ interface FilmingScheduleProps {
   onBack: () => void
   onStartOver: () => void
   onUploadReport?: () => void
+  retainerOnly?: boolean
 }
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -43,6 +45,7 @@ export function FilmingSchedule({
   onBack,
   onStartOver,
   onUploadReport,
+  retainerOnly = false,
 }: FilmingScheduleProps) {
   const [expandedDays, setExpandedDays] = useState<Set<number>>(
     () => new Set(schedule.map((d) => d.day)),
@@ -80,6 +83,15 @@ export function FilmingSchedule({
 
   return (
     <div>
+      {retainerOnly && (
+        <div className="mb-8 border border-emerald/30 bg-blush-tint px-6 py-5">
+          <p className="font-body text-base text-ink">
+            Your sprint includes active retainer requirements. Add samples or upload a commission
+            report anytime to fill the rest of your schedule.
+          </p>
+        </div>
+      )}
+
       {momentumMode && (
         <div className="mb-8 border border-blush/40 bg-blush-tint px-6 py-5">
           <p className="font-body text-base text-ink">
@@ -146,6 +158,10 @@ export function FilmingSchedule({
         </div>
       </div>
 
+      <div className="mb-10">
+        <ProductChoosingTips />
+      </div>
+
       <div className="space-y-3">
         {schedule.map((day) => {
           const isExpanded = expandedDays.has(day.day)
@@ -200,7 +216,9 @@ export function FilmingSchedule({
                           row.productKey,
                           row.videosFilmed,
                         )
-                        const canRemove = !row.productKey.startsWith('deadline:')
+                        const canRemove =
+                          !row.productKey.startsWith('deadline:') &&
+                          !row.productKey.startsWith('retainer:')
                         const scheduleExplanation = beginnerMode
                           ? getScheduleTierExplanation(row.tier)
                           : null
@@ -231,7 +249,11 @@ export function FilmingSchedule({
                               </button>
                             </div>
                             <span className={`${TIER_BADGE_CLASS} shrink-0 ${style.bg} ${style.text} ${style.border}`}>
-                              {row.tier === 'Deadline' ? 'Deadline' : row.tier}
+                              {row.tier === 'Deadline'
+                                ? 'Deadline'
+                                : row.tier === 'Retainer'
+                                  ? 'Retainer'
+                                  : row.tier}
                             </span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
@@ -295,11 +317,17 @@ export function FilmingSchedule({
       </div>
 
       <div className="mt-14 flex gap-px">
-        <button type="button" onClick={onBack} className="btn-outline flex-1 py-4">
-          Back
-        </button>
+        {!retainerOnly && (
+          <button type="button" onClick={onBack} className="btn-outline flex-1 py-4">
+            Back
+          </button>
+        )}
         <button type="button" onClick={onStartOver} className="btn-primary flex-1 py-4">
-          {sampleMode ? 'Start Over' : 'Analyze New Report'}
+          {retainerOnly
+            ? 'Add Products'
+            : sampleMode
+              ? 'Start Over'
+              : 'Analyze New Report'}
         </button>
       </div>
 

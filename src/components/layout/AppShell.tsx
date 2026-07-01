@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { AppStage } from '../../types'
+import type { AppStage, MainSection } from '../../types'
 import { AppFooter } from './AppFooter'
 import { Header } from './Header'
 
@@ -12,6 +12,8 @@ const STEPS: { id: AppStage; label: string }[] = [
 
 interface AppShellProps {
   stage: AppStage
+  mainSection: MainSection
+  onSectionChange: (section: MainSection) => void
   children: ReactNode
   onResetOnboarding: () => void
 }
@@ -21,13 +23,21 @@ function stageIndex(stage: AppStage): number {
   return STEPS.findIndex((s) => s.id === stage)
 }
 
-export function AppShell({ stage, children, onResetOnboarding }: AppShellProps) {
+export function AppShell({
+  stage,
+  mainSection,
+  onSectionChange,
+  children,
+  onResetOnboarding,
+}: AppShellProps) {
   const current = stageIndex(stage)
   const isUpload = stage === 'upload'
+  const showStepper = mainSection === 'sprint'
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <Header />
+      <Header mainSection={mainSection} onSectionChange={onSectionChange} />
+      {showStepper && (
       <div className="border-b border-border-warm bg-white">
         <div className="mx-auto max-w-7xl px-8 py-8">
           <div className="flex items-center">
@@ -67,9 +77,12 @@ export function AppShell({ stage, children, onResetOnboarding }: AppShellProps) 
           </div>
         </div>
       </div>
+      )}
       <main
         className={`mx-auto w-full flex-1 bg-white ${
-          isUpload ? 'max-w-none px-0 py-0' : 'max-w-7xl px-8 py-16'
+          isUpload && mainSection === 'sprint'
+            ? 'max-w-none px-0 py-0'
+            : 'max-w-7xl px-8 py-16'
         }`}
       >
         {children}

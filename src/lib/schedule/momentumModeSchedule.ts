@@ -179,6 +179,7 @@ export function buildMomentumModeSchedule(
   config: SprintConfig,
   deadlineProducts: DeadlineProduct[] = [],
   excludedIds: Set<string> = new Set(),
+  retainerVideos: ScheduledVideo[] = [],
 ): DaySchedule[] {
   const scheduleProducts = products.filter(
     (p) => p.tier !== 'Cut' && p.tier !== 'Anchor' && p.inRotation && !excludedIds.has(p.id),
@@ -191,15 +192,32 @@ export function buildMomentumModeSchedule(
   const cap = Math.max(1, videosPerDay)
   const totalSlots = cap * sprintDays
   const deadlineSlotsNeeded = totalDeadlineSlotsNeeded(deadlineProducts)
+  const retainerSlotsNeeded = retainerVideos.length
 
   const allocations = computeMomentumSlotAllocations(
     rising,
     tests,
     totalSlots,
-    deadlineSlotsNeeded,
+    deadlineSlotsNeeded + retainerSlotsNeeded,
   )
 
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
+
+  let cursor = 0
+  for (const video of retainerVideos) {
+    let placed = false
+    for (let attempt = 0; attempt < sprintDays; attempt++) {
+      const day = (cursor + attempt) % sprintDays
+      if (perDay[day].length < cap) {
+        perDay[day].push(video)
+        cursor = (day + 1) % sprintDays
+        placed = true
+        break
+      }
+    }
+    if (!placed) break
+  }
+
   const deadlineVideos = buildDeadlineVideos(deadlineProducts)
   placeDeadlineVideos(perDay, deadlineVideos, cap)
 

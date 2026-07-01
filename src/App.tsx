@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { AppShell } from './components/layout/AppShell'
 import { OnboardingQuiz } from './components/onboarding/OnboardingQuiz'
@@ -13,6 +13,8 @@ import { ProductTable } from './components/dashboard/ProductTable'
 import { AddProductModal } from './components/dashboard/AddProductModal'
 import { SprintConfigForm } from './components/config/SprintConfigForm'
 import { FilmingSchedule } from './components/schedule/FilmingSchedule'
+import { RetainerDeals } from './components/pipeline/RetainerDeals'
+import { SprintEmptyState } from './components/sprint/SprintEmptyState'
 import type { DeadlineFormData } from './components/schedule/AddDeadlineModal'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
 import { tierProducts, computeScore } from './lib/analysis/tierEngine'
@@ -29,12 +31,25 @@ import {
   sampleProductsToMerged,
 } from './lib/schedule/sampleModeSchedule'
 import { clearFilmingProgress } from './hooks/useFilmingProgress'
+import { useBrandDeals } from './hooks/useBrandDeals'
+import {
+  buildRetainerScheduleEntries,
+  buildRetainerVideos,
+  dealsToPipelineDeadlines,
+  mergeDeadlineProducts,
+} from './lib/pipeline/pipelineScheduleIntegration'
 import {
   clearOnboardingProfile,
   loadOnboardingProfile,
   saveOnboardingProfile,
   updateUserMode,
 } from './lib/onboarding/storage'
+import { stageFromMonthlyCommission } from './lib/onboarding/routing'
+import {
+  clearSprintEntrySeen,
+  hasSeenSprintEntry,
+  markSprintEntrySeen,
+} from './lib/onboarding/sprintEntryStorage'
 import {
   clearWelcomeSeen,
   isWelcomeSeen,
@@ -46,12 +61,15 @@ import type {
   DeadlineProduct,
   ManualProductFormData,
   MergedProduct,
+  MainSection,
   SampleProduct,
   ScheduleMode,
   SprintConfig,
   Tier,
 } from './types'
 import type { OnboardingProfile, UserMode } from './types/onboarding'
+import type { BrandDeal } from './types/pipeline'
+import { isActiveRetainer } from './lib/pipeline/retainerUtils'
 
 function initialSprintConfig(): SprintConfig {
   const stored = loadOnboardingProfile()?.videosPerDay
@@ -70,20 +88,62 @@ function initialWelcomeSeen(): boolean {
   return false
 }
 
+function initialAppStage(): AppStage {
+  const profile = loadOnboardingProfile()
+  if (!profile) return 'upload'
+  if (!hasSeenSprintEntry()) {
+    return stageFromMonthlyCommission(profile.answers.monthlyCommission)
+  }
+  return 'upload'
+}
+
+function initialUploadLandingMode(): 'routed' | 'empty' {
+  if (!loadOnboardingProfile()) return 'routed'
+  return hasSeenSprintEntry() ? 'empty' : 'routed'
+}
+
 function buildScheduleForMode(
   mode: ScheduleMode,
   products: MergedProduct[],
   config: SprintConfig,
   deadlines: DeadlineProduct[],
   excluded: Set<string>,
+  brandDeals: BrandDeal[],
+  dailyPostingVolume: number,
 ): DaySchedule[] {
+  const pipelineDeadlines = dealsToPipelineDeadlines(brandDeals)
+  const mergedDeadlines = mergeDeadlineProducts(deadlines, pipelineDeadlines)
+  const retainerEntries = buildRetainerScheduleEntries(
+    brandDeals,
+    config,
+    dailyPostingVolume,
+  )
+  const retainerVideos = buildRetainerVideos(retainerEntries, config.sprintDays)
+
   if (mode === 'sample') {
-    return buildSampleModeSchedule(products, config)
+    return buildSampleModeSchedule(
+      products,
+      config,
+      mergedDeadlines,
+      retainerVideos,
+    )
   }
   if (mode === 'momentum') {
-    return buildMomentumModeSchedule(products, config, deadlines, excluded)
+    return buildMomentumModeSchedule(
+      products,
+      config,
+      mergedDeadlines,
+      excluded,
+      retainerVideos,
+    )
   }
-  return buildFilmingSchedule(products, config, deadlines, excluded)
+  return buildFilmingSchedule(
+    products,
+    config,
+    mergedDeadlines,
+    excluded,
+    retainerVideos,
+  )
 }
 
 function App() {
@@ -94,7 +154,8 @@ function App() {
   const [userMode, setUserMode] = useState<UserMode>(
     () => loadOnboardingProfile()?.mode ?? 'beginner',
   )
-  const [stage, setStage] = useState<AppStage>('upload')
+  const [stage, setStage] = useState<AppStage>(initialAppStage)
+  const [uploadLandingMode, setUploadLandingMode] = useState<'routed' | 'empty'>(initialUploadLandingMode)
   const [products, setProducts] = useState<MergedProduct[]>([])
   const [deadlineProducts, setDeadlineProducts] = useState<DeadlineProduct[]>([])
   const [excludedFromSchedule, setExcludedFromSchedule] = useState<Set<string>>(new Set())
@@ -109,6 +170,20 @@ function App() {
   const [sampleProducts, setSampleProducts] = useState<SampleProduct[]>([])
   const [pendingProducts, setPendingProducts] = useState<MergedProduct[] | null>(null)
   const [showMomentumPrompt, setShowMomentumPrompt] = useState(false)
+  const [mainSection, setMainSection] = useState<MainSection>('sprint')
+  const [showUploadPanel, setShowUploadPanel] = useState(false)
+  const [openNewRetainerDeal, setOpenNewRetainerDeal] = useState(false)
+
+  const {
+    deals: brandDeals,
+    addDeal,
+    updateDeal,
+    moveDeal,
+    removeDeal,
+    toggleChecklistItem,
+  } = useBrandDeals()
+
+  const dailyPostingVolume = sprintConfig.videosPerDay
 
   const isBeginnerMode = userMode === 'beginner'
   const isSampleMode = scheduleMode === 'sample'
@@ -121,10 +196,21 @@ function App() {
       config: SprintConfig,
       excluded: Set<string>,
       mode: ScheduleMode,
+      deals = brandDeals,
     ) => {
-      setSchedule(buildScheduleForMode(mode, productList, config, deadlines, excluded))
+      setSchedule(
+        buildScheduleForMode(
+          mode,
+          productList,
+          config,
+          deadlines,
+          excluded,
+          deals,
+          config.videosPerDay,
+        ),
+      )
     },
-    [],
+    [brandDeals],
   )
 
   const retierPreservingManual = useCallback(
@@ -171,7 +257,9 @@ function App() {
     setUserMode(profile.mode)
     setSprintConfig((prev) => ({ ...prev, videosPerDay: profile.videosPerDay }))
     setOnboardingComplete(true)
-    setStage('upload')
+    markSprintEntrySeen()
+    setUploadLandingMode('routed')
+    setStage(stageFromMonthlyCommission(profile.answers.monthlyCommission))
   }, [])
 
   const handleSwitchToAdvanced = useCallback(() => {
@@ -181,6 +269,7 @@ function App() {
 
   const handleResetOnboarding = useCallback(() => {
     clearOnboardingProfile()
+    clearSprintEntrySeen()
     clearWelcomeSeen()
     setWelcomeSeen(false)
     setOnboardingComplete(false)
@@ -199,6 +288,7 @@ function App() {
     setSampleProducts([])
     setPendingProducts(null)
     setShowMomentumPrompt(false)
+    setUploadLandingMode('routed')
   }, [])
 
   const handleFileLoaded = useCallback(
@@ -403,6 +493,7 @@ function App() {
     setSampleProducts([])
     setSchedule([])
     setFileName(null)
+    setUploadLandingMode('routed')
     setStage('sample')
   }, [])
 
@@ -413,7 +504,14 @@ function App() {
     setSampleProducts([])
     setSchedule([])
     setFileName(null)
+    setUploadLandingMode('routed')
     setStage('momentum')
+  }, [])
+
+  const handleEnterUpload = useCallback(() => {
+    setError(null)
+    setUploadLandingMode('routed')
+    setStage('upload')
   }, [])
 
   const handleSampleBuildSchedule = useCallback((items: SampleProduct[]) => {
@@ -434,6 +532,7 @@ function App() {
     setSchedule([])
     setError(null)
     setFileName(null)
+    setUploadLandingMode('routed')
     setStage('upload')
     clearFilmingProgress()
   }, [])
@@ -470,6 +569,7 @@ function App() {
   )
 
   const handleStartOver = () => {
+    setUploadLandingMode('empty')
     setStage('upload')
     setProducts([])
     setDeadlineProducts([])
@@ -490,6 +590,61 @@ function App() {
 
   const topEarnerLine = isMomentumMode ? formatTopEarnerLine(products) : null
 
+  const hasProductData = products.length > 0 || sampleProducts.length > 0
+  const hasActiveRetainers = brandDeals.some(isActiveRetainer)
+  const showSprintEmptyState =
+    mainSection === 'sprint' &&
+    uploadLandingMode === 'empty' &&
+    !hasProductData &&
+    !hasActiveRetainers &&
+    !isProcessing &&
+    stage === 'upload' &&
+    !showUploadPanel
+
+  const showRetainerOnlySchedule =
+    mainSection === 'sprint' &&
+    hasActiveRetainers &&
+    !hasProductData &&
+    stage === 'upload' &&
+    !showUploadPanel
+
+  const handleSectionChange = useCallback((section: MainSection) => {
+    setMainSection(section)
+  }, [])
+
+  const handleAddRetainerFromEmpty = useCallback(() => {
+    setOpenNewRetainerDeal(true)
+    setMainSection('retainers')
+  }, [])
+
+  useEffect(() => {
+    if (!onboardingComplete || hasSeenSprintEntry()) return
+
+    const markSeen = () => markSprintEntrySeen()
+    window.addEventListener('beforeunload', markSeen)
+    return () => {
+      window.removeEventListener('beforeunload', markSeen)
+      markSeen()
+    }
+  }, [onboardingComplete])
+
+  useEffect(() => {
+    const retainerOnlyOnUpload =
+      hasActiveRetainers && !hasProductData && stage === 'upload'
+    if (
+      mainSection === 'sprint' &&
+      (stage === 'schedule' || retainerOnlyOnUpload)
+    ) {
+      rebuildSchedule(
+        products,
+        deadlineProducts,
+        sprintConfig,
+        excludedFromSchedule,
+        scheduleMode,
+      )
+    }
+  }, [brandDeals])
+
   if (!welcomeSeen) {
     return <WelcomeScreen onContinue={handleWelcomeContinue} />
   }
@@ -499,9 +654,43 @@ function App() {
   }
 
   return (
-    <AppShell stage={stage} onResetOnboarding={handleResetOnboarding}>
-      {stage === 'upload' && (
+    <AppShell
+      stage={stage}
+      mainSection={mainSection}
+      onSectionChange={handleSectionChange}
+      onResetOnboarding={handleResetOnboarding}
+    >
+      {mainSection === 'retainers' ? (
+        <RetainerDeals
+          deals={brandDeals}
+          dailyPostingVolume={dailyPostingVolume}
+          onAddDeal={addDeal}
+          onUpdateDeal={updateDeal}
+          onMoveDeal={moveDeal}
+          onRemoveDeal={removeDeal}
+          onToggleChecklist={toggleChecklistItem}
+          openNewDealRequest={openNewRetainerDeal}
+          onNewDealOpenHandled={() => setOpenNewRetainerDeal(false)}
+        />
+      ) : (
+        <>
+      {showSprintEmptyState ? (
+        <SprintEmptyState
+          onAddSamples={handleEnterSampleMode}
+          onUploadReport={() => setShowUploadPanel(true)}
+          onAddRetainerDeal={handleAddRetainerFromEmpty}
+        />
+      ) : stage === 'upload' && !showRetainerOnlySchedule ? (
         <div className="fade-in">
+          {showUploadPanel && (
+            <button
+              type="button"
+              onClick={() => setShowUploadPanel(false)}
+              className="link-elegant mb-6 font-body text-sm text-stone"
+            >
+              ← Back
+            </button>
+          )}
           <CsvUploadZone
             onFileLoaded={(file) => handleFileLoaded(file)}
             onEnterSampleMode={handleEnterSampleMode}
@@ -514,13 +703,14 @@ function App() {
             </div>
           )}
         </div>
-      )}
+      ) : null}
 
       {stage === 'sample' && (
         <SampleModeScreen
           initialProducts={sampleProducts}
           onBuildSchedule={handleSampleBuildSchedule}
-          onBack={() => setStage('upload')}
+          onEnterUpload={handleEnterUpload}
+          onEnterMomentum={handleEnterMomentumMode}
         />
       )}
 
@@ -528,7 +718,8 @@ function App() {
         <div className="fade-in">
           <MomentumModeScreen
             onFileLoaded={(file) => handleFileLoaded(file, { fromMomentumEntry: true })}
-            onBack={() => setStage('upload')}
+            onEnterUpload={handleEnterUpload}
+            onEnterSampleMode={handleEnterSampleMode}
             isProcessing={isProcessing}
           />
           {error && (
@@ -645,7 +836,7 @@ function App() {
         />
       )}
 
-      {stage === 'schedule' && (
+      {(stage === 'schedule' || showRetainerOnlySchedule) && (
         <FilmingSchedule
           schedule={schedule}
           products={products}
@@ -654,9 +845,12 @@ function App() {
           momentumMode={isMomentumMode}
           onAddDeadline={handleAddDeadline}
           onRemoveFromSchedule={handleRemoveFromSchedule}
-          onBack={() => setStage('config')}
+          onBack={
+            showRetainerOnlySchedule ? () => {} : () => setStage('config')
+          }
           onStartOver={handleStartOver}
           onUploadReport={isSampleMode ? handleUploadReport : undefined}
+          retainerOnly={showRetainerOnlySchedule}
         />
       )}
 
@@ -672,6 +866,8 @@ function App() {
           onConfirm={handleMomentumPromptConfirm}
           onDecline={handleMomentumPromptDecline}
         />
+      )}
+        </>
       )}
     </AppShell>
   )

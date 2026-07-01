@@ -1,11 +1,18 @@
 import type {
   DaySchedule,
+  DeadlineProduct,
   MergedProduct,
   SampleProduct,
   ScheduledVideo,
   SprintConfig,
 } from '../../types'
 import { formatScheduleProductName } from './scheduleDisplay'
+import {
+  assignSlotIds,
+  buildDeadlineScheduledVideos,
+  placeVideosRoundRobin,
+  remainingDayCapacity,
+} from './schedulePlacement'
 
 const TIER_ANGLES = {
   Rising: 'Problem/solution hook',
@@ -56,24 +63,30 @@ function toScheduledVideo(product: MergedProduct): ScheduledVideo {
   }
 }
 
-/** One video per product, spread evenly across sprint days. Overflow drops lowest-priority items. */
 export function buildSampleModeSchedule(
   products: MergedProduct[],
   config: SprintConfig,
+  deadlineProducts: DeadlineProduct[] = [],
+  retainerVideos: ScheduledVideo[] = [],
 ): DaySchedule[] {
   const { sprintDays, videosPerDay } = config
   const cap = Math.max(1, videosPerDay)
-  const totalSlots = cap * sprintDays
-  const toSchedule = products.slice(0, totalSlots)
-
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
-  let dayCursor = 0
 
+  placeVideosRoundRobin(perDay, retainerVideos, cap)
+  placeVideosRoundRobin(perDay, buildDeadlineScheduledVideos(deadlineProducts), cap)
+
+  const totalSlots = cap * sprintDays
+  const priorityCount = perDay.reduce((sum, day) => sum + day.length, 0)
+  const sampleSlots = Math.max(0, totalSlots - priorityCount)
+  const toSchedule = products.slice(0, sampleSlots)
+
+  let dayCursor = 0
   for (const product of toSchedule) {
     let placed = false
     for (let attempt = 0; attempt < sprintDays; attempt++) {
       const day = (dayCursor + attempt) % sprintDays
-      if (perDay[day].length < cap) {
+      if (remainingDayCapacity(perDay, day, cap) > 0) {
         perDay[day].push(toScheduledVideo(product))
         dayCursor = (day + 1) % sprintDays
         placed = true
@@ -83,11 +96,5 @@ export function buildSampleModeSchedule(
     if (!placed) break
   }
 
-  return Array.from({ length: sprintDays }, (_, i) => ({
-    day: i + 1,
-    videos: perDay[i].map((video, slot) => ({
-      ...video,
-      slotId: `d${i + 1}-s${slot}-${video.productName}-${video.tier}`,
-    })),
-  }))
+  return assignSlotIds(perDay, sprintDays)
 }

@@ -8,6 +8,7 @@ interface CsvUploadZoneProps {
   onEnterSampleMode: () => void
   onEnterMomentumMode: () => void
   isProcessing?: boolean
+  showAlternatePaths?: boolean
 }
 
 const ACCEPTED_EXTENSIONS = ['.csv', '.xlsx']
@@ -55,6 +56,7 @@ export function CsvUploadZone({
   onEnterSampleMode,
   onEnterMomentumMode,
   isProcessing,
+  showAlternatePaths = true,
 }: CsvUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [fileError, setFileError] = useState<string | null>(null)
@@ -128,32 +130,24 @@ export function CsvUploadZone({
             </label>
           </div>
 
-          <div className="mt-8 space-y-6">
-            <div>
+          {showAlternatePaths && (
+            <div className="mt-10 space-y-3 border-t border-border-warm pt-8 text-center">
               <button
                 type="button"
                 onClick={onEnterSampleMode}
-                className="font-body text-sm font-medium text-emerald transition hover:underline hover:underline-offset-4 hover:decoration-blush"
+                className="link-elegant block w-full font-body text-sm text-stone"
               >
-                New to TikTok Shop? Start with your samples →
+                New to TikTok Shop? Start with your samples instead
               </button>
-              <p className="mt-1 font-body text-xs text-stone">
-                No commission report needed — just add your current samples
-              </p>
-            </div>
-            <div>
               <button
                 type="button"
                 onClick={onEnterMomentumMode}
-                className="font-body text-sm font-medium text-emerald transition hover:underline hover:underline-offset-4 hover:decoration-blush"
+                className="link-elegant block w-full font-body text-sm text-stone"
               >
-                Have some sales but not many? Try Momentum Mode →
+                Have some sales but not many? Try Momentum Mode instead
               </button>
-              <p className="mt-1 font-body text-xs text-stone">
-                Upload your report and we&apos;ll build a balanced starter schedule
-              </p>
             </div>
-          </div>
+          )}
 
           <ReportDownloadHelp />
 

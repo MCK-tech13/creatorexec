@@ -1,6 +1,6 @@
 export type Tier = 'Anchor' | 'Rising' | 'Test' | 'Cut'
 
-export type ScheduleTierLabel = Tier | 'Deadline'
+export type ScheduleTierLabel = Tier | 'Deadline' | 'Retainer'
 
 export type ManualTier = 'Anchor' | 'Rising' | 'Test'
 
@@ -43,6 +43,16 @@ export interface DeadlineProduct {
   videosFilmed: number
 }
 
+/** Pipeline retainer injected into sprint schedule (maps to future Supabase join). */
+export interface RetainerScheduleEntry {
+  dealId: string
+  brandName: string
+  productName: string
+  slotsPerDay: number
+  deadlineDate: string
+  videosFilmed: number
+}
+
 export interface SprintConfig {
   videosPerDay: number
   sprintDays: SprintDays
@@ -67,6 +77,8 @@ export interface DaySchedule {
 }
 
 export type AppStage = 'upload' | 'sample' | 'momentum' | 'dashboard' | 'config' | 'schedule'
+
+export type MainSection = 'sprint' | 'retainers'
 
 export type ScheduleMode = 'full' | 'sample' | 'momentum'
 
