@@ -44,7 +44,7 @@ export function AppShell({
       <Header mainSection={mainSection} onSectionChange={onSectionChange} onGoHome={onGoHome} />
       {showStepper && (
       <div className="border-b border-border-warm bg-white">
-        <div className="mx-auto max-w-7xl px-8 py-8">
+        <div className="mx-auto max-w-7xl px-5 py-6 sm:px-8 sm:py-8">
           <div className="flex items-center">
             {STEPS.map((step, i) => {
               const isActive = i === current
@@ -66,7 +66,7 @@ export function AppShell({
                       {i + 1}
                     </span>
                     <span
-                      className={`font-body text-[10px] uppercase tracking-[0.16em] ${
+                      className={`font-body text-[9px] uppercase tracking-[0.14em] sm:text-[10px] sm:tracking-[0.16em] ${
                         isActive ? 'font-semibold text-ink' : 'text-stone'
                       }`}
                     >
@@ -83,7 +83,7 @@ export function AppShell({
         </div>
       </div>
       )}
-      <main className={`flex-1 bg-white ${isSprintUpload ? '' : 'py-16'}`}>
+      <main className={`flex-1 bg-white ${isSprintUpload ? '' : 'py-10 sm:py-16'}`}>
         <PageContainer variant={contentWidth}>{children}</PageContainer>
       </main>
       <AppFooter onResetOnboarding={onResetOnboarding} />

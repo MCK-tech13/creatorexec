@@ -9,8 +9,8 @@ interface PageContainerProps {
 }
 
 const VARIANT_CLASS: Record<PageContainerVariant, string> = {
-  narrow: 'mx-auto w-full max-w-xl px-8',
-  wide: 'mx-auto w-full px-8',
+  narrow: 'mx-auto w-full max-w-xl px-5 sm:px-8',
+  wide: 'mx-auto w-full px-5 sm:px-8',
 }
 
 /** Shared content column — narrow for reading screens, wide for data-dense views. */

@@ -31,10 +31,10 @@ const WHATS_INSIDE = [
 export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <PageContainer className="flex flex-1 flex-col items-center justify-center py-16 md:py-20">
-          <div className="mb-12 text-center">
+      <PageContainer className="flex flex-1 flex-col items-center justify-center py-12 sm:py-16 md:py-20">
+          <div className="mb-8 text-center sm:mb-12">
             <div className="inline-flex flex-col items-center">
-              <h1 className="font-display text-5xl font-bold text-ink md:text-6xl">
+              <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl md:text-6xl">
                 CreatorExec
               </h1>
               <div className="mt-3 h-px w-[60px] bg-emerald" aria-hidden />
@@ -48,11 +48,11 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
             >
               <EditorialMark />
             </div>
-            <h2 className="animate-welcome-headline font-display mx-auto max-w-md text-2xl font-bold leading-snug text-ink md:text-3xl">
+            <h2 className="animate-welcome-headline font-display mx-auto max-w-md text-xl font-bold leading-snug text-ink sm:text-2xl md:text-3xl">
               Your TikTok Shop command center.
             </h2>
             <p
-              className="animate-welcome-fade mx-auto mt-6 max-w-lg font-body text-base text-stone"
+              className="animate-welcome-fade mx-auto mt-4 max-w-lg font-body text-sm text-stone sm:mt-6 sm:text-base"
               style={{ animationDelay: '0.2s' }}
             >
               Everything you need to run your TikTok Shop business, all in one place.
@@ -60,24 +60,24 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
           </div>
 
           <section
-            className="animate-welcome-fade mt-14"
+            className="animate-welcome-fade mt-10 sm:mt-14"
             style={{ animationDelay: '0.35s' }}
             aria-labelledby="whats-inside-heading"
           >
             <h3
               id="whats-inside-heading"
-              className="font-display text-center text-2xl font-bold text-ink md:text-3xl"
+              className="font-display text-center text-xl font-bold text-ink sm:text-2xl md:text-3xl"
             >
               What&apos;s Inside
             </h3>
-            <ul className="mt-10 space-y-4">
+            <ul className="mt-6 space-y-3 sm:mt-10 sm:space-y-4">
               {WHATS_INSIDE.map((item) => (
                 <li
                   key={item.label}
-                  className="border border-border-warm bg-white p-6 text-left"
+                  className="border border-border-warm bg-white p-4 text-left sm:p-6"
                 >
-                  <p className="font-body text-base font-semibold text-emerald">{item.label}</p>
-                  <p className="mt-2 font-body text-base leading-relaxed text-stone">
+                  <p className="font-body text-sm font-semibold text-emerald sm:text-base">{item.label}</p>
+                  <p className="mt-2 font-body text-sm leading-relaxed text-stone sm:text-base">
                     {item.description}
                   </p>
                 </li>
@@ -86,7 +86,7 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
           </section>
 
           <p
-            className="animate-welcome-fade mx-auto mt-14 max-w-lg text-center font-body text-sm font-normal text-stone"
+            className="animate-welcome-fade mx-auto mt-10 max-w-lg text-center font-body text-sm font-normal text-stone sm:mt-14"
             style={{ animationDelay: '0.28s' }}
           >
             Takes 30 seconds. Then your schedule&apos;s ready.

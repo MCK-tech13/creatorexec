@@ -29,10 +29,10 @@ export function SprintEmptyState({
         <div className="mb-5 flex justify-center">
           <EditorialMark />
         </div>
-        <h2 className="font-display text-3xl font-bold text-ink md:text-4xl">
+        <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl md:text-4xl">
           Nothing to schedule yet
         </h2>
-        <p className="mt-4 font-body text-base text-stone">
+        <p className="mt-3 font-body text-sm text-stone sm:mt-4 sm:text-base">
           Add your samples, upload your commission report, or add a retainer deal to build your
           first sprint.
         </p>

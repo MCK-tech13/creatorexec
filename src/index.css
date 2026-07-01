@@ -179,6 +179,18 @@ body {
   border-radius: 9999px;
 }
 
+@media (max-width: 639px) {
+  .tier-badge {
+    padding: 4px 10px 4px 8px;
+    font-size: 11px;
+  }
+
+  .tier-badge-dot {
+    width: 5px;
+    height: 5px;
+  }
+}
+
 @utility badge-compact {
   border-radius: 0;
 }

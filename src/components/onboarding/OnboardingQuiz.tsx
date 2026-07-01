@@ -63,15 +63,15 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <PageContainer className="flex flex-1 flex-col items-center py-16 md:py-20">
-        <p className="mb-12 font-body text-xs tracking-[0.12em] text-grey-light">
+      <PageContainer className="flex flex-1 flex-col items-center py-12 sm:py-16 md:py-20">
+        <p className="mb-8 font-body text-xs tracking-[0.12em] text-grey-light sm:mb-12">
           {step + 1} / 3
         </p>
 
         <div className="w-full flex-1">
           {step === 0 && (
             <div key="step-0" className="animate-quiz-question">
-              <h1 className="font-display text-center text-3xl leading-tight font-bold text-ink md:text-4xl">
+              <h1 className="font-display text-center text-2xl leading-tight font-bold text-ink sm:text-3xl md:text-4xl">
                 What does your monthly TikTok Shop commission look like?
               </h1>
               <div className="mt-10 space-y-2">
@@ -89,7 +89,7 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
 
           {step === 1 && (
             <div key="step-1" className="animate-quiz-question">
-              <h1 className="font-display text-center text-3xl leading-tight font-bold text-ink md:text-4xl">
+              <h1 className="font-display text-center text-2xl leading-tight font-bold text-ink sm:text-3xl md:text-4xl">
                 How many videos do you post per day?
               </h1>
               <div className="mt-10">
@@ -111,7 +111,7 @@ export function OnboardingQuiz({ onComplete }: OnboardingQuizProps) {
 
           {step === 2 && (
             <div key="step-2" className="animate-quiz-question">
-              <h1 className="font-display text-center text-3xl leading-tight font-bold text-ink md:text-4xl">
+              <h1 className="font-display text-center text-2xl leading-tight font-bold text-ink sm:text-3xl md:text-4xl">
                 How do you currently decide what to film?
               </h1>
               <div className="mt-10 space-y-2">

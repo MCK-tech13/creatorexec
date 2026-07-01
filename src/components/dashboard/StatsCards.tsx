@@ -19,33 +19,33 @@ export function StatsCards({ products }: StatsCardsProps) {
   const avgCommission = products.length ? totalCommission / products.length : 0
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr]">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">
       <div
-        className="stat-card-primary animate-stat-card px-6 py-5"
+        className="stat-card-primary animate-stat-card min-w-0 px-4 py-4 sm:px-6 sm:py-5"
         style={{ animationDelay: '0s' }}
       >
         <span className="stat-label">Total Commission</span>
-        <p className="font-display mt-3 text-[34px] leading-none font-bold text-stat-forest">
+        <p className="font-display mt-2 min-w-0 text-[24px] leading-tight font-bold break-words text-stat-forest sm:mt-3 sm:text-[30px] md:text-[34px] md:leading-none">
           {formatCurrency(totalCommission)}
         </p>
       </div>
 
       <div
-        className="stat-card-secondary animate-stat-card px-6 py-5"
+        className="stat-card-secondary animate-stat-card min-w-0 px-4 py-4 sm:px-6 sm:py-5"
         style={{ animationDelay: '0.1s' }}
       >
         <span className="stat-label">Total GMV</span>
-        <p className="font-display mt-3 text-[22px] leading-none font-bold text-stat-muted">
+        <p className="font-display mt-2 min-w-0 text-base leading-tight font-bold break-words text-stat-muted sm:mt-3 sm:text-xl md:text-[22px] md:leading-none">
           {formatCurrency(totalGmv)}
         </p>
       </div>
 
       <div
-        className="stat-card-secondary animate-stat-card px-6 py-5 sm:col-span-2 lg:col-span-1"
+        className="stat-card-secondary animate-stat-card min-w-0 px-4 py-4 sm:col-span-2 sm:px-6 sm:py-5 lg:col-span-1"
         style={{ animationDelay: '0.2s' }}
       >
         <span className="stat-label">Products / Avg</span>
-        <p className="font-display mt-3 text-[22px] leading-none font-bold text-stat-muted">
+        <p className="font-display mt-2 min-w-0 text-base leading-tight font-bold break-words text-stat-muted sm:mt-3 sm:text-xl md:text-[22px] md:leading-none">
           {products.length} · {formatCurrency(avgCommission)}
         </p>
       </div>

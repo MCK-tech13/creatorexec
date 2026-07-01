@@ -105,10 +105,10 @@ export function CsvUploadZone({
           <div className="mb-5 flex justify-center">
             <EditorialMark />
           </div>
-          <h2 className="font-display mx-auto max-w-md text-3xl leading-tight font-bold text-ink md:text-4xl">
+          <h2 className="font-display mx-auto max-w-md text-2xl leading-tight font-bold text-ink sm:text-3xl md:text-4xl">
             Know exactly what to film. Every sprint.
           </h2>
-          <p className="mx-auto mt-6 max-w-lg font-body text-base text-stone">
+          <p className="mx-auto mt-4 max-w-lg font-body text-sm text-stone sm:mt-6 sm:text-base">
             Upload your TikTok Shop commission report and get a personalized filming schedule
             in seconds.
           </p>

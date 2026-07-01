@@ -11,23 +11,25 @@ export function Header({
 }) {
   return (
     <header className="border-b border-border-warm bg-white">
-      <div className="mx-auto max-w-7xl px-8 py-8 md:py-10">
-        <div className="flex items-start justify-between gap-6">
-          <div className="inline-block">
-            <h1 className="font-display text-5xl font-bold text-ink md:text-6xl lg:text-7xl">
+      <div className="mx-auto max-w-7xl px-5 py-3 sm:px-8 sm:py-6 md:py-8">
+        <div className="flex items-center justify-between gap-3 sm:items-start sm:gap-6">
+          <div className="min-w-0">
+            <h1 className="font-display text-xl font-bold leading-none text-ink sm:text-3xl md:text-5xl lg:text-6xl">
               CreatorExec
             </h1>
-            <div className="mt-2 h-px w-[60px] bg-emerald" aria-hidden />
-            <p className="label-caps mt-6">Your TikTok Shop Operating System</p>
+            <div className="mt-1.5 h-px w-10 bg-emerald sm:mt-2 sm:w-[60px]" aria-hidden />
+            <p className="label-caps mt-2 hidden sm:block md:mt-4">
+              Your TikTok Shop Operating System
+            </p>
           </div>
           <button
             type="button"
             onClick={onGoHome}
-            className="btn-outline inline-flex shrink-0 items-center gap-2 px-4 py-2.5 font-body text-sm font-medium uppercase tracking-[0.1em] text-emerald"
+            className="btn-outline inline-flex shrink-0 items-center gap-1.5 px-2.5 py-2 font-body text-xs font-medium uppercase tracking-[0.08em] text-emerald sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm sm:tracking-[0.1em]"
             aria-label="Home"
           >
             <Home className="h-4 w-4" strokeWidth={2} />
-            Home
+            <span className="hidden sm:inline">Home</span>
           </button>
         </div>
       </div>
@@ -39,7 +41,7 @@ export function Header({
           <button
             type="button"
             onClick={() => onSectionChange('sprint')}
-            className={`flex-1 border-b-2 px-6 py-4 font-body text-sm font-medium uppercase tracking-[0.1em] transition ${
+            className={`flex-1 border-b-2 px-1 py-2.5 font-body text-[10px] font-medium whitespace-nowrap uppercase tracking-[0.03em] transition sm:px-6 sm:py-4 sm:text-sm sm:tracking-[0.1em] ${
               mainSection === 'sprint'
                 ? 'border-emerald text-emerald'
                 : 'border-transparent text-stone hover:text-ink'
@@ -50,24 +52,26 @@ export function Header({
           <button
             type="button"
             onClick={() => onSectionChange('retainers')}
-            className={`flex-1 border-b-2 px-6 py-4 font-body text-sm font-medium uppercase tracking-[0.1em] transition ${
+            className={`flex-1 border-b-2 px-1 py-2.5 font-body text-[10px] font-medium whitespace-nowrap uppercase tracking-[0.03em] transition sm:px-6 sm:py-4 sm:text-sm sm:tracking-[0.1em] ${
               mainSection === 'retainers'
                 ? 'border-emerald text-emerald'
                 : 'border-transparent text-stone hover:text-ink'
             }`}
           >
-            Retainer Deals
+            <span className="sm:hidden">Retainers</span>
+            <span className="hidden sm:inline">Retainer Deals</span>
           </button>
           <button
             type="button"
             onClick={() => onSectionChange('income')}
-            className={`flex-1 border-b-2 px-6 py-4 font-body text-sm font-medium uppercase tracking-[0.1em] transition ${
+            className={`flex-1 border-b-2 px-1 py-2.5 font-body text-[10px] font-medium whitespace-nowrap uppercase tracking-[0.03em] transition sm:px-6 sm:py-4 sm:text-sm sm:tracking-[0.1em] ${
               mainSection === 'income'
                 ? 'border-emerald text-emerald'
                 : 'border-transparent text-stone hover:text-ink'
             }`}
           >
-            Income Tracker
+            <span className="sm:hidden">Income</span>
+            <span className="hidden sm:inline">Income Tracker</span>
           </button>
         </div>
       </nav>

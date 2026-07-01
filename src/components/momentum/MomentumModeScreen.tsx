@@ -69,10 +69,10 @@ export function MomentumModeScreen({
           <div className="mb-5 flex justify-center">
             <EditorialMark />
           </div>
-          <h1 className="font-display text-center text-3xl font-bold text-ink md:text-4xl">
+          <h1 className="font-display text-center text-2xl font-bold text-ink sm:text-3xl md:text-4xl">
             You&apos;re building momentum.
           </h1>
-          <p className="mx-auto mt-4 max-w-lg text-center font-body text-base text-stone">
+          <p className="mx-auto mt-3 max-w-lg text-center font-body text-sm text-stone sm:mt-4 sm:text-base">
             Upload your commission report and we&apos;ll build a balanced schedule that rotates
             all your products evenly while your data builds up.
           </p>

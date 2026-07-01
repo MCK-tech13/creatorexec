@@ -62,14 +62,61 @@ export function RetainerDeals({
     setDropTarget(null)
   }
 
+  const renderStageColumn = (stage: (typeof DEAL_STAGES)[number], columnClassName: string) => {
+    const columnDeals = dealsByStage.get(stage.id) ?? []
+    const isDropTarget = dropTarget === stage.id
+
+    return (
+      <div
+        key={stage.id}
+        className={`border border-border-warm bg-white ${columnClassName} ${
+          isDropTarget ? 'ring-1 ring-emerald' : ''
+        }`}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDropTarget(stage.id)
+        }}
+        onDragLeave={() => setDropTarget(null)}
+        onDrop={(e) => {
+          e.preventDefault()
+          handleDrop(stage.id)
+        }}
+      >
+        <div className="border-b border-border-warm px-4 py-3">
+          <h2 className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-stone">
+            {stage.label}
+          </h2>
+          <span className="mt-1 block font-body text-xs text-grey">{columnDeals.length}</span>
+        </div>
+        <div className="space-y-3 p-3">
+          {columnDeals.map((deal) => (
+            <DealCard
+              key={deal.id}
+              deal={deal}
+              onClick={() => setSelectedId(deal.id)}
+              onDragStart={() => setDraggingId(deal.id)}
+              onDragEnd={() => {
+                setDraggingId(null)
+                setDropTarget(null)
+              }}
+            />
+          ))}
+          {columnDeals.length === 0 && (
+            <p className="py-6 text-center font-body text-xs text-grey-light">Drop deals here</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="fade-in">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold text-ink md:text-4xl">
+          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl md:text-4xl">
             Retainer Deals
           </h1>
-          <p className="mt-2 font-body text-base text-stone">
+          <p className="mt-2 font-body text-sm text-stone sm:text-base">
             Track partnerships from first pitch through payment — retainers sync to your sprint
             schedule automatically.
           </p>
@@ -77,7 +124,7 @@ export function RetainerDeals({
         <button
           type="button"
           onClick={() => setShowNewDeal(true)}
-          className="btn-primary inline-flex items-center gap-2 px-6 py-3 text-sm"
+          className="btn-primary inline-flex w-full items-center justify-center gap-2 px-6 py-3 text-sm sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           New Deal
@@ -85,8 +132,8 @@ export function RetainerDeals({
       </div>
 
       {deals.length === 0 && (
-        <div className="mb-8 border border-border-warm bg-blush-tint px-6 py-5 text-center">
-          <p className="font-body text-base text-ink">No retainer deals yet.</p>
+        <div className="mb-6 border border-border-warm bg-blush-tint px-4 py-5 text-center sm:mb-8 sm:px-6">
+          <p className="font-body text-sm text-ink sm:text-base">No retainer deals yet.</p>
           <button
             type="button"
             onClick={() => setShowNewDeal(true)}
@@ -97,58 +144,16 @@ export function RetainerDeals({
         </div>
       )}
 
-      <div className="overflow-x-auto pb-4">
-        <div className="flex min-w-max gap-4">
-          {DEAL_STAGES.map((stage) => {
-            const columnDeals = dealsByStage.get(stage.id) ?? []
-            const isDropTarget = dropTarget === stage.id
+      <div className="flex flex-col gap-4 md:hidden">
+        {DEAL_STAGES.map((stage) => renderStageColumn(stage, 'w-full'))}
+      </div>
 
-            return (
-              <div
-                key={stage.id}
-                className={`w-64 shrink-0 border border-border-warm bg-white ${
-                  isDropTarget ? 'ring-1 ring-emerald' : ''
-                }`}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  setDropTarget(stage.id)
-                }}
-                onDragLeave={() => setDropTarget(null)}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  handleDrop(stage.id)
-                }}
-              >
-                <div className="border-b border-border-warm px-4 py-3">
-                  <h2 className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-stone">
-                    {stage.label}
-                  </h2>
-                  <span className="mt-1 block font-body text-xs text-grey">
-                    {columnDeals.length}
-                  </span>
-                </div>
-                <div className="space-y-3 p-3">
-                  {columnDeals.map((deal) => (
-                    <DealCard
-                      key={deal.id}
-                      deal={deal}
-                      onClick={() => setSelectedId(deal.id)}
-                      onDragStart={() => setDraggingId(deal.id)}
-                      onDragEnd={() => {
-                        setDraggingId(null)
-                        setDropTarget(null)
-                      }}
-                    />
-                  ))}
-                  {columnDeals.length === 0 && (
-                    <p className="py-6 text-center font-body text-xs text-grey-light">
-                      Drop deals here
-                    </p>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+      <div className="hidden md:block">
+        <p className="mb-3 font-body text-xs text-stone">Scroll horizontally to view all stages →</p>
+        <div className="overflow-x-auto pb-4">
+          <div className="flex min-w-max gap-4">
+            {DEAL_STAGES.map((stage) => renderStageColumn(stage, 'w-64 shrink-0'))}
+          </div>
         </div>
       </div>
 

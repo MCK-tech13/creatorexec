@@ -85,8 +85,8 @@ export function IncomeTracker() {
     <div className="fade-in">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold text-ink md:text-4xl">Income Tracker</h1>
-          <p className="mt-2 font-body text-base text-stone">
+          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl md:text-4xl">Income Tracker</h1>
+          <p className="mt-2 font-body text-sm text-stone sm:text-base">
             Log monthly GMV and income manually — your spreadsheet replacement.
           </p>
         </div>
@@ -199,9 +199,9 @@ export function IncomeTracker() {
 
           {selectedEntry ? (
             <>
-              <div className="stat-card-primary mb-8 px-6 py-8 text-center">
+              <div className="stat-card-primary mb-6 px-4 py-6 text-center sm:mb-8 sm:px-6 sm:py-8">
                 <p className="stat-label">Total Income</p>
-                <p className="font-display mt-3 text-[34px] leading-none font-bold text-stat-forest">
+                <p className="font-display mt-2 text-[26px] leading-tight font-bold text-stat-forest sm:mt-3 sm:text-[30px] md:text-[34px] md:leading-none">
                   {formatCurrency(selectedTotal)}
                 </p>
                 <p className="form-helper-text mt-3 font-body text-sm text-stone">

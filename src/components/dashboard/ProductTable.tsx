@@ -11,6 +11,7 @@ interface ProductTableProps {
   products: MergedProduct[]
   activeTier: Tier | 'All'
   beginnerMode?: boolean
+  advancedControlsOpen?: boolean
   onVideosFilmedChange: (productId: string, videosFilmed: number) => void
   onInRotationChange: (productId: string, inRotation: boolean) => void
 }
@@ -27,14 +28,14 @@ export function ProductTable({
   products,
   activeTier,
   beginnerMode = false,
+  advancedControlsOpen = false,
   onVideosFilmedChange,
   onInRotationChange,
 }: ProductTableProps) {
   const [sortField, setSortField] = useState<SortField>('commission')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
-  const [showAdvancedControls, setShowAdvancedControls] = useState(false)
 
-  const showRotationControls = !beginnerMode || showAdvancedControls
+  const showRotationControls = !beginnerMode || advancedControlsOpen
 
   const filtered = useMemo(() => {
     const list =
@@ -65,18 +66,75 @@ export function ProductTable({
 
   return (
     <div>
-      {beginnerMode && (
-        <div className="mb-8 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setShowAdvancedControls((v) => !v)}
-            className="link-elegant font-body text-sm text-ink"
-          >
-            {showAdvancedControls ? 'Hide advanced controls' : 'Show advanced controls'}
-          </button>
-        </div>
-      )}
-      <div className="overflow-x-auto">
+      <ul className="divide-y divide-border-warm border border-border-warm md:hidden">
+        {filtered.map((product) => {
+          const isTopEarner = beginnerMode && product.tier === 'Anchor'
+          return (
+            <li
+              key={product.id}
+              className={`px-4 py-4 ${
+                !product.inRotation && showRotationControls ? 'opacity-60' : ''
+              } ${product.tier === 'Rising' ? 'border-t border-t-blush' : ''}`}
+            >
+              <p
+                className={`line-clamp-2 font-body text-sm leading-snug text-ink ${
+                  isTopEarner ? 'font-bold' : 'font-medium'
+                }`}
+              >
+                {product.productName}
+              </p>
+              {product.isManual && (
+                <span className="label-caps mt-1 inline-block">Manual</span>
+              )}
+
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <TierBadge tier={product.tier} showTooltip={beginnerMode} />
+                <span className="shrink-0 font-body text-sm font-semibold tabular-nums text-emerald">
+                  {formatCurrency(product.commission)}
+                </span>
+              </div>
+
+              <p className="mt-1.5 font-body text-xs tabular-nums text-stone">
+                GMV {formatCurrency(product.gmv)} · {product.itemsSold} sold
+                {product.orderCount > 1 ? ` · ${product.orderCount} orders` : ''}
+              </p>
+
+              {showRotationControls && (
+                <div className="mt-3 space-y-3 border-t border-border-warm pt-3">
+                  <label className="flex items-center gap-2 font-body text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={product.inRotation}
+                      onChange={(e) => onInRotationChange(product.id, e.target.checked)}
+                      className="accent-checkbox h-4 w-4 border-border-warm"
+                    />
+                    In rotation
+                  </label>
+                  <div>
+                    <span className="label-caps mb-2 block">Videos filmed</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={product.videosFilmed}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10)
+                        onVideosFilmedChange(
+                          product.id,
+                          Number.isNaN(val) ? 0 : Math.max(0, val),
+                        )
+                      }}
+                      className="input-field w-20 px-2 py-1.5 text-center"
+                    />
+                    <VideoProgressBar filmed={product.videosFilmed} />
+                  </div>
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full border-collapse text-left font-body text-sm">
           <thead>
             <tr className="border-b border-border-warm">
@@ -189,8 +247,11 @@ export function ProductTable({
           </tbody>
         </table>
       </div>
+
       {filtered.length === 0 && (
-        <p className="py-20 text-center font-body text-stone">No products in this tier.</p>
+        <p className="py-12 text-center font-body text-sm text-stone sm:py-20">
+          No products in this tier.
+        </p>
       )}
     </div>
   )

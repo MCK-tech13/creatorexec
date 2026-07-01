@@ -23,14 +23,14 @@ export function SprintConfigForm({
   return (
     <div>
       <div className="mb-10 text-center">
-        <h2 className="font-display text-3xl font-bold text-ink md:text-4xl">Configure Your Sprint</h2>
-        <p className="mt-5 font-body text-base leading-relaxed text-stone">
+        <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl md:text-4xl">Configure Your Sprint</h2>
+        <p className="mt-4 font-body text-sm leading-relaxed text-stone sm:mt-5 sm:text-base">
           Tell us your posting volume and sprint length to generate a personalized filming
           schedule.
         </p>
       </div>
 
-      <div className="space-y-8 border border-border-warm p-8">
+      <div className="space-y-6 border border-border-warm p-4 sm:space-y-8 sm:p-8">
         <div>
           <label htmlFor="videosPerDay" className="label-caps mb-4 block">
             Videos per day
@@ -84,7 +84,7 @@ export function SprintConfigForm({
 
         <div className="border-t-2 border-emerald pt-7 text-center">
           <p className="label-caps">Total videos this sprint</p>
-          <p className="font-display mt-2 text-4xl font-bold text-ink md:text-5xl">{totalVideos}</p>
+          <p className="font-display mt-2 text-3xl font-bold text-ink sm:text-4xl md:text-5xl">{totalVideos}</p>
         </div>
       </div>
 

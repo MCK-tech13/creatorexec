@@ -84,8 +84,8 @@ export function FilmingSchedule({
   return (
     <div>
       {retainerOnly && (
-        <div className="mb-8 border border-emerald/30 bg-blush-tint px-6 py-5">
-          <p className="font-body text-base text-ink">
+        <div className="mb-6 border border-emerald/30 bg-blush-tint px-4 py-4 sm:mb-8 sm:px-6 sm:py-5">
+          <p className="font-body text-sm text-ink sm:text-base">
             Your sprint includes active retainer requirements. Add samples or upload a commission
             report anytime to fill the rest of your schedule.
           </p>
@@ -93,16 +93,16 @@ export function FilmingSchedule({
       )}
 
       {momentumMode && (
-        <div className="mb-8 border border-blush/40 bg-blush-tint px-6 py-5">
-          <p className="font-body text-base text-ink">
+        <div className="mb-6 border border-blush/40 bg-blush-tint px-4 py-4 sm:mb-8 sm:px-6 sm:py-5">
+          <p className="font-body text-sm text-ink sm:text-base">
             Momentum Mode — filming all your products consistently to find your winners.
           </p>
         </div>
       )}
 
       {sampleMode && onUploadReport && (
-        <div className="mb-8 flex flex-col gap-4 border border-border-warm p-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-body text-base text-ink">
+        <div className="mb-6 flex flex-col gap-4 border border-border-warm p-4 sm:mb-8 sm:p-6 md:flex-row md:items-center md:justify-between">
+          <p className="font-body text-sm text-ink sm:text-base">
             You&apos;re in Sample Mode. Once you have sales data, upload your commission report
             to unlock full product rankings.
           </p>
@@ -116,10 +116,12 @@ export function FilmingSchedule({
         </div>
       )}
 
-      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-display text-3xl font-bold text-ink md:text-4xl">Your Filming Schedule</h2>
-          <p className="mt-3 font-body text-sm text-stone">
+          <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl md:text-4xl">
+            Your Filming Schedule
+          </h2>
+          <p className="mt-2 font-body text-xs text-stone sm:mt-3 sm:text-sm">
             {sampleMode
               ? `${totalVideos} videos across ${schedule.length} days · evenly distributed`
               : momentumMode
@@ -176,14 +178,14 @@ export function FilmingSchedule({
               <button
                 type="button"
                 onClick={() => toggleDay(day.day)}
-                className="flex w-full items-center justify-between px-8 py-6 text-left transition hover:bg-white"
+                className="flex w-full items-center justify-between px-4 py-4 text-left transition hover:bg-white sm:px-6 sm:py-5 md:px-8 md:py-6"
               >
-                <div className="flex-1 pr-4">
-                  <div className="flex flex-wrap items-baseline gap-4">
-                    <span className="font-display text-2xl font-bold text-ink">
+                <div className="min-w-0 flex-1 pr-3 sm:pr-4">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:gap-4">
+                    <span className="font-display text-xl font-bold text-ink sm:text-2xl">
                       Day {day.day} — {dayLabel}
                     </span>
-                    <span className="font-body text-xs uppercase tracking-[0.12em] text-stone">
+                    <span className="font-body text-[11px] uppercase tracking-[0.12em] text-stone sm:text-xs">
                       {filmedCount}/{totalSlots} filmed
                     </span>
                   </div>
@@ -203,7 +205,7 @@ export function FilmingSchedule({
                 )}
               </button>
               {isExpanded && (
-                <div className="border-t border-border-warm px-8 py-6">
+                <div className="border-t border-border-warm px-4 py-4 sm:px-6 sm:py-6 md:px-8">
                   {collapsedRows.length === 0 ? (
                     <p className="py-2 font-body text-sm text-stone">No videos scheduled</p>
                   ) : (
@@ -225,56 +227,58 @@ export function FilmingSchedule({
                         return (
                           <li
                             key={row.storageKey}
-                            className="flex items-center gap-4 py-5"
+                            className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:gap-4 sm:py-5"
                           >
-                            <div className="flex shrink-0 items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => decrement(row.storageKey)}
-                                disabled={filmed === 0}
-                                className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
-                                aria-label="Decrement filmed count"
-                              >
-                                <Minus className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => increment(row.storageKey, row.total)}
-                                disabled={complete}
-                                className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
-                                aria-label="Increment filmed count"
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                            <TierBadge tier={row.tier} />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p
-                                  className={`font-body font-medium ${complete ? 'text-emerald' : 'text-ink'}`}
+                            <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+                              <div className="flex shrink-0 items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => decrement(row.storageKey)}
+                                  disabled={filmed === 0}
+                                  className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                                  aria-label="Decrement filmed count"
                                 >
-                                  {row.productName}
-                                  <span className="ml-2 text-xs font-normal text-stone">
-                                    ({productFilmed} filmed total)
-                                  </span>
-                                </p>
-                                {row.deadlineDate != null && (
-                                  <span className="font-body text-xs font-medium text-stone">
-                                    {formatDeadlineCountdown(row.deadlineDate)}
-                                  </span>
-                                )}
+                                  <Minus className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => increment(row.storageKey, row.total)}
+                                  disabled={complete}
+                                  className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                                  aria-label="Increment filmed count"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
                               </div>
-                              {beginnerMode && scheduleExplanation ? (
-                                <p className="font-body text-sm text-stone">
-                                  {scheduleExplanation}
-                                </p>
-                              ) : !beginnerMode ? (
-                                <p className="font-body text-sm text-stone">
-                                  {row.suggestedAngle}
-                                </p>
-                              ) : null}
+                              <TierBadge tier={row.tier} />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                  <p
+                                    className={`font-body text-sm font-medium sm:text-base ${complete ? 'text-emerald' : 'text-ink'}`}
+                                  >
+                                    {row.productName}
+                                    <span className="ml-1.5 text-xs font-normal text-stone sm:ml-2">
+                                      ({productFilmed} filmed total)
+                                    </span>
+                                  </p>
+                                  {row.deadlineDate != null && (
+                                    <span className="font-body text-xs font-medium text-stone">
+                                      {formatDeadlineCountdown(row.deadlineDate)}
+                                    </span>
+                                  )}
+                                </div>
+                                {beginnerMode && scheduleExplanation ? (
+                                  <p className="mt-1 font-body text-sm text-stone">
+                                    {scheduleExplanation}
+                                  </p>
+                                ) : !beginnerMode ? (
+                                  <p className="mt-1 font-body text-sm text-stone">
+                                    {row.suggestedAngle}
+                                  </p>
+                                ) : null}
+                              </div>
                             </div>
-                            <div className="flex shrink-0 items-center gap-2">
+                            <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
                               <span
                                 className={`font-body text-sm font-medium tabular-nums ${
                                   complete ? 'text-emerald' : 'text-stone'

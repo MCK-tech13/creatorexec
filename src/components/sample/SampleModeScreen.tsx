@@ -67,10 +67,10 @@ export function SampleModeScreen({
         <EditorialMark />
       </div>
 
-      <h1 className="font-display text-center text-3xl font-bold text-ink md:text-4xl">
+      <h1 className="font-display text-center text-2xl font-bold text-ink sm:text-3xl md:text-4xl">
         Add your samples and favorites
       </h1>
-      <p className="mx-auto mt-4 max-w-lg text-center font-body text-base text-stone">
+      <p className="mx-auto mt-3 max-w-lg text-center font-body text-sm text-stone sm:mt-4 sm:text-base">
         Add your current samples and any products you love filming — we&apos;ll build your sprint
         schedule instantly.
       </p>

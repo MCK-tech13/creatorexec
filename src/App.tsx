@@ -154,6 +154,7 @@ function App() {
   const [products, setProducts] = useState<MergedProduct[]>([])
   const [deadlineProducts, setDeadlineProducts] = useState<DeadlineProduct[]>([])
   const [excludedFromSchedule, setExcludedFromSchedule] = useState<Set<string>>(new Set())
+  const [showAdvancedControls, setShowAdvancedControls] = useState(false)
   const [activeTier, setActiveTier] = useState<Tier | 'All'>('All')
   const [sprintConfig, setSprintConfig] = useState<SprintConfig>(initialSprintConfig)
   const [schedule, setSchedule] = useState<DaySchedule[]>([])
@@ -788,17 +789,29 @@ function App() {
           {topEarnerLine && (
             <p className="font-body text-base text-stone">{topEarnerLine}</p>
           )}
-          <div className="mt-16">
+          <div className="mt-8 sm:mt-12">
             <TierTabs
               products={products}
               activeTier={activeTier}
               onTierChange={setActiveTier}
             />
+            {isBeginnerMode && !isMomentumMode && (
+              <div className="mt-3 flex justify-end sm:mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedControls((v) => !v)}
+                  className="link-elegant font-body text-sm text-ink"
+                >
+                  {showAdvancedControls ? 'Hide advanced controls' : 'Show advanced controls'}
+                </button>
+              </div>
+            )}
           </div>
           <ProductTable
             products={products}
             activeTier={activeTier}
             beginnerMode={isBeginnerMode && !isMomentumMode}
+            advancedControlsOpen={showAdvancedControls}
             onVideosFilmedChange={handleVideosFilmedChange}
             onInRotationChange={handleInRotationChange}
           />

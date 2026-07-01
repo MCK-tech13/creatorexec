@@ -37,8 +37,8 @@ export function DealDetailView({
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-ink/40">
       <div className="flex h-full w-full max-w-lg flex-col overflow-y-auto border-l border-border-warm bg-white">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border-warm bg-white px-6 py-5">
-          <h2 className="font-display text-2xl font-bold text-ink">{deal.brandName}</h2>
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border-warm bg-white px-5 py-4 sm:px-6 sm:py-5">
+          <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">{deal.brandName}</h2>
           <button
             type="button"
             onClick={onClose}
