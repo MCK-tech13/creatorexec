@@ -32,6 +32,11 @@ import {
   sampleProductsToMerged,
 } from './lib/schedule/sampleModeSchedule'
 import { clearFilmingProgress } from './hooks/useFilmingProgress'
+import {
+  hydrateProductsTrialProgress,
+  persistProductVideosFilmed,
+} from './lib/schedule/trialProgress'
+import { clearTrialProgress } from './lib/schedule/trialProgressStorage'
 import { useBrandDeals } from './hooks/useBrandDeals'
 import {
   buildRetainerScheduleEntries,
@@ -68,6 +73,7 @@ import type {
   SprintConfig,
   Tier,
 } from './types'
+import { TIER_REVIEW_VIDEO_COUNT } from './types'
 import type { OnboardingProfile, UserMode } from './types/onboarding'
 import type { BrandDeal } from './types/pipeline'
 import { isActiveRetainer } from './lib/pipeline/retainerUtils'
@@ -195,10 +201,18 @@ function App() {
       mode: ScheduleMode,
       deals = brandDeals,
     ) => {
+      const hydrated = hydrateProductsTrialProgress(productList)
+      if (
+        hydrated.some(
+          (product, index) => product.videosFilmed !== productList[index]?.videosFilmed,
+        )
+      ) {
+        setProducts(hydrated)
+      }
       setSchedule(
         buildScheduleForMode(
           mode,
-          productList,
+          hydrated,
           config,
           deadlines,
           excluded,
@@ -232,7 +246,7 @@ function App() {
 
   const finishUpload = useCallback(
     (tiered: MergedProduct[], mode: ScheduleMode) => {
-      setProducts(tiered)
+      setProducts(hydrateProductsTrialProgress(tiered))
       setScheduleMode(mode)
       setSampleProducts([])
       setDeadlineProducts([])
@@ -281,6 +295,7 @@ function App() {
     setSprintConfig({ videosPerDay: 5, sprintDays: 7 })
     setActiveTier('All')
     clearFilmingProgress()
+    clearTrialProgress()
     setScheduleMode('full')
     setSampleProducts([])
     setPendingProducts(null)
@@ -375,6 +390,10 @@ function App() {
   const handleVideosFilmedChange = useCallback(
     (productId: string, videosFilmed: number) => {
       setProducts((prev) => {
+        const target = prev.find((p) => p.id === productId)
+        if (target) {
+          persistProductVideosFilmed(target, videosFilmed)
+        }
         const updated = prev.map((p) =>
           p.id === productId ? { ...p, videosFilmed } : p,
         )
@@ -400,6 +419,13 @@ function App() {
       excludedFromSchedule,
       retierPreservingManual,
     ],
+  )
+
+  const handleMarkTrialPreviouslyCompleted = useCallback(
+    (productId: string) => {
+      handleVideosFilmedChange(productId, TIER_REVIEW_VIDEO_COUNT)
+    },
+    [handleVideosFilmedChange],
   )
 
   const handleInRotationChange = useCallback(
@@ -449,6 +475,9 @@ function App() {
       }
 
       setProducts((prev) => {
+        if (data.videosFilmed > 0) {
+          persistProductVideosFilmed(newProduct, data.videosFilmed)
+        }
         const combined = retierPreservingManual([...prev, newProduct], scheduleMode)
         if (stage === 'schedule') {
           rebuildSchedule(
@@ -524,7 +553,7 @@ function App() {
 
   const handleSampleBuildSchedule = useCallback((items: SampleProduct[]) => {
     setSampleProducts(items)
-    setProducts(sampleProductsToMerged(items))
+    setProducts(hydrateProductsTrialProgress(sampleProductsToMerged(items)))
     setScheduleMode('sample')
     setDeadlineProducts([])
     setExcludedFromSchedule(new Set())
@@ -621,6 +650,7 @@ function App() {
   const useWideContent =
     mainSection === 'retainers' ||
     mainSection === 'income' ||
+    stage === 'dashboard' ||
     stage === 'schedule' ||
     showRetainerOnlySchedule
 
@@ -814,6 +844,7 @@ function App() {
             advancedControlsOpen={showAdvancedControls}
             onVideosFilmedChange={handleVideosFilmedChange}
             onInRotationChange={handleInRotationChange}
+            onMarkTrialPreviouslyCompleted={handleMarkTrialPreviouslyCompleted}
           />
           {!isBeginnerMode && !isMomentumMode && (
             <p className="font-body text-xs text-stone">

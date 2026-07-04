@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import type { MergedProduct, Tier } from '../../types'
+import { TIER_REVIEW_VIDEO_COUNT } from '../../types'
 import { TierBadge } from './TierBadge'
 import { VideoProgressBar } from './VideoProgressBar'
+import { isReadyForTierReview } from '../../lib/dashboard/videoProgress'
 
 type SortField = 'commission' | 'gmv' | 'itemsSold' | 'score'
 type SortDir = 'asc' | 'desc'
@@ -14,6 +16,35 @@ interface ProductTableProps {
   advancedControlsOpen?: boolean
   onVideosFilmedChange: (productId: string, videosFilmed: number) => void
   onInRotationChange: (productId: string, inRotation: boolean) => void
+  onMarkTrialPreviouslyCompleted: (productId: string) => void
+}
+
+function TestTrialStatus({
+  product,
+  onMarkTrialPreviouslyCompleted,
+}: {
+  product: MergedProduct
+  onMarkTrialPreviouslyCompleted: (productId: string) => void
+}) {
+  if (product.tier !== 'Test') return null
+
+  if (isReadyForTierReview(product.videosFilmed)) {
+    return (
+      <span className="label-caps mt-2 inline-flex text-emerald">
+        Trial completed ({TIER_REVIEW_VIDEO_COUNT}+ videos)
+      </span>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onMarkTrialPreviouslyCompleted(product.id)}
+      className="btn-outline mt-2 w-full px-3 py-2 text-left font-body text-xs leading-snug sm:text-sm"
+    >
+      Test Previously Completed (6+ Videos Posted)
+    </button>
+  )
 }
 
 function formatCurrency(n: number): string {
@@ -31,6 +62,7 @@ export function ProductTable({
   advancedControlsOpen = false,
   onVideosFilmedChange,
   onInRotationChange,
+  onMarkTrialPreviouslyCompleted,
 }: ProductTableProps) {
   const [sortField, setSortField] = useState<SortField>('commission')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -93,6 +125,10 @@ export function ProductTable({
                   {formatCurrency(product.commission)}
                 </span>
               </div>
+              <TestTrialStatus
+                product={product}
+                onMarkTrialPreviouslyCompleted={onMarkTrialPreviouslyCompleted}
+              />
 
               <p className="mt-1.5 font-body text-xs tabular-nums text-stone">
                 GMV {formatCurrency(product.gmv)} · {product.itemsSold} sold
@@ -214,6 +250,10 @@ export function ProductTable({
                   </td>
                   <td className="px-5 py-5">
                     <TierBadge tier={product.tier} showTooltip={beginnerMode} />
+                    <TestTrialStatus
+                      product={product}
+                      onMarkTrialPreviouslyCompleted={onMarkTrialPreviouslyCompleted}
+                    />
                   </td>
                   <td className="px-5 py-5 font-semibold text-emerald">
                     {formatCurrency(product.commission)}

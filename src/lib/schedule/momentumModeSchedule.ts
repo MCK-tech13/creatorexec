@@ -7,65 +7,23 @@ import type {
 } from '../../types'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
-  allocateTestProducts,
-  distributeWithMinimum,
-  sumCounts,
+  placeProvenProductsRoundRobin,
+  placeRemainingByTier,
+  placeTestProductsWithSpread,
+  type SlotPlacementRow,
+} from './schedulePlacement'
+import {
+  computeMomentumSlotAllocations,
   totalDeadlineSlotsNeeded,
   type ProductSlotAllocation,
+  type ScheduleTier,
 } from './slotAllocation'
+import { isTrialComplete } from './trialProgress'
 
-const TIER_ANGLES = {
+const TIER_ANGLES: Record<ScheduleTier, string> = {
+  Anchor: '',
   Rising: 'Problem/solution hook',
   Test: 'First impression / unboxing',
-} as const
-
-function sortedByCommission(products: MergedProduct[]): MergedProduct[] {
-  return [...products].sort((a, b) => b.commission - a.commission)
-}
-
-export function computeMomentumSlotAllocations(
-  rising: MergedProduct[],
-  tests: MergedProduct[],
-  totalSlots: number,
-  deadlineSlotsNeeded: number,
-): ProductSlotAllocation[] {
-  let remaining = Math.max(0, totalSlots - deadlineSlotsNeeded)
-  const sortedRising = sortedByCommission(rising)
-  const sortedTests = sortedByCommission(tests)
-  const allCounts = new Map<string, number>()
-
-  const risingBudget = Math.min(remaining, sortedRising.length * 2)
-  const risingAlloc = distributeWithMinimum(sortedRising, risingBudget, 2)
-  for (const [id, slots] of risingAlloc.counts) {
-    allCounts.set(id, slots)
-  }
-  remaining -= sumCounts(risingAlloc.counts)
-
-  const testAlloc = allocateTestProducts(remaining, sortedTests)
-  for (const [id, slots] of testAlloc.counts) {
-    allCounts.set(id, slots)
-  }
-
-  const tierById = new Map<string, 'Rising' | 'Test'>()
-  for (const product of sortedRising) tierById.set(product.id, 'Rising')
-  for (const product of sortedTests) tierById.set(product.id, 'Test')
-
-  const productById = new Map<string, MergedProduct>()
-  for (const product of [...sortedRising, ...sortedTests]) {
-    productById.set(product.id, product)
-  }
-
-  const allocations: ProductSlotAllocation[] = []
-  for (const [id, slots] of allCounts) {
-    if (slots <= 0) continue
-    const product = productById.get(id)
-    const tier = tierById.get(id)
-    if (product && tier) {
-      allocations.push({ product, tier, slots })
-    }
-  }
-
-  return allocations
 }
 
 function buildDeadlineVideos(deadlineProducts: DeadlineProduct[]): ScheduledVideo[] {
@@ -95,41 +53,12 @@ function buildDeadlineVideos(deadlineProducts: DeadlineProduct[]): ScheduledVide
   return videos
 }
 
-function toScheduledVideo(product: MergedProduct, tier: 'Rising' | 'Test'): ScheduledVideo {
-  return {
-    slotId: '',
-    productKey: product.id,
-    productId: product.productId,
-    productName: formatScheduleProductName(product.productName),
-    tier,
-    suggestedAngle: TIER_ANGLES[tier],
-    commission: product.commission,
-    videosFilmed: product.videosFilmed,
-  }
-}
-
-function expandAllocationsEvenly(
-  allocations: ProductSlotAllocation[],
-): ScheduledVideo[] {
-  const queues = allocations.map(({ product, tier, slots }) => ({
-    videos: Array.from({ length: slots }, () =>
-      toScheduledVideo(product, tier as 'Rising' | 'Test'),
-    ),
+function buildPlacementRows(allocations: ProductSlotAllocation[]): SlotPlacementRow[] {
+  return allocations.map((row) => ({
+    product: row.product,
+    tier: row.tier,
+    remaining: row.slots,
   }))
-
-  const result: ScheduledVideo[] = []
-  let added = true
-  while (added) {
-    added = false
-    for (const queue of queues) {
-      const next = queue.videos.shift()
-      if (next) {
-        result.push(next)
-        added = true
-      }
-    }
-  }
-  return result
 }
 
 function placeVideosRoundRobin(
@@ -185,8 +114,12 @@ export function buildMomentumModeSchedule(
     (p) => p.tier !== 'Cut' && p.tier !== 'Anchor' && p.inRotation && !excludedIds.has(p.id),
   )
 
-  const rising = scheduleProducts.filter((p) => p.tier === 'Rising')
-  const tests = scheduleProducts.filter((p) => p.tier === 'Test')
+  const rising = scheduleProducts
+    .filter((p) => p.tier === 'Rising')
+    .sort((a, b) => b.commission - a.commission)
+  const tests = scheduleProducts
+    .filter((p) => p.tier === 'Test' && !isTrialComplete(p.videosFilmed))
+    .sort((a, b) => b.commission - a.commission)
 
   const { sprintDays, videosPerDay } = config
   const cap = Math.max(1, videosPerDay)
@@ -199,30 +132,23 @@ export function buildMomentumModeSchedule(
     tests,
     totalSlots,
     deadlineSlotsNeeded + retainerSlotsNeeded,
+    sprintDays,
   )
+
+  const risingIds = new Set(rising.map((p) => p.id))
 
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
 
-  let cursor = 0
-  for (const video of retainerVideos) {
-    let placed = false
-    for (let attempt = 0; attempt < sprintDays; attempt++) {
-      const day = (cursor + attempt) % sprintDays
-      if (perDay[day].length < cap) {
-        perDay[day].push(video)
-        cursor = (day + 1) % sprintDays
-        placed = true
-        break
-      }
-    }
-    if (!placed) break
-  }
+  placeVideosRoundRobin(perDay, retainerVideos, cap)
 
   const deadlineVideos = buildDeadlineVideos(deadlineProducts)
   placeDeadlineVideos(perDay, deadlineVideos, cap)
 
-  const productVideos = expandAllocationsEvenly(allocations)
-  placeVideosRoundRobin(perDay, productVideos, cap)
+  const rows = buildPlacementRows(allocations)
+
+  placeTestProductsWithSpread(perDay, rows, cap, sprintDays, TIER_ANGLES)
+  placeProvenProductsRoundRobin(perDay, rows, cap, risingIds, TIER_ANGLES)
+  placeRemainingByTier(perDay, rows, cap, ['Rising', 'Test'], TIER_ANGLES)
 
   return Array.from({ length: sprintDays }, (_, i) => ({
     day: i + 1,
