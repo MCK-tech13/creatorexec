@@ -18,6 +18,7 @@ export interface ProductSlotAllocation {
 export const LOW_ANCHOR_THRESHOLD = 2
 
 export const MAX_TEST_VIDEOS_PER_DAY = 2
+export const MAX_PROVEN_VIDEOS_PER_DAY = 1
 export const MIN_TEST_SPREAD_DAYS = 3
 export const PROVEN_TIER_MAX_PRODUCTS = 10
 export const PROVEN_TIER_MIN_PRODUCTS = 4
@@ -151,9 +152,7 @@ function allocateProvenTier(
     for (const product of products) {
       counts.set(product.id, slotsEach)
     }
-    const extra = distributeWithMinimum(products, pool - desired, 0)
-    mergeCounts(counts, extra.counts)
-    return { counts, unused: extra.unused }
+    return { counts, unused: pool - desired }
   }
 
   for (const product of products) {
@@ -253,13 +252,9 @@ export function computeProductSlotAllocations(
   mergeCounts(allCounts, provenAlloc.counts)
   flexBudget = provenAlloc.unused
 
-  // 4. Leftover capacity → top anchors, then proven tier by commission.
+  // 4. Leftover capacity → Rising (not repeat Anchor/proven slots; tests keep step-1 guarantee).
   if (flexBudget > 0) {
-    const bonusPriority = [
-      ...topAnchors,
-      ...provenProducts.filter((p) => !topAnchors.some((t) => t.id === p.id)),
-    ]
-    flexBudget = redistributeBonus(allCounts, flexBudget, bonusPriority)
+    flexBudget = redistributeBonus(allCounts, flexBudget, sortedRising)
   }
 
   const tierById = new Map<string, ScheduleTier>()

@@ -90,6 +90,35 @@ function top3AppearDaily(
   return true
 }
 
+function maxPerDayForTier(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  productId: string,
+  tier: MergedProduct['tier'],
+): number {
+  return Math.max(
+    0,
+    ...schedule.map(
+      (day) =>
+        day.videos.filter((v) => v.productKey === productId && v.tier === tier).length,
+    ),
+  )
+}
+
+function assertTierMaxOnePerDay(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  products: MergedProduct[],
+  tiers: Array<MergedProduct['tier']>,
+): void {
+  for (const product of products) {
+    if (!tiers.includes(product.tier)) continue
+    const dailyMax = maxPerDayForTier(schedule, product.id, product.tier)
+    assert(
+      dailyMax <= 1,
+      `${product.productName} (${product.tier}) should appear at most once per day, got ${dailyMax}`,
+    )
+  }
+}
+
 function runHighVolumeTest(): void {
   console.log('\n=== High-volume account (5 Anchors, 6 Rising, 4 Test) ===')
   const config: SprintConfig = { videosPerDay: 8, sprintDays: 7 }
@@ -152,6 +181,7 @@ function runHighVolumeTest(): void {
     top3AppearDaily(schedule, ['a1', 'a2', 'a3'], config.sprintDays),
     'Top 3 anchors should appear every day',
   )
+  assertTierMaxOnePerDay(schedule, products, ['Anchor', 'Rising'])
 
   console.log('Allocations:', allocations.map((a) => `${a.product.productName}: ${a.slots}`).join(', '))
   console.log(
@@ -203,6 +233,7 @@ function runLowVolumeTest(): void {
   const testPlaced = tests.reduce((sum, t) => sum + countTierVideos(schedule, t.id), 0)
   const testExpected = tests.reduce((sum, t) => sum + remainingTrialSlots(t.videosFilmed), 0)
   assert(testPlaced === testExpected, 'All test guarantees should place')
+  assertTierMaxOnePerDay(schedule, products, ['Anchor', 'Rising'])
 
   console.log('Allocations:', allocations.map((a) => `${a.product.productName}: ${a.slots}`).join(', '))
   console.log(`Only Anchor placed ${topAnchorDaily}× (not ${config.sprintDays} daily)`)
@@ -229,6 +260,8 @@ function runMomentumTest(): void {
       `Momentum ${test.productName} should place ${expected} videos`,
     )
   }
+
+  assertTierMaxOnePerDay(schedule, rising, ['Rising'])
 
   console.log(
     'Daily totals:',
@@ -288,7 +321,7 @@ function runSalesHistoryHydrationTest(): void {
 
 function runLargeTestQueueSchedulingTest(): void {
   console.log('\n=== Large Test queue (31 products, mixed trial state) ===')
-  const config: SprintConfig = { videosPerDay: 8, sprintDays: 7 }
+  const config: SprintConfig = { videosPerDay: 10, sprintDays: 7 }
   const anchors = [
     mockProduct('a1', 'Anchor 1', 'Anchor', 500),
     mockProduct('a2', 'Anchor 2', 'Anchor', 400),
@@ -318,6 +351,7 @@ function runLargeTestQueueSchedulingTest(): void {
   )
   assert(testVideos > 0, 'Schedule should include Test videos when incomplete trials exist')
   assert(testVideos === 6 * MAX_ACTIVE_TRIAL_PRODUCTS_PER_SPRINT, 'Top 6 should each place 6 videos')
+  assertTierMaxOnePerDay(schedule, products, ['Anchor', 'Rising'])
 
   const incompleteIds = new Set(
     tests.filter((product) => product.videosFilmed < 6).map((product) => product.id),
@@ -421,6 +455,7 @@ function runPartialTrialTest(): void {
   assert(countTierVideos(schedule, 't1') === 2, 'Partial trial should place 2 videos')
   assert(countTierVideos(schedule, 't2') === 6, 'Fresh test should place 6 videos')
   assert(countTierVideos(schedule, 't3') === 0, 'Trial-complete test should not auto-schedule')
+  assertTierMaxOnePerDay(schedule, products, ['Anchor', 'Rising'])
 
   console.log('Allocations:', allocations.map((a) => `${a.product.productName}: ${a.slots}`).join(', '))
   console.log('PASS')

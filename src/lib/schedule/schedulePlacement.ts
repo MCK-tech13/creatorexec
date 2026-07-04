@@ -1,6 +1,7 @@
 import type { DaySchedule, DeadlineProduct, MergedProduct, ScheduledVideo } from '../../types'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
+  MAX_PROVEN_VIDEOS_PER_DAY,
   MAX_TEST_VIDEOS_PER_DAY,
   MIN_TEST_SPREAD_DAYS,
   type ScheduleTier,
@@ -48,11 +49,34 @@ function tryPushVideo(
   return true
 }
 
-function dayWithMostRoom(perDay: ScheduledVideo[][], cap: number): number {
+export function maxVideosPerDayForTier(tier: ScheduleTier): number {
+  if (tier === 'Test') return MAX_TEST_VIDEOS_PER_DAY
+  return MAX_PROVEN_VIDEOS_PER_DAY
+}
+
+export function canPlaceRowOnDay(
+  perDay: ScheduledVideo[][],
+  day: number,
+  row: SlotPlacementRow,
+  cap: number,
+): boolean {
+  if (remainingCapacity(perDay, day, cap) <= 0) return false
+  return (
+    countProductOnDay(perDay, day, row.product.id) <
+    maxVideosPerDayForTier(row.tier)
+  )
+}
+
+function firstDayWithRoomForRow(
+  perDay: ScheduledVideo[][],
+  row: SlotPlacementRow,
+  cap: number,
+): number {
   let bestDay = -1
   let bestRoom = 0
 
   for (let day = 0; day < perDay.length; day++) {
+    if (!canPlaceRowOnDay(perDay, day, row, cap)) continue
     const room = remainingCapacity(perDay, day, cap)
     if (room > bestRoom) {
       bestRoom = room
@@ -169,6 +193,9 @@ export function placeTopAnchorsDaily(
     for (const product of topAnchors) {
       const row = rows.find((entry) => entry.product.id === product.id)
       if (!row || row.remaining <= 0) continue
+      if (countProductOnDay(perDay, day, product.id) >= MAX_PROVEN_VIDEOS_PER_DAY) {
+        continue
+      }
       if (
         tryPushVideo(perDay, day, toTierScheduledVideo(product, 'Anchor', angles), cap)
       ) {
@@ -200,7 +227,7 @@ export function placeProvenProductsRoundRobin(
     progress = false
     for (const row of proven) {
       if (row.remaining <= 0) continue
-      const day = dayWithMostRoom(perDay, cap)
+      const day = firstDayWithRoomForRow(perDay, row, cap)
       if (day === -1) return
       if (
         tryPushVideo(
@@ -237,7 +264,7 @@ export function placeRemainingByTier(
     progress = false
     for (const row of ordered) {
       if (row.remaining <= 0) continue
-      const day = dayWithMostRoom(perDay, cap)
+      const day = firstDayWithRoomForRow(perDay, row, cap)
       if (day === -1) return
       if (
         tryPushVideo(
