@@ -1,4 +1,5 @@
 import { Home } from 'lucide-react'
+import { CreatorExecWordmark } from '../ui/CreatorExecWordmark'
 
 export function Header({
   mainSection,
@@ -14,9 +15,7 @@ export function Header({
       <div className="mx-auto max-w-7xl px-5 py-3 sm:px-8 sm:py-6 md:py-8">
         <div className="flex items-center justify-between gap-3 sm:items-start sm:gap-6">
           <div className="min-w-0">
-            <h1 className="font-display text-xl font-bold leading-none text-ink sm:text-3xl md:text-5xl lg:text-6xl">
-              CreatorExec
-            </h1>
+            <CreatorExecWordmark as="h1" variant="light" size="header" />
             <div className="mt-1.5 h-px w-10 bg-emerald sm:mt-2 sm:w-[60px]" aria-hidden />
             <p className="label-caps mt-2 hidden sm:block md:mt-4">
               Your TikTok Shop Operating System

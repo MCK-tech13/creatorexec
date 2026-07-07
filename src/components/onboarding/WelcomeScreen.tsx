@@ -1,4 +1,5 @@
 import { PageContainer } from '../layout/PageContainer'
+import { CreatorExecWordmark } from '../ui/CreatorExecWordmark'
 import { EditorialMark } from '../ui/EditorialMark'
 
 interface WelcomeScreenProps {
@@ -34,9 +35,7 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
       <PageContainer className="flex flex-1 flex-col items-center justify-center py-12 sm:py-16 md:py-20">
           <div className="mb-8 text-center sm:mb-12">
             <div className="inline-flex flex-col items-center">
-              <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl md:text-6xl">
-                CreatorExec
-              </h1>
+              <CreatorExecWordmark as="h1" variant="light" size="hero" />
               <div className="mt-3 h-px w-[60px] bg-emerald" aria-hidden />
             </div>
           </div>
