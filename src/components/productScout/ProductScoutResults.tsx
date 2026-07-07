@@ -8,18 +8,28 @@ const SENTIMENT_STYLES = {
     bg: 'bg-stat-sage/60',
     points: 'text-emerald',
     marker: 'bg-emerald',
+    detail: 'text-emerald',
   },
   neutral: {
-    border: 'border-border-warm',
-    bg: 'bg-white',
-    points: 'text-stone',
+    border: 'border-blush/50',
+    bg: 'bg-blush-tint',
+    points: 'text-ink',
     marker: 'bg-blush',
+    detail: 'text-stone',
   },
   negative: {
     border: 'border-blush/60',
     bg: 'bg-blush-tint',
     points: 'text-ink',
     marker: 'bg-stone',
+    detail: 'text-stone',
+  },
+  muted: {
+    border: 'border-border-warm',
+    bg: 'bg-white',
+    points: 'text-grey',
+    marker: 'bg-grey-light',
+    detail: 'text-grey',
   },
 } as const
 
@@ -39,7 +49,7 @@ function SignalRow({ signal }: { signal: ProductScoutSignal }) {
             <span className={`h-2 w-2 shrink-0 rounded-full ${styles.marker}`} aria-hidden />
             <p className="font-body text-sm font-semibold text-ink">{signal.label}</p>
           </div>
-          <p className="mt-1 font-body text-sm text-stone">{signal.detail}</p>
+          <p className={`mt-1 font-body text-sm ${styles.detail}`}>{signal.detail}</p>
         </div>
         <span className={`shrink-0 font-body text-sm font-semibold tabular-nums ${styles.points}`}>
           {formatPoints(signal.points)}
@@ -82,7 +92,7 @@ export function ProductScoutResults({ result }: { result: ProductScoutScoreResul
         <div className="mt-3 flex flex-wrap gap-4 font-body text-xs text-stone">
           <span className="inline-flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald" aria-hidden />
-            Positive signal
+            Positive
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-blush" aria-hidden />
@@ -90,15 +100,21 @@ export function ProductScoutResults({ result }: { result: ProductScoutScoreResul
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-stone" aria-hidden />
-            Negative signal
+            Negative
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-grey-light" aria-hidden />
+            No data
           </span>
         </div>
       </div>
 
       <div className="border border-emerald/20 bg-stat-sage/40 px-6 py-5">
         <p className="label-caps mb-2 text-emerald">Funnel recommendation</p>
-        <p className="font-body text-base font-semibold text-ink">{result.funnel.headline}</p>
-        <p className="mt-2 font-body text-sm leading-relaxed text-stone">{result.funnel.detail}</p>
+        <p className="font-display text-base font-semibold text-ink sm:text-lg">{result.funnel.headline}</p>
+        {result.funnel.detail && (
+          <p className="mt-2 font-body text-sm leading-relaxed text-stone">{result.funnel.detail}</p>
+        )}
       </div>
     </div>
   )

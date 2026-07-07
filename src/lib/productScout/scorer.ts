@@ -1,6 +1,5 @@
-import { parseTrendDelta, parseTrendValue } from './metricParser'
+import { parseCompactNumber, parseDelta } from './metricParser'
 import type {
-  ParsedMetric,
   ProductScoutFunnelRecommendation,
   ProductScoutMetrics,
   ProductScoutScoreResult,
@@ -8,198 +7,261 @@ import type {
   ProductScoutVerdict,
 } from '../../types/productScout'
 
-function parseMetricPair(input: { value: string; delta: string }, isPercent = false): ParsedMetric | null {
-  const value = parseTrendValue(input.value)
-  const delta = parseTrendDelta(input.delta, isPercent)
-  if (value === null || delta === null) return null
-  return { value, delta }
+interface ParsedScoutMetrics {
+  orders: number | null
+  ordersDelta: number | null
+  ctr: number | null
+  ctrDelta: number | null
+  creators: number | null
+  creatorsDelta: number | null
+  atcUsers: number | null
 }
 
-function verdictFromScore(score: number): { verdict: ProductScoutVerdict; label: string } {
-  if (score >= 4) {
-    return { verdict: 'strong', label: 'Strong opportunity' }
-  }
-  if (score >= 0) {
-    return { verdict: 'test', label: 'Worth testing' }
-  }
-  return { verdict: 'pass', label: 'Pass' }
-}
-
-function funnelRecommendation(creatorCount: number): ProductScoutFunnelRecommendation {
-  if (creatorCount < 500) {
-    return {
-      headline: 'Lead with TOF — claim the hook space early',
-      detail: 'Low creator count means the hook angle is still open. Film top-of-funnel discovery content first, then move into MOF quickly while demand is building.',
-    }
-  }
-  if (creatorCount >= 2_000) {
-    return {
-      headline: 'Skip to BOF / live content',
-      detail: 'This product is crowded — most competitors stop at TOF/MOF. Direct-sell and live content is the open gap, even on saturated products.',
-    }
-  }
+function parseScoutMetrics(metrics: ProductScoutMetrics): ParsedScoutMetrics {
   return {
-    headline: 'MOF first, then layer in BOF',
-    detail: 'Moderate competition. Focus on mid-funnel content that pushes add-to-cart to order conversion, then add bottom-of-funnel proof and urgency.',
+    orders: parseCompactNumber(metrics.orders.value),
+    ordersDelta: parseDelta(metrics.orders.delta),
+    ctr: parseCompactNumber(metrics.ctr.value),
+    ctrDelta: parseDelta(metrics.ctr.delta),
+    creators: parseCompactNumber(metrics.creators.value),
+    creatorsDelta: parseDelta(metrics.creators.delta),
+    atcUsers: parseCompactNumber(metrics.atcUsers.value),
   }
 }
 
-function scoreOrdersTrend(orders: ParsedMetric): ProductScoutSignal {
-  if (orders.delta > 0) {
+export function hasProductScoutData(metrics: ProductScoutMetrics): boolean {
+  const parsed = parseScoutMetrics(metrics)
+  return [parsed.orders, parsed.ctr, parsed.creators, parsed.atcUsers].some((v) => v != null)
+}
+
+function scoreOrdersTrend(ordersDelta: number | null): ProductScoutSignal {
+  if (ordersDelta == null) {
     return {
       id: 'orders-trend',
-      label: 'Orders trend',
-      detail: 'Rising orders — demand is growing',
+      label: 'Orders Trend',
+      detail: 'No data',
+      points: 0,
+      sentiment: 'muted',
+    }
+  }
+  if (ordersDelta > 0) {
+    return {
+      id: 'orders-trend',
+      label: 'Orders Trend',
+      detail: 'Orders rising — demand is healthy',
       points: 2,
       sentiment: 'positive',
-    }
-  }
-  if (orders.delta < 0) {
-    return {
-      id: 'orders-trend',
-      label: 'Orders trend',
-      detail: 'Falling orders — demand is cooling',
-      points: -2,
-      sentiment: 'negative',
     }
   }
   return {
     id: 'orders-trend',
-    label: 'Orders trend',
-    detail: 'Orders are flat — no clear demand shift',
-    points: 0,
-    sentiment: 'neutral',
-  }
-}
-
-function scoreCreatorsLevel(creators: ParsedMetric): ProductScoutSignal {
-  if (creators.value < 200) {
-    return {
-      id: 'creators-level',
-      label: 'Creator competition',
-      detail: 'Under 200 creators — low competition',
-      points: 2,
-      sentiment: 'positive',
-    }
-  }
-  if (creators.value < 2_000) {
-    return {
-      id: 'creators-level',
-      label: 'Creator competition',
-      detail: 'Moderate creator count — competitive but workable',
-      points: 0,
-      sentiment: 'neutral',
-    }
-  }
-  return {
-    id: 'creators-level',
-    label: 'Creator competition',
-    detail: '2,000+ creators — crowded market',
-    points: -1,
-    sentiment: 'negative',
-  }
-}
-
-function scoreCreatorSaturation(creators: ParsedMetric, orders: ParsedMetric): ProductScoutSignal | null {
-  const creatorsClimbing = creators.delta > 0
-  const ordersFlatOrFalling = orders.delta <= 0
-  if (!creatorsClimbing || !ordersFlatOrFalling) return null
-
-  return {
-    id: 'creator-saturation',
-    label: 'Market saturation',
-    detail: 'Creators climbing while orders stall — market is saturating',
+    label: 'Orders Trend',
+    detail: 'Orders falling — demand may be cooling',
     points: -2,
     sentiment: 'negative',
   }
 }
 
-function scoreCtr(ctr: ParsedMetric, creators: ParsedMetric): ProductScoutSignal[] {
-  const signals: ProductScoutSignal[] = []
-
-  if (ctr.value >= 4) {
-    signals.push({
-      id: 'ctr-strength',
-      label: 'CTR hook',
-      detail: '4%+ CTR — strong scroll-stopping hook',
-      points: 2,
-      sentiment: 'positive',
-    })
-  } else {
-    signals.push({
-      id: 'ctr-strength',
-      label: 'CTR hook',
-      detail: 'CTR below 4% — hook may need work',
+function scoreCreatorSaturation(
+  creatorLevel: number | null,
+  creatorDelta: number | null,
+  ordersDelta: number | null,
+): ProductScoutSignal {
+  if (creatorLevel == null) {
+    return {
+      id: 'creator-saturation',
+      label: 'Creator Saturation',
+      detail: 'No data',
       points: 0,
-      sentiment: 'neutral',
-    })
+      sentiment: 'muted',
+    }
   }
 
-  if (ctr.delta < 0 && creators.value >= 2_000) {
-    signals.push({
-      id: 'ctr-fatigue',
-      label: 'Content fatigue',
-      detail: 'Declining CTR with high creator count — audience may be tired of this angle',
+  const climbingWhileOrdersFlat =
+    creatorDelta != null && creatorDelta > 0 && ordersDelta != null && ordersDelta <= 0
+
+  if (climbingWhileOrdersFlat) {
+    return {
+      id: 'creator-saturation',
+      label: 'Creator Saturation',
+      detail: "Creators climbing while orders aren't — product is saturating",
       points: -2,
       sentiment: 'negative',
-    })
+    }
   }
 
-  return signals
-}
-
-function scoreAtcConversion(conversionRate: number): ProductScoutSignal {
-  if (conversionRate >= 20) {
+  if (creatorLevel < 200) {
     return {
-      id: 'atc-conversion',
-      label: 'ATC → order conversion',
-      detail: '20%+ conversion — product converts well after interest',
+      id: 'creator-saturation',
+      label: 'Creator Saturation',
+      detail: 'Low competition (<200 creators)',
       points: 2,
       sentiment: 'positive',
     }
   }
-  if (conversionRate < 8) {
+  if (creatorLevel < 2_000) {
+    return {
+      id: 'creator-saturation',
+      label: 'Creator Saturation',
+      detail: 'Moderate competition (<2,000 creators)',
+      points: 0,
+      sentiment: 'neutral',
+    }
+  }
+  return {
+    id: 'creator-saturation',
+    label: 'Creator Saturation',
+    detail: 'Crowded (2,000+ creators)',
+    points: -1,
+    sentiment: 'negative',
+  }
+}
+
+function scoreCtr(
+  ctrValue: number | null,
+  ctrDelta: number | null,
+  creatorLevel: number | null,
+): ProductScoutSignal {
+  if (ctrValue == null) {
+    return {
+      id: 'ctr-hook',
+      label: 'CTR / Hook Strength',
+      detail: 'No data',
+      points: 0,
+      sentiment: 'muted',
+    }
+  }
+
+  const highCreatorCount = creatorLevel != null && creatorLevel >= 2_000
+  const decliningCtr = ctrDelta != null && ctrDelta < 0
+
+  if (decliningCtr && highCreatorCount) {
+    return {
+      id: 'ctr-hook',
+      label: 'CTR / Hook Strength',
+      detail: 'CTR declining + high creator count — content fatigue',
+      points: -2,
+      sentiment: 'negative',
+    }
+  }
+
+  if (ctrValue >= 4) {
+    return {
+      id: 'ctr-hook',
+      label: 'CTR / Hook Strength',
+      detail: 'Strong hook (CTR ≥ 4%)',
+      points: 2,
+      sentiment: 'positive',
+    }
+  }
+
+  return {
+    id: 'ctr-hook',
+    label: 'CTR / Hook Strength',
+    detail: 'CTR below 4% — average hook strength',
+    points: 0,
+    sentiment: 'neutral',
+  }
+}
+
+function scoreConversion(orders: number | null, atcUsers: number | null): ProductScoutSignal {
+  if (orders == null || atcUsers == null || atcUsers === 0) {
     return {
       id: 'atc-conversion',
-      label: 'ATC → order conversion',
-      detail: 'Under 8% conversion — friction in price, trust, checkout, or buyer split',
+      label: 'ATC-to-Order Conversion',
+      detail: 'No data',
+      points: 0,
+      sentiment: 'muted',
+    }
+  }
+
+  const rate = orders / atcUsers
+  const ratePercent = (rate * 100).toFixed(1)
+
+  if (rate >= 0.2) {
+    return {
+      id: 'atc-conversion',
+      label: 'ATC-to-Order Conversion',
+      detail: `Converting well (${ratePercent}% ATC-to-order)`,
+      points: 2,
+      sentiment: 'positive',
+    }
+  }
+  if (rate < 0.08) {
+    return {
+      id: 'atc-conversion',
+      label: 'ATC-to-Order Conversion',
+      detail: `High friction (${ratePercent}% ATC-to-order) — price, trust, checkout, or too many creators splitting buyers`,
       points: -2,
       sentiment: 'negative',
     }
   }
   return {
     id: 'atc-conversion',
-    label: 'ATC → order conversion',
-    detail: 'Moderate conversion — room to optimize checkout path',
+    label: 'ATC-to-Order Conversion',
+    detail: `Moderate conversion (${ratePercent}% ATC-to-order)`,
     points: 0,
     sentiment: 'neutral',
   }
 }
 
+function verdictFromScore(totalScore: number): { verdict: ProductScoutVerdict; label: string } {
+  if (totalScore >= 4) {
+    return { verdict: 'strong', label: 'Strong opportunity' }
+  }
+  if (totalScore >= 0) {
+    return { verdict: 'test', label: 'Worth testing' }
+  }
+  return { verdict: 'pass', label: 'Pass' }
+}
+
+function funnelRecommendation(creatorLevel: number | null): ProductScoutFunnelRecommendation {
+  if (creatorLevel == null) {
+    return {
+      headline: 'Add creator count to see funnel recommendation',
+      detail: '',
+    }
+  }
+  if (creatorLevel < 500) {
+    return {
+      headline: 'Lead TOF, then MOF fast',
+      detail:
+        'Low competition — claim the hook space early, then follow up with mid-funnel content quickly before others catch on.',
+    }
+  }
+  if (creatorLevel >= 2_000) {
+    return {
+      headline: 'Skip to BOF / live',
+      detail:
+        'Most competitors stop at TOF/MOF on crowded products — direct-sell content is the open gap even here.',
+    }
+  }
+  return {
+    headline: 'MOF first, then layer BOF',
+    detail:
+      'Moderate competition — push ATC-to-order conversion with mid-funnel content, then add bottom-funnel direct-sell.',
+  }
+}
+
 export function scoreProductScout(metrics: ProductScoutMetrics): ProductScoutScoreResult | null {
-  const orders = parseMetricPair(metrics.orders)
-  const ctr = parseMetricPair(metrics.ctr, true)
-  const creators = parseMetricPair(metrics.creators)
-  const atcUsers = parseMetricPair(metrics.atcUsers)
+  if (!hasProductScoutData(metrics)) return null
 
-  if (!orders || !ctr || !creators || !atcUsers) return null
-  if (atcUsers.value <= 0) return null
-
-  const atcConversionRate = (orders.value / atcUsers.value) * 100
+  const parsed = parseScoutMetrics(metrics)
 
   const signals: ProductScoutSignal[] = [
-    scoreOrdersTrend(orders),
-    scoreCreatorsLevel(creators),
+    scoreOrdersTrend(parsed.ordersDelta),
+    scoreCreatorSaturation(parsed.creators, parsed.creatorsDelta, parsed.ordersDelta),
+    scoreCtr(parsed.ctr, parsed.ctrDelta, parsed.creators),
+    scoreConversion(parsed.orders, parsed.atcUsers),
   ]
-
-  const saturation = scoreCreatorSaturation(creators, orders)
-  if (saturation) signals.push(saturation)
-
-  signals.push(...scoreCtr(ctr, creators))
-  signals.push(scoreAtcConversion(atcConversionRate))
 
   const totalScore = signals.reduce((sum, signal) => sum + signal.points, 0)
   const { verdict, label } = verdictFromScore(totalScore)
+
+  const atcConversionRate =
+    parsed.orders != null && parsed.atcUsers != null && parsed.atcUsers > 0
+      ? (parsed.orders / parsed.atcUsers) * 100
+      : null
 
   return {
     atcConversionRate,
@@ -207,10 +269,11 @@ export function scoreProductScout(metrics: ProductScoutMetrics): ProductScoutSco
     totalScore,
     verdict,
     verdictLabel: label,
-    funnel: funnelRecommendation(creators.value),
+    funnel: funnelRecommendation(parsed.creators),
   }
 }
 
+/** @deprecated Use hasProductScoutData */
 export function isValidProductScoutMetrics(metrics: ProductScoutMetrics): boolean {
-  return scoreProductScout(metrics) !== null
+  return hasProductScoutData(metrics)
 }

@@ -1,36 +1,36 @@
 /**
- * Parse TikTok Shop trend values like "24.1K", "1.2M", "3.5%".
- * Deltas may include a leading sign: "+3.6K", "-0.5%".
+ * Parse TikTok Shop trend values like "24.1K", "1.2M", "3.5", or "3.5%".
+ * Matches the reference product-scorer.jsx compact number parser.
  */
-export function parseTrendValue(raw: string): number | null {
-  const trimmed = raw.trim()
-  if (!trimmed) return null
-
-  const normalized = trimmed.replace(/,/g, '').replace(/%$/, '')
-  const match = normalized.match(/^([+-]?)(\d+(?:\.\d+)?)([KkMm])?$/)
-  if (!match) return null
-
-  const sign = match[1] === '-' ? -1 : 1
-  const amount = parseFloat(match[2])
-  if (Number.isNaN(amount)) return null
-
-  const suffix = match[3]?.toUpperCase()
-  let value = amount
-  if (suffix === 'K') value *= 1_000
-  if (suffix === 'M') value *= 1_000_000
-
-  return sign * value
+export function parseCompactNumber(input: string): number | null {
+  if (input === '' || input == null) return null
+  const cleaned = String(input).trim().toUpperCase().replace(/[,%]/g, '')
+  const multiplier = cleaned.endsWith('K') ? 1_000 : cleaned.endsWith('M') ? 1_000_000 : 1
+  const numeric = parseFloat(cleaned.replace(/[KM]/g, ''))
+  if (Number.isNaN(numeric)) return null
+  return numeric * multiplier
 }
 
-export function parseTrendDelta(raw: string, isPercent = false): number | null {
-  const trimmed = raw.trim()
-  if (!trimmed) return 0
+/**
+ * Parse signed deltas like "+3.6K", "-0.5", or TikTok's ▲/▼ indicators.
+ */
+export function parseDelta(input: string): number | null {
+  if (input === '' || input == null) return null
+  const cleaned = String(input).trim()
+  const isNegative = cleaned.startsWith('-') || cleaned.includes('▼')
+  const value = parseCompactNumber(cleaned.replace(/[-+▲▼]/g, ''))
+  if (value === null) return null
+  return isNegative ? -value : value
+}
 
-  const parsed = parseTrendValue(trimmed)
-  if (parsed === null) return null
+/** @deprecated Use parseCompactNumber */
+export function parseTrendValue(raw: string): number | null {
+  return parseCompactNumber(raw)
+}
 
-  if (isPercent) return parsed
-  return parsed
+/** @deprecated Use parseDelta */
+export function parseTrendDelta(raw: string): number | null {
+  return parseDelta(raw)
 }
 
 export function formatTrendNumber(value: number): string {

@@ -1,6 +1,6 @@
 export type ProductScoutVerdict = 'strong' | 'test' | 'pass'
 
-export type SignalSentiment = 'positive' | 'neutral' | 'negative'
+export type SignalSentiment = 'positive' | 'neutral' | 'negative' | 'muted'
 
 export interface MetricInput {
   value: string

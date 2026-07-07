@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ProductScoutMetrics } from '../../types/productScout'
 import { EMPTY_PRODUCT_SCOUT_METRICS } from '../../lib/productScout/formDefaults'
-import { isValidProductScoutMetrics, scoreProductScout } from '../../lib/productScout/scorer'
+import { hasProductScoutData, scoreProductScout } from '../../lib/productScout/scorer'
 import { ProductScoutResults } from './ProductScoutResults'
 
 const METRIC_FIELDS: {
@@ -21,8 +21,8 @@ const METRIC_FIELDS: {
   {
     key: 'ctr',
     label: 'CTR',
-    valuePlaceholder: '3.5%',
-    deltaPlaceholder: '-0.5%',
+    valuePlaceholder: '3.5',
+    deltaPlaceholder: '-0.5',
     hint: 'Click-through rate and 30-day delta',
   },
   {
@@ -60,7 +60,7 @@ export function ProductScoutForm({
   const [metrics, setMetrics] = useState<ProductScoutMetrics>(initialMetrics)
 
   const previewResult = useMemo(() => {
-    if (!isValidProductScoutMetrics(metrics)) return null
+    if (!hasProductScoutData(metrics)) return null
     return scoreProductScout(metrics)
   }, [metrics])
 
