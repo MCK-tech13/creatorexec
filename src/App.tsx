@@ -15,6 +15,8 @@ import { SprintConfigForm } from './components/config/SprintConfigForm'
 import { FilmingSchedule } from './components/schedule/FilmingSchedule'
 import { RetainerDeals } from './components/pipeline/RetainerDeals'
 import { IncomeTracker } from './components/income/IncomeTracker'
+import { ProductScout } from './components/productScout/ProductScout'
+import { useProductScout } from './hooks/useProductScout'
 import { SprintEmptyState } from './components/sprint/SprintEmptyState'
 import type { DeadlineFormData } from './components/schedule/AddDeadlineModal'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
@@ -185,6 +187,13 @@ function App() {
     removeDeal,
     toggleChecklistItem,
   } = useBrandDeals()
+
+  const {
+    entries: productScoutEntries,
+    addEntry: addProductScoutEntry,
+    updateEntry: updateProductScoutEntry,
+    removeEntry: removeProductScoutEntry,
+  } = useProductScout()
 
   const dailyPostingVolume = sprintConfig.videosPerDay
 
@@ -650,6 +659,7 @@ function App() {
   const useWideContent =
     mainSection === 'retainers' ||
     mainSection === 'income' ||
+    mainSection === 'product-scout' ||
     stage === 'dashboard' ||
     stage === 'schedule' ||
     showRetainerOnlySchedule
@@ -727,6 +737,15 @@ function App() {
         />
       ) : mainSection === 'income' ? (
         <IncomeTracker />
+      ) : mainSection === 'product-scout' ? (
+        <ProductScout
+          entries={productScoutEntries}
+          onAddEntry={(productName, metrics) =>
+            addProductScoutEntry({ productName, metrics })
+          }
+          onUpdateEntry={updateProductScoutEntry}
+          onRemoveEntry={removeProductScoutEntry}
+        />
       ) : (
         <>
       {showSprintEmptyState ? (

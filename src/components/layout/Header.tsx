@@ -5,8 +5,8 @@ export function Header({
   onSectionChange,
   onGoHome,
 }: {
-  mainSection: 'sprint' | 'retainers' | 'income'
-  onSectionChange: (section: 'sprint' | 'retainers' | 'income') => void
+  mainSection: 'sprint' | 'retainers' | 'income' | 'product-scout'
+  onSectionChange: (section: 'sprint' | 'retainers' | 'income' | 'product-scout') => void
   onGoHome: () => void
 }) {
   return (
@@ -72,6 +72,18 @@ export function Header({
           >
             <span className="sm:hidden">Income</span>
             <span className="hidden sm:inline">Income Tracker</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onSectionChange('product-scout')}
+            className={`flex-1 border-b-2 px-1 py-2.5 font-body text-[10px] font-medium whitespace-nowrap uppercase tracking-[0.03em] transition sm:px-6 sm:py-4 sm:text-sm sm:tracking-[0.1em] ${
+              mainSection === 'product-scout'
+                ? 'border-emerald text-emerald'
+                : 'border-transparent text-stone hover:text-ink'
+            }`}
+          >
+            <span className="sm:hidden">Scout</span>
+            <span className="hidden sm:inline">Product Scout</span>
           </button>
         </div>
       </nav>
