@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react'
 import { PageContainer } from '../layout/PageContainer'
+import { CreatorExecWordmark } from '../ui/CreatorExecWordmark'
 
 interface WelcomeScreenProps {
   onContinue: () => void
@@ -40,7 +41,9 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
       {/* Section 1 — Hero */}
       <section className="border-b border-border-warm bg-blush-tint/40 py-12 sm:py-16 md:py-20">
         <PageContainer className="max-w-4xl">
-          <p className="label-caps text-center text-emerald">CreatorExec</p>
+          <div className="flex justify-center lg:justify-start">
+            <CreatorExecWordmark as="p" variant="light" size="compact" />
+          </div>
 
           <div className="mt-8 lg:mt-10 lg:grid lg:grid-cols-2 lg:items-center lg:gap-12">
             <div className="text-center lg:text-left">

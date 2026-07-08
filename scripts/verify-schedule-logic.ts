@@ -1,7 +1,13 @@
 /**
  * Run: npx tsx scripts/verify-schedule-logic.ts
  */
-import type { MergedProduct, SprintConfig } from '../src/types'
+import type { MergedProduct, ScheduledVideo, SprintConfig } from '../src/types'
+import { CONTENT_ANGLE_POOL } from '../src/lib/schedule/anglePool'
+import {
+  AngleRotationSession,
+  getAngleRotationIndex,
+} from '../src/lib/schedule/angleRotation'
+import { clearAngleRotation, loadAngleRotation } from '../src/lib/schedule/angleRotationStorage'
 import { buildFilmingSchedule } from '../src/lib/schedule/scheduleBuilder'
 import { buildMomentumModeSchedule } from '../src/lib/schedule/momentumModeSchedule'
 import {
@@ -14,7 +20,6 @@ import {
   MIN_TEST_SPREAD_DAYS,
 } from '../src/lib/schedule/slotAllocation'
 import { placeRetainerVideos } from '../src/lib/schedule/schedulePlacement'
-import type { ScheduledVideo } from '../src/types'
 import {
   hydrateProductTrialProgress,
   MAX_ACTIVE_TRIAL_PRODUCTS_PER_SPRINT,
@@ -22,6 +27,26 @@ import {
   summarizeTrialScheduling,
 } from '../src/lib/schedule/trialProgress'
 import type { TrialProgressStore } from '../src/lib/schedule/trialProgressStorage'
+import {
+  buildRetainerScheduleEntries,
+} from '../src/lib/pipeline/pipelineScheduleIntegration'
+import type { BrandDeal } from '../src/types/pipeline'
+
+const memoryStorage = new Map<string, string>()
+;(globalThis as { localStorage?: Storage }).localStorage = {
+  getItem: (key) => memoryStorage.get(key) ?? null,
+  setItem: (key, value) => {
+    memoryStorage.set(key, value)
+  },
+  removeItem: (key) => {
+    memoryStorage.delete(key)
+  },
+  clear: () => {
+    memoryStorage.clear()
+  },
+  key: () => null,
+  length: 0,
+}
 
 function mockProduct(
   id: string,
@@ -628,6 +653,157 @@ function runPartialTrialTest(): void {
   console.log('PASS')
 }
 
+function collectProductAngles(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  productId: string,
+): string[] {
+  return schedule.flatMap((day) =>
+    day.videos.filter((v) => v.productKey === productId).map((v) => v.suggestedAngle),
+  )
+}
+
+function runAngleRotationTest(): void {
+  console.log('\n=== Angle rotation pool (per product, across sprints) ===')
+  clearAngleRotation()
+
+  const config: SprintConfig = { videosPerDay: 5, sprintDays: 7 }
+  const anchor = mockProduct('a1', 'Anchor product', 'Anchor', 300)
+  const rising = mockProduct('r1', 'Rising product', 'Rising', 100)
+  const testProduct = mockProduct('t1', 'Test product', 'Test', 50)
+
+  const sprint1 = buildFilmingSchedule([anchor, rising, testProduct], config)
+  const anchorAngles = collectProductAngles(sprint1, 'a1')
+  const risingAngles = collectProductAngles(sprint1, 'r1')
+  const testAngles = collectProductAngles(sprint1, 't1')
+
+  assert(anchorAngles.length > 1, 'Anchor should be scheduled more than once in sprint 1')
+  assert(
+    anchorAngles.every((angle) => CONTENT_ANGLE_POOL.includes(angle as (typeof CONTENT_ANGLE_POOL)[number])),
+    'Anchor angles should come from the shared pool',
+  )
+  if (anchorAngles.length <= CONTENT_ANGLE_POOL.length) {
+    assert(
+      new Set(anchorAngles).size === anchorAngles.length,
+      'When a product appears at most once per pool angle, each slot should get a distinct angle',
+    )
+  }
+  assert(
+    risingAngles.every((angle) => CONTENT_ANGLE_POOL.includes(angle as (typeof CONTENT_ANGLE_POOL)[number])),
+    'Rising angles should come from the shared pool',
+  )
+  assert(
+    testAngles.every((angle) => CONTENT_ANGLE_POOL.includes(angle as (typeof CONTENT_ANGLE_POOL)[number])),
+    'Test angles should come from the shared pool',
+  )
+
+  const indexBeforeSprint2 = getAngleRotationIndex(anchor)
+  assert(
+    indexBeforeSprint2 === anchorAngles.length,
+    'Rotation index should advance once per scheduled anchor slot',
+  )
+
+  const sprint2 = buildFilmingSchedule([anchor, rising, testProduct], config)
+  const anchorAnglesSprint2 = collectProductAngles(sprint2, 'a1')
+  const indexAfterSprint2 = getAngleRotationIndex(anchor)
+
+  assert(anchorAnglesSprint2.length > 0, 'Anchor should appear in sprint 2')
+  assert(
+    indexAfterSprint2 > indexBeforeSprint2,
+    'Sprint 2 should continue advancing the rotation index',
+  )
+  assert(
+    anchorAnglesSprint2.includes(
+      CONTENT_ANGLE_POOL[indexBeforeSprint2 % CONTENT_ANGLE_POOL.length],
+    ),
+    'Sprint 2 should use angles from the persisted pool position',
+  )
+
+  const session = new AngleRotationSession({ 'pid-wrap': { nextIndex: 4 } })
+  assert(session.consumeAngle({ id: 'wrap', productId: 'pid-wrap' }) === CONTENT_ANGLE_POOL[4])
+  assert(session.consumeAngle({ id: 'wrap', productId: 'pid-wrap' }) === CONTENT_ANGLE_POOL[0])
+  assert(
+    loadAngleRotation()['pid-wrap'] === undefined,
+    'In-memory session should not persist until explicitly saved',
+  )
+
+  console.log('Sprint 1 anchor angles:', anchorAngles.join(' → '))
+  console.log('Sprint 2 anchor angles:', anchorAnglesSprint2.join(' → '))
+  console.log('PASS')
+}
+
+function maxProductPerDay(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  productKey: string,
+): number {
+  return Math.max(
+    0,
+    ...schedule.map(
+      (day) => day.videos.filter((video) => video.productKey === productKey).length,
+    ),
+  )
+}
+
+function runRetainerCapTest(): void {
+  console.log('\n=== Retainer 2 videos/day cap ===')
+
+  const config: SprintConfig = { videosPerDay: 8, sprintDays: 7 }
+  const retainerKey = 'retainer:deal-1'
+  const retainerVideos: ScheduledVideo[] = Array.from({ length: 20 }, () => ({
+    slotId: '',
+    productKey: retainerKey,
+    productId: retainerKey,
+    productName: 'GlowLab — Serum',
+    tier: 'Retainer',
+    suggestedAngle: 'Retainer deliverable — brand partnership content',
+    commission: 0,
+    videosFilmed: 0,
+    deadlineDate: '2026-12-31',
+    brand: 'GlowLab',
+  }))
+
+  const anchors = [mockProduct('a1', 'Anchor 1', 'Anchor', 100)]
+  const schedule = buildFilmingSchedule(anchors, config, [], new Set(), retainerVideos)
+  const dailyMax = maxProductPerDay(schedule, retainerKey)
+
+  assert(
+    dailyMax <= MAX_RETAINER_VIDEOS_PER_DAY,
+    `Retainer should appear at most ${MAX_RETAINER_VIDEOS_PER_DAY}x per day, got ${dailyMax}`,
+  )
+
+  const deadline = new Date()
+  deadline.setDate(deadline.getDate() + 3)
+  const deadlineIso = deadline.toISOString().slice(0, 10)
+
+  const behindPaceDeal: BrandDeal = {
+    id: 'deal-1',
+    brandName: 'GlowLab',
+    product: 'Serum',
+    stage: 'filming',
+    contractSigned: true,
+    videoDeliverables: [],
+    isRetainer: true,
+    retainerTotalVideos: 30,
+    retainerDeadlineDate: deadlineIso,
+    filmingChecklist: Array.from({ length: 30 }, () => ({
+      id: crypto.randomUUID(),
+      completed: false,
+    })),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
+  const entries = buildRetainerScheduleEntries([behindPaceDeal], config, config.videosPerDay)
+  assert(entries.length === 1, 'Active retainer should produce one schedule entry')
+  assert(
+    entries[0].slotsPerDay <= MAX_RETAINER_VIDEOS_PER_DAY,
+    `slotsPerDay should cap at ${MAX_RETAINER_VIDEOS_PER_DAY}, got ${entries[0].slotsPerDay}`,
+  )
+
+  console.log(`Retainer daily max on schedule: ${dailyMax}`)
+  console.log(`Capped slotsPerDay for behind-pace deal: ${entries[0].slotsPerDay}`)
+  console.log('PASS')
+}
+
 try {
   runHighVolumeTest()
   runLowVolumeTest()
@@ -638,6 +814,8 @@ try {
   runSalesHistoryHydrationTest()
   runTrialCapTest()
   runLargeTestQueueSchedulingTest()
+  runAngleRotationTest()
+  runRetainerCapTest()
   console.log('\nAll schedule verification checks passed.')
 } catch (error) {
   console.error('\nVERIFICATION FAILED:', error)

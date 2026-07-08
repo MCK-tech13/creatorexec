@@ -7,6 +7,7 @@
 
   --color-white: #ffffff;
   --color-cream: #ffffff;
+  --color-cream-warm: #faf7f2;
   --color-cream-card: #ffffff;
   --color-ink: #1a1a1a;
   --color-stone: #8a8a8a;
@@ -118,6 +119,14 @@ body {
 @utility font-display {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
+}
+
+@utility wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 @utility font-body {
