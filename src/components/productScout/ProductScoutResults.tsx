@@ -1,5 +1,6 @@
 import type { ProductScoutScoreResult, ProductScoutSignal } from '../../types/productScout'
 import { formatPercent } from '../../lib/productScout/metricParser'
+import { ContentPolicyDisclaimer } from '../ui/ContentPolicyDisclaimer'
 import { ProductScoutVerdictBadge } from './ProductScoutVerdictBadge'
 
 const SENTIMENT_STYLES = {
@@ -115,6 +116,7 @@ export function ProductScoutResults({ result }: { result: ProductScoutScoreResul
         {result.funnel.detail && (
           <p className="mt-2 font-body text-sm leading-relaxed text-stone">{result.funnel.detail}</p>
         )}
+        <ContentPolicyDisclaimer className="mt-4 border-t border-emerald/10 pt-4" />
       </div>
     </div>
   )

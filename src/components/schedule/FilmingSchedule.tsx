@@ -16,6 +16,7 @@ import { formatScheduleText } from '../../lib/schedule/scheduleBuilder'
 import { getScheduleTierExplanation } from '../../lib/onboarding/beginnerCopy'
 import { ProductChoosingTips } from '../sample/ProductChoosingTips'
 import { TierBadge } from '../dashboard/TierBadge'
+import { ContentPolicyDisclaimer } from '../ui/ContentPolicyDisclaimer'
 import { AddDeadlineModal, type DeadlineFormData } from './AddDeadlineModal'
 
 interface FilmingScheduleProps {
@@ -128,6 +129,7 @@ export function FilmingSchedule({
                 ? `${totalVideos} videos across ${schedule.length} days · balanced rotation`
                 : `${totalVideos} videos across ${schedule.length} days · sorted by tier, then commission`}
           </p>
+          <ContentPolicyDisclaimer className="mt-3 max-w-2xl" />
         </div>
         <div className="flex flex-wrap gap-2">
           {!sampleMode && (
