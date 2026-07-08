@@ -6,29 +6,11 @@ import {
   resetProductScoutWalkthroughDismissed,
 } from '../../lib/productScout/walkthroughStorage'
 
-/** Drop the final walkthrough clip at public/videos/product-scout-walkthrough.mp4 */
+/** Web-optimized walkthrough clip (convert source MOV via npm run prepare:walkthrough-video). */
 export const PRODUCT_SCOUT_WALKTHROUGH_VIDEO_SRC = '/videos/product-scout-walkthrough.mp4'
 
 interface ProductScoutWalkthroughProps {
   videoSrc?: string
-}
-
-function WalkthroughPlaceholder() {
-  return (
-    <div
-      className="flex aspect-[9/16] w-full flex-col items-center justify-center border border-dashed border-blush bg-white px-4 text-center"
-      role="img"
-      aria-label="Walkthrough video placeholder"
-    >
-      <p className="font-body text-xs font-semibold uppercase tracking-[0.12em] text-stone">
-        [Walkthrough video placeholder]
-      </p>
-      <p className="mt-3 font-body text-xs leading-relaxed text-grey">
-        Screen recording: TikTok Shop → Promotion info → Product trends (Orders, CTR, Creators,
-        ATC users)
-      </p>
-    </div>
-  )
 }
 
 export function ProductScoutWalkthrough({
@@ -36,7 +18,7 @@ export function ProductScoutWalkthrough({
 }: ProductScoutWalkthroughProps) {
   const [dismissed, setDismissed] = useState(() => isProductScoutWalkthroughDismissed())
   const [collapsed, setCollapsed] = useState(false)
-  const [videoAvailable, setVideoAvailable] = useState(true)
+  const [videoError, setVideoError] = useState(false)
 
   const handleDismiss = () => {
     dismissProductScoutWalkthrough()
@@ -47,6 +29,7 @@ export function ProductScoutWalkthrough({
     resetProductScoutWalkthroughDismissed()
     setDismissed(false)
     setCollapsed(false)
+    setVideoError(false)
   }
 
   if (dismissed) {
@@ -100,19 +83,23 @@ export function ProductScoutWalkthrough({
       {!collapsed && (
         <div className="flex justify-center p-4 sm:p-5">
           <div className="mx-auto w-full max-w-[280px] lg:max-w-none">
-            {videoSrc && videoAvailable ? (
+            {videoError ? (
+              <p className="border border-border-warm bg-white px-4 py-6 text-center font-body text-sm text-stone">
+                Walkthrough video could not be loaded. Try refreshing the page.
+              </p>
+            ) : (
               <video
+                key={videoSrc}
                 src={videoSrc}
                 controls
                 playsInline
                 preload="metadata"
-                onError={() => setVideoAvailable(false)}
-                className="aspect-[9/16] w-full border border-border-warm bg-ink object-cover"
+                onError={() => setVideoError(true)}
+                className="aspect-[9/16] w-full border border-border-warm bg-ink object-contain"
+                aria-label="Screen recording: TikTok Shop promotion info and Product trends metrics"
               >
                 <track kind="captions" />
               </video>
-            ) : (
-              <WalkthroughPlaceholder />
             )}
           </div>
         </div>

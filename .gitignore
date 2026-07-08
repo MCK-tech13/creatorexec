@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Walkthrough source clip — commit the compressed MP4 only
+public/videos/*.mov

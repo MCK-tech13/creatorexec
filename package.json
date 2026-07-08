@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "prepare:walkthrough-video": "bash scripts/prepare-walkthrough-video.sh",
     "lint": "oxlint",
     "preview": "vite preview"
   },
