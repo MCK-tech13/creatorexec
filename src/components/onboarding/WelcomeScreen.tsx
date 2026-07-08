@@ -13,6 +13,11 @@ const WHATS_INSIDE = [
       'Upload your commission report and get a personalized filming schedule, ranked by product performance.',
   },
   {
+    label: 'Product Scout',
+    description:
+      'Score new products before you commit — see demand, competition, and conversion at a glance.',
+  },
+  {
     label: 'Retainer Deal Tracking',
     description:
       'Manage brand deals from negotiation to signed, with video requirements auto-added to your sprint.',
@@ -48,8 +53,8 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
           <div className="mt-8 lg:mt-10 lg:grid lg:grid-cols-2 lg:items-center lg:gap-12">
             <div className="text-center lg:text-left">
               <h1 className="font-display text-[1.625rem] font-bold leading-snug text-ink sm:text-3xl md:text-4xl md:leading-tight lg:text-[2.375rem]">
-                You&apos;re one messy spreadsheet away from forgetting which of your 48 products
-                actually made you money this month.
+                You&apos;re running a business across four different tabs, a notes app, and your
+                memory. It shouldn&apos;t take that much to know what&apos;s working.
               </h1>
             </div>
 
@@ -83,9 +88,9 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
       <section className="py-16 sm:py-20 md:py-24 lg:py-28">
         <PageContainer>
           <p className="mx-auto max-w-2xl text-center font-body text-base leading-relaxed text-ink sm:text-lg md:text-xl md:leading-relaxed">
-            CreatorExec remembers what&apos;s working, tells you what to film next, and catches brand
-            deadlines before they slip through your inbox — so your sales history isn&apos;t scattered
-            across three tools and your memory.
+            CreatorExec brings your product performance, filming schedule, new product scoring, brand
+            deals, and income into one place — so you always know what to film, what&apos;s worth
+            testing, and what&apos;s paying off.
           </p>
         </PageContainer>
       </section>
@@ -141,12 +146,12 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
         <PageContainer>
           <div className="mx-auto max-w-lg text-center">
             <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">
-              Your filming plan, finally in one place.
+              Everything your business needs, finally in one place.
             </h2>
             <p className="mt-4 font-body text-sm leading-relaxed text-stone sm:text-base">
-              Stop guessing which products deserve your next video. Upload your report, get your
-              tier rankings, and walk away with a sprint schedule built around what&apos;s actually
-              selling.
+              Stop juggling spreadsheets, DMs, and guesswork. Upload your data, get your tiers,
+              build your schedule, score new products, and track every deal and dollar — all from
+              one dashboard.
             </p>
             <div className="mt-8">
               <button
