@@ -1,5 +1,7 @@
 import type { BrandDeal } from '../../types/pipeline'
 
+import { MAX_RETAINER_VIDEOS_PER_DAY } from '../schedule/slotAllocation'
+
 export interface RetainerProgress {
   completed: number
   total: number
@@ -59,7 +61,8 @@ export function calcRetainerProgress(
     }
   }
   const daysRemaining = Math.max(1, daysUntil(deadline))
-  const videosPerDay = remaining > 0 ? Math.ceil(remaining / daysRemaining) : 0
+  const rawPerDay = remaining > 0 ? Math.ceil(remaining / daysRemaining) : 0
+  const videosPerDay = Math.min(MAX_RETAINER_VIDEOS_PER_DAY, rawPerDay)
   return {
     completed,
     total,

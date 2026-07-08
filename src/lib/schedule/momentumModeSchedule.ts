@@ -7,9 +7,12 @@ import type {
 } from '../../types'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
+  fillDailyCapacity,
   placeProvenProductsRoundRobin,
   placeRemainingByTier,
+  placeRetainerVideos,
   placeTestProductsWithSpread,
+  type DailyFillProduct,
   type SlotPlacementRow,
 } from './schedulePlacement'
 import {
@@ -19,6 +22,7 @@ import {
   type ScheduleTier,
 } from './slotAllocation'
 import { isTrialComplete } from './trialProgress'
+import { logDailyCapacityDiagnostics } from './scheduleDiagnostics'
 
 const TIER_ANGLES: Record<ScheduleTier, string> = {
   Anchor: '',
@@ -59,27 +63,6 @@ function buildPlacementRows(allocations: ProductSlotAllocation[]): SlotPlacement
     tier: row.tier,
     remaining: row.slots,
   }))
-}
-
-function placeVideosRoundRobin(
-  perDay: ScheduledVideo[][],
-  videos: ScheduledVideo[],
-  cap: number,
-): void {
-  let dayCursor = 0
-  for (const video of videos) {
-    let placed = false
-    for (let attempt = 0; attempt < perDay.length; attempt++) {
-      const day = (dayCursor + attempt) % perDay.length
-      if (perDay[day].length < cap) {
-        perDay[day].push(video)
-        dayCursor = (day + 1) % perDay.length
-        placed = true
-        break
-      }
-    }
-    if (!placed) break
-  }
 }
 
 function placeDeadlineVideos(
@@ -139,7 +122,7 @@ export function buildMomentumModeSchedule(
 
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
 
-  placeVideosRoundRobin(perDay, retainerVideos, cap)
+  placeRetainerVideos(perDay, retainerVideos, cap)
 
   const deadlineVideos = buildDeadlineVideos(deadlineProducts)
   placeDeadlineVideos(perDay, deadlineVideos, cap)
@@ -148,13 +131,44 @@ export function buildMomentumModeSchedule(
 
   placeTestProductsWithSpread(perDay, rows, cap, sprintDays, TIER_ANGLES)
   placeProvenProductsRoundRobin(perDay, rows, cap, risingIds, TIER_ANGLES)
-  placeRemainingByTier(perDay, rows, cap, ['Rising', 'Test'], TIER_ANGLES)
+  placeRemainingByTier(perDay, rows, cap, ['Test', 'Rising'], TIER_ANGLES)
 
-  return Array.from({ length: sprintDays }, (_, i) => ({
+  const fillPool: DailyFillProduct[] = [
+    ...tests.map((product) => ({ product, tier: 'Test' as const })),
+    ...rising.map((product) => ({ product, tier: 'Rising' as const })),
+  ]
+  const maxSprintByProduct = new Map(
+    allocations.map((row) => [row.product.id, row.slots]),
+  )
+  for (const entry of fillPool) {
+    if (maxSprintByProduct.has(entry.product.id)) continue
+    if (entry.tier === 'Rising') {
+      maxSprintByProduct.set(entry.product.id, sprintDays)
+    }
+  }
+  fillDailyCapacity(
+    perDay,
+    rows,
+    fillPool,
+    cap,
+    sprintDays,
+    maxSprintByProduct,
+    TIER_ANGLES,
+  )
+
+  const schedule = Array.from({ length: sprintDays }, (_, i) => ({
     day: i + 1,
     videos: perDay[i].map((video, slot) => ({
       ...video,
       slotId: `d${i + 1}-s${slot}-${video.productName}-${video.tier}`,
     })),
   }))
+
+  logDailyCapacityDiagnostics(schedule, cap, {
+    risingCount: rising.length,
+    activeTestCount: tests.length,
+    mode: 'momentum',
+  })
+
+  return schedule
 }

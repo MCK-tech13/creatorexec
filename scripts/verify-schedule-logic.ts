@@ -8,9 +8,13 @@ import {
   TEST_VIDEO_GUARANTEE,
   computeProductSlotAllocations,
   isLowAnchorAccount,
+  MAX_RETAINER_VIDEOS_PER_DAY,
+  MAX_RISING_VIDEOS_PER_DAY,
   MAX_TEST_VIDEOS_PER_DAY,
   MIN_TEST_SPREAD_DAYS,
 } from '../src/lib/schedule/slotAllocation'
+import { placeRetainerVideos } from '../src/lib/schedule/schedulePlacement'
+import type { ScheduledVideo } from '../src/types'
 import {
   hydrateProductTrialProgress,
   MAX_ACTIVE_TRIAL_PRODUCTS_PER_SPRINT,
@@ -119,6 +123,165 @@ function assertTierMaxOnePerDay(
   }
 }
 
+function assertProvenDailyCaps(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  products: MergedProduct[],
+): void {
+  assertTierMaxOnePerDay(
+    schedule,
+    products.filter((product) => product.tier === 'Anchor'),
+    ['Anchor'],
+  )
+  assertRisingMaxPerDay(
+    schedule,
+    products.filter((product) => product.tier === 'Rising'),
+    MAX_RISING_VIDEOS_PER_DAY,
+  )
+}
+
+function assertRisingMaxPerDay(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  products: MergedProduct[],
+  maxPerDay: number,
+): void {
+  for (const product of products.filter((p) => p.tier === 'Rising')) {
+    const dailyMax = maxPerDayForTier(schedule, product.id, 'Rising')
+    assert(
+      dailyMax <= maxPerDay,
+      `${product.productName} (Rising) should appear at most ${maxPerDay}x/day, got ${dailyMax}`,
+    )
+  }
+}
+
+function assertTestMaxTwoPerDay(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  products: MergedProduct[],
+): void {
+  for (const product of products.filter((p) => p.tier === 'Test')) {
+    const dailyMax = maxPerDayForTier(schedule, product.id, 'Test')
+    assert(
+      dailyMax <= MAX_TEST_VIDEOS_PER_DAY,
+      `${product.productName} (Test) should appear at most ${MAX_TEST_VIDEOS_PER_DAY}x/day, got ${dailyMax}`,
+    )
+  }
+}
+
+function assertRetainerMaxTwoPerDay(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  retainerKey: string,
+): void {
+  for (const day of schedule) {
+    const count = day.videos.filter((v) => v.productKey === retainerKey).length
+    assert(
+      count <= MAX_RETAINER_VIDEOS_PER_DAY,
+      `Retainer ${retainerKey} should appear at most ${MAX_RETAINER_VIDEOS_PER_DAY}x/day on day ${day.day}, got ${count}`,
+    )
+  }
+}
+
+function runRetainerPlacementTest(): void {
+  console.log('\n=== Retainer placement (up to 2/day) ===')
+  const config: SprintConfig = { videosPerDay: 6, sprintDays: 7 }
+  const anchors = [mockProduct('a1', 'Anchor 1', 'Anchor', 300)]
+  const retainerKey = 'retainer:deal1'
+  const retainerVideos: ScheduledVideo[] = Array.from({ length: 10 }, () => ({
+    slotId: '',
+    productKey: retainerKey,
+    productId: retainerKey,
+    productName: 'Acme — Serum',
+    tier: 'Retainer',
+    suggestedAngle: 'Retainer deliverable',
+    commission: 0,
+    videosFilmed: 0,
+  }))
+
+  const perDay: ScheduledVideo[][] = Array.from({ length: config.sprintDays }, () => [])
+  placeRetainerVideos(perDay, retainerVideos, config.videosPerDay)
+  const schedule = buildFilmingSchedule(anchors, config, [], new Set(), retainerVideos)
+
+  assertRetainerMaxTwoPerDay(schedule, retainerKey)
+  const maxRetainerDay = Math.max(
+    ...schedule.map(
+      (day) => day.videos.filter((v) => v.productKey === retainerKey).length,
+    ),
+  )
+  assert(
+    maxRetainerDay === MAX_RETAINER_VIDEOS_PER_DAY,
+    'Retainer should be able to place 2 videos on a single day when needed',
+  )
+  assertTierMaxOnePerDay(schedule, anchors, ['Anchor'])
+
+  console.log('PASS')
+}
+
+function assertDailyCapacityFilled(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  videosPerDay: number,
+): void {
+  for (const day of schedule) {
+    assert(
+      day.videos.length === videosPerDay,
+      `Day ${day.day} should schedule ${videosPerDay} videos, got ${day.videos.length}`,
+    )
+  }
+}
+
+function runDailyCapacityFillTest(): void {
+  console.log('\n=== Daily capacity fill (30/day, 7 Anchor + 10 Rising + 6 Test + retainer) ===')
+  const config: SprintConfig = { videosPerDay: 30, sprintDays: 7 }
+  const anchors = Array.from({ length: 7 }, (_, i) =>
+    mockProduct(`a${i}`, `Anchor ${i + 1}`, 'Anchor', 500 - i * 20),
+  )
+  const rising = Array.from({ length: 10 }, (_, i) =>
+    mockProduct(`r${i}`, `Rising ${i + 1}`, 'Rising', 200 - i * 10),
+  )
+  const tests = Array.from({ length: 6 }, (_, i) =>
+    mockProduct(`t${i}`, `Test ${i + 1}`, 'Test', 40 - i * 5),
+  )
+  const retainerKey = 'retainer:deal1'
+  const retainerVideos: ScheduledVideo[] = Array.from({ length: 7 }, () => ({
+    slotId: '',
+    productKey: retainerKey,
+    productId: retainerKey,
+    productName: 'Brand — Product',
+    tier: 'Retainer',
+    suggestedAngle: 'Retainer deliverable',
+    commission: 0,
+    videosFilmed: 0,
+  }))
+
+  const schedule = buildFilmingSchedule(
+    [...anchors, ...rising, ...tests],
+    config,
+    [],
+    new Set(),
+    retainerVideos,
+  )
+
+  assertDailyCapacityFilled(schedule, config.videosPerDay)
+  assertTierMaxOnePerDay(schedule, anchors, ['Anchor'])
+  assertRisingMaxPerDay(schedule, rising, MAX_RISING_VIDEOS_PER_DAY)
+  assertTestMaxTwoPerDay(schedule, tests)
+  assertRetainerMaxTwoPerDay(schedule, retainerKey)
+
+  const sampleDay = schedule[0]
+  const anchorRisingOnDay = sampleDay.videos.filter(
+    (v) => v.tier === 'Anchor' || v.tier === 'Rising',
+  ).length
+  assert(
+    anchorRisingOnDay >= 17,
+    `Day 1 should include all 17 Anchor/Rising products, got ${anchorRisingOnDay}`,
+  )
+
+  console.log(
+    `Day 1 breakdown: ${sampleDay.videos.length} total —`,
+    `Anchor/Rising: ${anchorRisingOnDay},`,
+    `Test: ${sampleDay.videos.filter((v) => v.tier === 'Test').length},`,
+    `Retainer: ${sampleDay.videos.filter((v) => v.tier === 'Retainer').length}`,
+  )
+  console.log('PASS')
+}
+
 function runHighVolumeTest(): void {
   console.log('\n=== High-volume account (5 Anchors, 6 Rising, 4 Test) ===')
   const config: SprintConfig = { videosPerDay: 8, sprintDays: 7 }
@@ -181,7 +344,8 @@ function runHighVolumeTest(): void {
     top3AppearDaily(schedule, ['a1', 'a2', 'a3'], config.sprintDays),
     'Top 3 anchors should appear every day',
   )
-  assertTierMaxOnePerDay(schedule, products, ['Anchor', 'Rising'])
+  assertProvenDailyCaps(schedule, products)
+  assertTestMaxTwoPerDay(schedule, products)
 
   console.log('Allocations:', allocations.map((a) => `${a.product.productName}: ${a.slots}`).join(', '))
   console.log(
@@ -233,7 +397,8 @@ function runLowVolumeTest(): void {
   const testPlaced = tests.reduce((sum, t) => sum + countTierVideos(schedule, t.id), 0)
   const testExpected = tests.reduce((sum, t) => sum + remainingTrialSlots(t.videosFilmed), 0)
   assert(testPlaced === testExpected, 'All test guarantees should place')
-  assertTierMaxOnePerDay(schedule, products, ['Anchor', 'Rising'])
+  assertProvenDailyCaps(schedule, products)
+  assertTestMaxTwoPerDay(schedule, products)
 
   console.log('Allocations:', allocations.map((a) => `${a.product.productName}: ${a.slots}`).join(', '))
   console.log(`Only Anchor placed ${topAnchorDaily}× (not ${config.sprintDays} daily)`)
@@ -261,7 +426,8 @@ function runMomentumTest(): void {
     )
   }
 
-  assertTierMaxOnePerDay(schedule, rising, ['Rising'])
+  assertRisingMaxPerDay(schedule, rising, MAX_RISING_VIDEOS_PER_DAY)
+  assertTestMaxTwoPerDay(schedule, tests)
 
   console.log(
     'Daily totals:',
@@ -351,7 +517,7 @@ function runLargeTestQueueSchedulingTest(): void {
   )
   assert(testVideos > 0, 'Schedule should include Test videos when incomplete trials exist')
   assert(testVideos === 6 * MAX_ACTIVE_TRIAL_PRODUCTS_PER_SPRINT, 'Top 6 should each place 6 videos')
-  assertTierMaxOnePerDay(schedule, products, ['Anchor', 'Rising'])
+  assertProvenDailyCaps(schedule, products)
 
   const incompleteIds = new Set(
     tests.filter((product) => product.videosFilmed < 6).map((product) => product.id),
@@ -455,7 +621,8 @@ function runPartialTrialTest(): void {
   assert(countTierVideos(schedule, 't1') === 2, 'Partial trial should place 2 videos')
   assert(countTierVideos(schedule, 't2') === 6, 'Fresh test should place 6 videos')
   assert(countTierVideos(schedule, 't3') === 0, 'Trial-complete test should not auto-schedule')
-  assertTierMaxOnePerDay(schedule, products, ['Anchor', 'Rising'])
+  assertProvenDailyCaps(schedule, products)
+  assertTestMaxTwoPerDay(schedule, products)
 
   console.log('Allocations:', allocations.map((a) => `${a.product.productName}: ${a.slots}`).join(', '))
   console.log('PASS')
@@ -465,6 +632,8 @@ try {
   runHighVolumeTest()
   runLowVolumeTest()
   runMomentumTest()
+  runRetainerPlacementTest()
+  runDailyCapacityFillTest()
   runPartialTrialTest()
   runSalesHistoryHydrationTest()
   runTrialCapTest()

@@ -19,6 +19,9 @@ export const LOW_ANCHOR_THRESHOLD = 2
 
 export const MAX_TEST_VIDEOS_PER_DAY = 2
 export const MAX_PROVEN_VIDEOS_PER_DAY = 1
+/** Rising may receive extra videos on the same day when topping up daily capacity. */
+export const MAX_RISING_VIDEOS_PER_DAY = 3
+export const MAX_RETAINER_VIDEOS_PER_DAY = 2
 export const MIN_TEST_SPREAD_DAYS = 3
 export const PROVEN_TIER_MAX_PRODUCTS = 10
 export const PROVEN_TIER_MIN_PRODUCTS = 4
@@ -188,23 +191,34 @@ function sumCounts(counts: Map<string, number>): number {
   return total
 }
 
-/** Round-robin bonus slots to highest-priority products first. */
-function redistributeBonus(
+/** Round-robin bonus slots; skips products already at `maxSlotsFor` cap. */
+function redistributeBonusWithCap(
   counts: Map<string, number>,
   bonus: number,
   priority: MergedProduct[],
+  maxSlotsFor: (product: MergedProduct) => number,
 ): number {
   if (bonus <= 0 || priority.length === 0) return bonus
 
   let left = bonus
   let index = 0
-  while (left > 0) {
+  let stagnant = 0
+
+  while (left > 0 && stagnant < priority.length) {
     const product = priority[index % priority.length]
-    counts.set(product.id, (counts.get(product.id) ?? 0) + 1)
-    left -= 1
     index += 1
+    const current = counts.get(product.id) ?? 0
+    const max = maxSlotsFor(product)
+    if (current >= max) {
+      stagnant += 1
+      continue
+    }
+    counts.set(product.id, current + 1)
+    left -= 1
+    stagnant = 0
   }
-  return 0
+
+  return left
 }
 
 export function computeProductSlotAllocations(
@@ -252,9 +266,37 @@ export function computeProductSlotAllocations(
   mergeCounts(allCounts, provenAlloc.counts)
   flexBudget = provenAlloc.unused
 
-  // 4. Leftover capacity → Rising (not repeat Anchor/proven slots; tests keep step-1 guarantee).
+  // 4. Leftover capacity → active tests (under trial cap), then Rising.
   if (flexBudget > 0) {
-    flexBudget = redistributeBonus(allCounts, flexBudget, sortedRising)
+    const bonusPriority = [
+      ...activeTests,
+      ...sortedRising.filter(
+        (product) => !activeTests.some((test) => test.id === product.id),
+      ),
+    ]
+    flexBudget = redistributeBonusWithCap(
+      allCounts,
+      flexBudget,
+      bonusPriority,
+      (product) => {
+        const trialCap = remainingTrialSlots(product.videosFilmed)
+        if (activeTests.some((test) => test.id === product.id)) {
+          return trialCap
+        }
+        return sprintDays
+      },
+    )
+  }
+
+  // 5. Use any remaining sprint slots across all Anchor/Rising (1/day placement cap).
+  if (flexBudget > 0) {
+    const allProven = [...sortedAnchors, ...sortedRising]
+    flexBudget = redistributeBonusWithCap(
+      allCounts,
+      flexBudget,
+      allProven,
+      () => sprintDays,
+    )
   }
 
   const tierById = new Map<string, ScheduleTier>()
@@ -314,7 +356,32 @@ export function computeMomentumSlotAllocations(
   flexBudget = risingAlloc.unused
 
   if (flexBudget > 0) {
-    flexBudget = redistributeBonus(allCounts, flexBudget, sortedRising)
+    const bonusPriority = [
+      ...activeTests,
+      ...sortedRising.filter(
+        (product) => !activeTests.some((test) => test.id === product.id),
+      ),
+    ]
+    flexBudget = redistributeBonusWithCap(
+      allCounts,
+      flexBudget,
+      bonusPriority,
+      (product) => {
+        if (activeTests.some((test) => test.id === product.id)) {
+          return remainingTrialSlots(product.videosFilmed)
+        }
+        return sprintDays
+      },
+    )
+  }
+
+  if (flexBudget > 0) {
+    flexBudget = redistributeBonusWithCap(
+      allCounts,
+      flexBudget,
+      sortedRising,
+      () => sprintDays,
+    )
   }
 
   const tierById = new Map<string, 'Rising' | 'Test'>()

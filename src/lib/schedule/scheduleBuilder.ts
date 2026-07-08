@@ -9,10 +9,13 @@ import type {
 import { formatDeadlineCountdown } from './deadlineUtils'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
+  fillDailyCapacity,
   placeProvenProductsRoundRobin,
   placeRemainingByTier,
+  placeRetainerVideos,
   placeTestProductsWithSpread,
   placeTopAnchorsDaily,
+  type DailyFillProduct,
   type SlotPlacementRow,
 } from './schedulePlacement'
 import {
@@ -24,6 +27,7 @@ import {
   type ScheduleTier,
 } from './slotAllocation'
 import { isTrialComplete, summarizeTrialScheduling } from './trialProgress'
+import { logDailyCapacityDiagnostics } from './scheduleDiagnostics'
 
 const TIER_ANGLES: Record<ScheduleTier, string> = {
   Anchor: 'UGC testimonial / before-after',
@@ -112,27 +116,6 @@ function tryPushVideo(
   return true
 }
 
-function placeRetainerVideos(
-  perDay: ScheduledVideo[][],
-  retainerVideos: ScheduledVideo[],
-  cap: number,
-): void {
-  let cursor = 0
-  for (const video of retainerVideos) {
-    let placed = false
-    for (let attempt = 0; attempt < perDay.length; attempt++) {
-      const day = (cursor + attempt) % perDay.length
-      if (remainingCapacity(perDay, day, cap) > 0) {
-        tryPushVideo(perDay, day, video, cap)
-        cursor = (day + 1) % perDay.length
-        placed = true
-        break
-      }
-    }
-    if (!placed) break
-  }
-}
-
 function placeDeadlineVideos(
   perDay: ScheduledVideo[][],
   deadlineVideos: ScheduledVideo[],
@@ -155,12 +138,25 @@ function buildPlacementRows(allocations: ProductSlotAllocation[]): SlotPlacement
   }))
 }
 
+function buildDailyFillPool(
+  anchors: MergedProduct[],
+  rising: MergedProduct[],
+  tests: MergedProduct[],
+): DailyFillProduct[] {
+  return [
+    ...tests.map((product) => ({ product, tier: 'Test' as const })),
+    ...rising.map((product) => ({ product, tier: 'Rising' as const })),
+    ...anchors.map((product) => ({ product, tier: 'Anchor' as const })),
+  ]
+}
+
 function allocateSchedule(
   allocations: ProductSlotAllocation[],
   topAnchorIds: Set<string>,
   provenProductIds: Set<string>,
   retainerVideos: ScheduledVideo[],
   deadlineVideos: ScheduledVideo[],
+  fillPool: DailyFillProduct[],
   sprintDays: number,
   cap: number,
 ): ScheduledVideo[][] {
@@ -174,7 +170,27 @@ function allocateSchedule(
   placeTopAnchorsDaily(perDay, topAnchorIds, rows, cap, sprintDays, TIER_ANGLES)
   placeTestProductsWithSpread(perDay, rows, cap, sprintDays, TIER_ANGLES)
   placeProvenProductsRoundRobin(perDay, rows, cap, provenProductIds, TIER_ANGLES)
-  placeRemainingByTier(perDay, rows, cap, ['Anchor', 'Rising', 'Test'], TIER_ANGLES)
+  placeRemainingByTier(perDay, rows, cap, ['Test', 'Rising', 'Anchor'], TIER_ANGLES)
+
+  const maxSprintByProduct = new Map(
+    allocations.map((row) => [row.product.id, row.slots]),
+  )
+  for (const entry of fillPool) {
+    if (maxSprintByProduct.has(entry.product.id)) continue
+    if (entry.tier === 'Rising' || entry.tier === 'Anchor') {
+      maxSprintByProduct.set(entry.product.id, sprintDays)
+    }
+  }
+
+  fillDailyCapacity(
+    perDay,
+    rows,
+    fillPool,
+    cap,
+    sprintDays,
+    maxSprintByProduct,
+    TIER_ANGLES,
+  )
 
   return perDay
 }
@@ -241,20 +257,31 @@ export function buildFilmingSchedule(
   )
 
   const deadlineVideos = buildDeadlineVideos(deadlineProducts)
+  const fillPool = buildDailyFillPool(anchors, rising, tests)
   const perDay = allocateSchedule(
     allocations,
     topAnchorIds,
     provenProductIds,
     retainerVideos,
     deadlineVideos,
+    fillPool,
     sprintDays,
     cap,
   )
 
-  return Array.from({ length: sprintDays }, (_, i) => ({
+  const schedule = Array.from({ length: sprintDays }, (_, i) => ({
     day: i + 1,
     videos: assignSlotIds(i + 1, sortByTierThenCommission(perDay[i])),
   }))
+
+  logDailyCapacityDiagnostics(schedule, cap, {
+    anchorCount: anchors.length,
+    risingCount: rising.length,
+    activeTestCount: tests.length,
+    provenTierCount: provenProducts.length,
+  })
+
+  return schedule
 }
 
 export function formatScheduleText(schedule: DaySchedule[]): string {

@@ -2,6 +2,8 @@ import type { DaySchedule, DeadlineProduct, MergedProduct, ScheduledVideo } from
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
   MAX_PROVEN_VIDEOS_PER_DAY,
+  MAX_RETAINER_VIDEOS_PER_DAY,
+  MAX_RISING_VIDEOS_PER_DAY,
   MAX_TEST_VIDEOS_PER_DAY,
   MIN_TEST_SPREAD_DAYS,
   type ScheduleTier,
@@ -51,7 +53,27 @@ function tryPushVideo(
 
 export function maxVideosPerDayForTier(tier: ScheduleTier): number {
   if (tier === 'Test') return MAX_TEST_VIDEOS_PER_DAY
+  if (tier === 'Rising') return MAX_PROVEN_VIDEOS_PER_DAY
   return MAX_PROVEN_VIDEOS_PER_DAY
+}
+
+export function maxOverflowVideosPerDayForTier(tier: ScheduleTier): number {
+  if (tier === 'Test') return MAX_TEST_VIDEOS_PER_DAY
+  if (tier === 'Rising') return MAX_RISING_VIDEOS_PER_DAY
+  return MAX_PROVEN_VIDEOS_PER_DAY
+}
+
+export function canPlaceOverflowOnDay(
+  perDay: ScheduledVideo[][],
+  day: number,
+  row: SlotPlacementRow,
+  cap: number,
+): boolean {
+  if (remainingCapacity(perDay, day, cap) <= 0) return false
+  return (
+    countProductOnDay(perDay, day, row.product.id) <
+    maxOverflowVideosPerDayForTier(row.tier)
+  )
 }
 
 export function canPlaceRowOnDay(
@@ -265,7 +287,7 @@ export function placeRemainingByTier(
     for (const row of ordered) {
       if (row.remaining <= 0) continue
       const day = firstDayWithRoomForRow(perDay, row, cap)
-      if (day === -1) return
+      if (day === -1) break
       if (
         tryPushVideo(
           perDay,
@@ -276,6 +298,120 @@ export function placeRemainingByTier(
       ) {
         row.remaining -= 1
         progress = true
+      }
+    }
+  }
+}
+
+export interface DailyFillProduct {
+  product: MergedProduct
+  tier: ScheduleTier
+}
+
+function countProductInSprint(perDay: ScheduledVideo[][], productKey: string): number {
+  return perDay.reduce(
+    (sum, day) => sum + day.filter((video) => video.productKey === productKey).length,
+    0,
+  )
+}
+
+/** Top up each day to `cap`, using allocated rows first then controlled overflow. */
+export function fillDailyCapacity(
+  perDay: ScheduledVideo[][],
+  rows: SlotPlacementRow[],
+  fillPool: DailyFillProduct[],
+  cap: number,
+  sprintDays: number,
+  maxSprintByProduct: Map<string, number>,
+  angles: Record<ScheduleTier, string>,
+): void {
+  if (cap <= 0) return
+
+  const tierOrder: ScheduleTier[] = ['Test', 'Rising', 'Anchor']
+
+  for (let day = 0; day < perDay.length; day++) {
+    let progress = true
+    while (perDay[day].length < cap && progress) {
+      progress = false
+      const rowCandidates = rows
+        .filter((row) => row.remaining > 0)
+        .sort((a, b) => {
+          const tierDiff = tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier)
+          if (tierDiff !== 0) return tierDiff
+          return b.product.commission - a.product.commission
+        })
+
+      for (const row of rowCandidates) {
+        if (perDay[day].length >= cap) break
+        if (!canPlaceRowOnDay(perDay, day, row, cap)) continue
+        if (
+          tryPushVideo(
+            perDay,
+            day,
+            toTierScheduledVideo(row.product, row.tier, angles),
+            cap,
+          )
+        ) {
+          row.remaining -= 1
+          progress = true
+          break
+        }
+      }
+    }
+
+    let poolIndex = 0
+    let stagnant = 0
+    const sortedPool = [...fillPool].sort((a, b) => {
+      const tierDiff = tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier)
+      if (tierDiff !== 0) return tierDiff
+      return b.product.commission - a.product.commission
+    })
+    const maxStagnant = sortedPool.length
+
+    while (perDay[day].length < cap && stagnant < maxStagnant) {
+      const entry = sortedPool[poolIndex % sortedPool.length]
+      poolIndex += 1
+
+      const allocatedMax = maxSprintByProduct.get(entry.product.id)
+      let maxSprint: number
+      if (entry.tier === 'Rising') {
+        maxSprint = sprintDays * MAX_RISING_VIDEOS_PER_DAY
+      } else if (entry.tier === 'Test') {
+        if (allocatedMax == null) {
+          stagnant += 1
+          continue
+        }
+        maxSprint = allocatedMax
+      } else {
+        maxSprint = allocatedMax ?? sprintDays
+      }
+      if (countProductInSprint(perDay, entry.product.id) >= maxSprint) {
+        stagnant += 1
+        continue
+      }
+
+      const row: SlotPlacementRow = {
+        product: entry.product,
+        tier: entry.tier,
+        remaining: 1,
+      }
+
+      if (!canPlaceOverflowOnDay(perDay, day, row, cap)) {
+        stagnant += 1
+        continue
+      }
+
+      if (
+        tryPushVideo(
+          perDay,
+          day,
+          toTierScheduledVideo(entry.product, entry.tier, angles),
+          cap,
+        )
+      ) {
+        stagnant = 0
+      } else {
+        stagnant += 1
       }
     }
   }
@@ -320,6 +456,34 @@ export function remainingDayCapacity(
   cap: number,
 ): number {
   return Math.max(0, cap - perDay[day].length)
+}
+
+export function placeRetainerVideos(
+  perDay: ScheduledVideo[][],
+  retainerVideos: ScheduledVideo[],
+  cap: number,
+): void {
+  if (retainerVideos.length === 0) return
+  let dayCursor = 0
+  const sprintDays = perDay.length
+
+  for (const video of retainerVideos) {
+    let placed = false
+    for (let attempt = 0; attempt < sprintDays; attempt++) {
+      const day = (dayCursor + attempt) % sprintDays
+      if (remainingDayCapacity(perDay, day, cap) <= 0) continue
+      if (
+        countProductOnDay(perDay, day, video.productKey) >= MAX_RETAINER_VIDEOS_PER_DAY
+      ) {
+        continue
+      }
+      perDay[day].push(video)
+      dayCursor = (day + 1) % sprintDays
+      placed = true
+      break
+    }
+    if (!placed) break
+  }
 }
 
 export function placeVideosRoundRobin(
