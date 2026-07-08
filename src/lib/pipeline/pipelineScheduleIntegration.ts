@@ -2,6 +2,7 @@ import type { BrandDeal } from '../../types/pipeline'
 import type { DeadlineProduct, RetainerScheduleEntry, ScheduledVideo, SprintConfig } from '../../types'
 import { countVideosCompleted, calcRetainerProgress, isActiveRetainer } from './retainerUtils'
 import { formatScheduleProductName } from '../schedule/scheduleDisplay'
+import { MAX_RETAINER_VIDEOS_PER_DAY } from '../schedule/slotAllocation'
 
 const RETAINER_ANGLE = 'Retainer deliverable — brand partnership content'
 
@@ -39,7 +40,7 @@ export function buildRetainerScheduleEntries(
       dealId: deal.id,
       brandName: deal.brandName,
       productName: deal.product.trim() || deal.brandName,
-      slotsPerDay: progress.videosPerDay,
+      slotsPerDay: Math.min(progress.videosPerDay, MAX_RETAINER_VIDEOS_PER_DAY),
       deadlineDate: deal.retainerDeadlineDate!,
       videosFilmed: progress.completed,
     })

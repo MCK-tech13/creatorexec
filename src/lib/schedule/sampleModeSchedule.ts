@@ -11,6 +11,7 @@ import { formatScheduleProductName } from './scheduleDisplay'
 import {
   assignSlotIds,
   buildDeadlineScheduledVideos,
+  placeRetainerVideos,
   placeVideosRoundRobin,
   remainingDayCapacity,
 } from './schedulePlacement'
@@ -69,7 +70,7 @@ export function buildSampleModeSchedule(
   const cap = Math.max(1, videosPerDay)
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
 
-  placeVideosRoundRobin(perDay, retainerVideos, cap)
+  placeRetainerVideos(perDay, retainerVideos, cap)
   placeVideosRoundRobin(perDay, buildDeadlineScheduledVideos(deadlineProducts), cap)
 
   const totalSlots = cap * sprintDays

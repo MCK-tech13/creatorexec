@@ -3,6 +3,7 @@ import type { AngleRotationSession } from './angleRotation'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
   MAX_PROVEN_VIDEOS_PER_DAY,
+  MAX_RETAINER_VIDEOS_PER_DAY,
   MAX_TEST_VIDEOS_PER_DAY,
   MIN_TEST_SPREAD_DAYS,
   type ScheduleTier,
@@ -321,6 +322,36 @@ export function remainingDayCapacity(
   cap: number,
 ): number {
   return Math.max(0, cap - perDay[day].length)
+}
+
+/** Retainer videos: round-robin across days, max 2 per retainer deal per day. */
+export function placeRetainerVideos(
+  perDay: ScheduledVideo[][],
+  retainerVideos: ScheduledVideo[],
+  cap: number,
+): void {
+  if (retainerVideos.length === 0) return
+
+  let cursor = 0
+  const sprintDays = perDay.length
+
+  for (const video of retainerVideos) {
+    let placed = false
+    for (let attempt = 0; attempt < sprintDays; attempt++) {
+      const day = (cursor + attempt) % sprintDays
+      if (remainingDayCapacity(perDay, day, cap) <= 0) continue
+      if (
+        countProductOnDay(perDay, day, video.productKey) >= MAX_RETAINER_VIDEOS_PER_DAY
+      ) {
+        continue
+      }
+      perDay[day].push(video)
+      cursor = (day + 1) % sprintDays
+      placed = true
+      break
+    }
+    if (!placed) break
+  }
 }
 
 export function placeVideosRoundRobin(

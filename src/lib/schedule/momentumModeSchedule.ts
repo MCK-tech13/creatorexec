@@ -10,6 +10,7 @@ import { formatScheduleProductName } from './scheduleDisplay'
 import {
   placeProvenProductsRoundRobin,
   placeRemainingByTier,
+  placeRetainerVideos,
   placeTestProductsWithSpread,
   type SlotPlacementRow,
 } from './schedulePlacement'
@@ -53,27 +54,6 @@ function buildPlacementRows(allocations: ProductSlotAllocation[]): SlotPlacement
     tier: row.tier,
     remaining: row.slots,
   }))
-}
-
-function placeVideosRoundRobin(
-  perDay: ScheduledVideo[][],
-  videos: ScheduledVideo[],
-  cap: number,
-): void {
-  let dayCursor = 0
-  for (const video of videos) {
-    let placed = false
-    for (let attempt = 0; attempt < perDay.length; attempt++) {
-      const day = (dayCursor + attempt) % perDay.length
-      if (perDay[day].length < cap) {
-        perDay[day].push(video)
-        dayCursor = (day + 1) % perDay.length
-        placed = true
-        break
-      }
-    }
-    if (!placed) break
-  }
 }
 
 function placeDeadlineVideos(
@@ -134,7 +114,7 @@ export function buildMomentumModeSchedule(
 
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
 
-  placeVideosRoundRobin(perDay, retainerVideos, cap)
+  placeRetainerVideos(perDay, retainerVideos, cap)
 
   const deadlineVideos = buildDeadlineVideos(deadlineProducts)
   placeDeadlineVideos(perDay, deadlineVideos, cap)

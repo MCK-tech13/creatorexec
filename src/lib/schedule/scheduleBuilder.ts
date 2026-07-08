@@ -12,6 +12,7 @@ import { formatScheduleProductName } from './scheduleDisplay'
 import {
   placeProvenProductsRoundRobin,
   placeRemainingByTier,
+  placeRetainerVideos,
   placeTestProductsWithSpread,
   placeTopAnchorsDaily,
   type SlotPlacementRow,
@@ -104,27 +105,6 @@ function tryPushVideo(
   if (remainingCapacity(perDay, day, cap) <= 0) return false
   perDay[day].push(video)
   return true
-}
-
-function placeRetainerVideos(
-  perDay: ScheduledVideo[][],
-  retainerVideos: ScheduledVideo[],
-  cap: number,
-): void {
-  let cursor = 0
-  for (const video of retainerVideos) {
-    let placed = false
-    for (let attempt = 0; attempt < perDay.length; attempt++) {
-      const day = (cursor + attempt) % perDay.length
-      if (remainingCapacity(perDay, day, cap) > 0) {
-        tryPushVideo(perDay, day, video, cap)
-        cursor = (day + 1) % perDay.length
-        placed = true
-        break
-      }
-    }
-    if (!placed) break
-  }
 }
 
 function placeDeadlineVideos(

@@ -1,7 +1,7 @@
 /**
  * Run: npx tsx scripts/verify-schedule-logic.ts
  */
-import type { MergedProduct, SprintConfig } from '../src/types'
+import type { MergedProduct, ScheduledVideo, SprintConfig } from '../src/types'
 import { CONTENT_ANGLE_POOL } from '../src/lib/schedule/anglePool'
 import {
   AngleRotationSession,
@@ -14,6 +14,7 @@ import {
   TEST_VIDEO_GUARANTEE,
   computeProductSlotAllocations,
   isLowAnchorAccount,
+  MAX_RETAINER_VIDEOS_PER_DAY,
   MAX_TEST_VIDEOS_PER_DAY,
   MIN_TEST_SPREAD_DAYS,
 } from '../src/lib/schedule/slotAllocation'
@@ -24,6 +25,10 @@ import {
   summarizeTrialScheduling,
 } from '../src/lib/schedule/trialProgress'
 import type { TrialProgressStore } from '../src/lib/schedule/trialProgressStorage'
+import {
+  buildRetainerScheduleEntries,
+} from '../src/lib/pipeline/pipelineScheduleIntegration'
+import type { BrandDeal } from '../src/types/pipeline'
 
 const memoryStorage = new Map<string, string>()
 ;(globalThis as { localStorage?: Storage }).localStorage = {
@@ -553,6 +558,79 @@ function runAngleRotationTest(): void {
   console.log('PASS')
 }
 
+function maxProductPerDay(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  productKey: string,
+): number {
+  return Math.max(
+    0,
+    ...schedule.map(
+      (day) => day.videos.filter((video) => video.productKey === productKey).length,
+    ),
+  )
+}
+
+function runRetainerCapTest(): void {
+  console.log('\n=== Retainer 2 videos/day cap ===')
+
+  const config: SprintConfig = { videosPerDay: 8, sprintDays: 7 }
+  const retainerKey = 'retainer:deal-1'
+  const retainerVideos: ScheduledVideo[] = Array.from({ length: 20 }, () => ({
+    slotId: '',
+    productKey: retainerKey,
+    productId: retainerKey,
+    productName: 'GlowLab — Serum',
+    tier: 'Retainer',
+    suggestedAngle: 'Retainer deliverable — brand partnership content',
+    commission: 0,
+    videosFilmed: 0,
+    deadlineDate: '2026-12-31',
+    brand: 'GlowLab',
+  }))
+
+  const anchors = [mockProduct('a1', 'Anchor 1', 'Anchor', 100)]
+  const schedule = buildFilmingSchedule(anchors, config, [], new Set(), retainerVideos)
+  const dailyMax = maxProductPerDay(schedule, retainerKey)
+
+  assert(
+    dailyMax <= MAX_RETAINER_VIDEOS_PER_DAY,
+    `Retainer should appear at most ${MAX_RETAINER_VIDEOS_PER_DAY}x per day, got ${dailyMax}`,
+  )
+
+  const deadline = new Date()
+  deadline.setDate(deadline.getDate() + 3)
+  const deadlineIso = deadline.toISOString().slice(0, 10)
+
+  const behindPaceDeal: BrandDeal = {
+    id: 'deal-1',
+    brandName: 'GlowLab',
+    product: 'Serum',
+    stage: 'filming',
+    contractSigned: true,
+    videoDeliverables: [],
+    isRetainer: true,
+    retainerTotalVideos: 30,
+    retainerDeadlineDate: deadlineIso,
+    filmingChecklist: Array.from({ length: 30 }, () => ({
+      id: crypto.randomUUID(),
+      completed: false,
+    })),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
+  const entries = buildRetainerScheduleEntries([behindPaceDeal], config, config.videosPerDay)
+  assert(entries.length === 1, 'Active retainer should produce one schedule entry')
+  assert(
+    entries[0].slotsPerDay <= MAX_RETAINER_VIDEOS_PER_DAY,
+    `slotsPerDay should cap at ${MAX_RETAINER_VIDEOS_PER_DAY}, got ${entries[0].slotsPerDay}`,
+  )
+
+  console.log(`Retainer daily max on schedule: ${dailyMax}`)
+  console.log(`Capped slotsPerDay for behind-pace deal: ${entries[0].slotsPerDay}`)
+  console.log('PASS')
+}
+
 try {
   runHighVolumeTest()
   runLowVolumeTest()
@@ -562,6 +640,7 @@ try {
   runTrialCapTest()
   runLargeTestQueueSchedulingTest()
   runAngleRotationTest()
+  runRetainerCapTest()
   console.log('\nAll schedule verification checks passed.')
 } catch (error) {
   console.error('\nVERIFICATION FAILED:', error)

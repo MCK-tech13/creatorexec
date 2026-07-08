@@ -19,6 +19,7 @@ export const LOW_ANCHOR_THRESHOLD = 2
 
 export const MAX_TEST_VIDEOS_PER_DAY = 2
 export const MAX_PROVEN_VIDEOS_PER_DAY = 1
+export const MAX_RETAINER_VIDEOS_PER_DAY = 2
 export const MIN_TEST_SPREAD_DAYS = 3
 export const PROVEN_TIER_MAX_PRODUCTS = 10
 export const PROVEN_TIER_MIN_PRODUCTS = 4
