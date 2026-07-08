@@ -24,8 +24,8 @@ export function ProductScoutList({
       <div className="border border-border-warm bg-blush-tint px-6 py-8 text-center">
         <p className="font-body text-sm text-ink sm:text-base">No products scored yet.</p>
         <p className="mt-2 font-body text-sm text-stone">
-          Score a potential product from TikTok&apos;s Product trends screen and build your
-          shortlist over time.
+          Score a potential product from TikTok&apos;s Product trends screen and build your product
+          list over time.
         </p>
       </div>
     )

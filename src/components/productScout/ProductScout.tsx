@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, List, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { ProductScoutEntry } from '../../types/productScout'
 import { scoreProductScout } from '../../lib/productScout/scorer'
 import { entryToFormDefaults } from '../../lib/productScout/formDefaults'
@@ -39,6 +39,13 @@ export function ProductScout({
 
   const selectedResult = selectedEntry ? scoreProductScout(selectedEntry.metrics) : null
 
+  const openList = () => {
+    setView('list')
+    if (entries.length > 0 && !selectedId) {
+      setSelectedId(entries[0].id)
+    }
+  }
+
   const openDetail = (id: string) => {
     setSelectedId(id)
     setView('detail')
@@ -58,26 +65,39 @@ export function ProductScout({
             Product Scout
           </h1>
           <p className="mt-2 max-w-2xl font-body text-sm text-stone sm:text-base">
-            Pre-purchase scoring for new products — separate from your sprint tiers. Enter TikTok
-            Product trends data to decide whether something is worth adding to rotation.
+            Pre-purchase scoring for new products — separate from your sprint tiers. Score
+            opportunities and build a running list of products you&apos;re considering for
+            rotation.
           </p>
         </div>
-        {view === 'list' && (
-          <button
-            type="button"
-            onClick={() => setView('new')}
-            className="btn-primary inline-flex w-full items-center justify-center gap-2 px-6 py-3 text-sm sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            Score New Product
-          </button>
-        )}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {view !== 'list' && (
+            <button
+              type="button"
+              onClick={openList}
+              className="btn-outline inline-flex w-full items-center justify-center gap-2 px-6 py-3 text-sm sm:w-auto"
+            >
+              <List className="h-4 w-4" />
+              My Product List
+            </button>
+          )}
+          {view === 'list' && (
+            <button
+              type="button"
+              onClick={() => setView('new')}
+              className="btn-primary inline-flex w-full items-center justify-center gap-2 px-6 py-3 text-sm sm:w-auto"
+            >
+              <Plus className="h-4 w-4" />
+              Score New Product
+            </button>
+          )}
+        </div>
       </div>
 
       {view === 'list' && (
         <div className="grid gap-8 lg:grid-cols-[minmax(0,340px)_1fr]">
           <div>
-            <p className="label-caps mb-3">Your shortlist</p>
+            <p className="label-caps mb-3">My Product List</p>
             <ProductScoutList
               entries={entries}
               selectedId={selectedId}
@@ -118,7 +138,9 @@ export function ProductScout({
             ) : (
               <div className="flex h-full min-h-[240px] items-center justify-center text-center">
                 <p className="font-body text-sm text-stone">
-                  Select a product from your shortlist to review its score and funnel plan.
+                  {entries.length === 0
+                    ? 'Score a product to start your list — verdict, score, and funnel plan are saved with each entry.'
+                    : 'Select a product from My Product List to review its score and funnel plan.'}
                 </p>
               </div>
             )}
@@ -128,33 +150,23 @@ export function ProductScout({
 
       {view === 'new' && (
         <div className="w-full">
-          {entries.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setView('list')}
-              className="link-elegant mb-6 inline-flex items-center gap-2 font-body text-sm text-stone"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to shortlist
-            </button>
-          )}
           <div className="border border-border-warm bg-white p-6 sm:p-8">
             <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">
               Score a new product
             </h2>
             <p className="mt-2 font-body text-sm text-stone">
-              Each scored product is saved to your shortlist — come back anytime to compare
-              opportunities.
+              Enter TikTok Product trends data below. When you&apos;re ready, add the product to
+              your list with its verdict, score, and funnel recommendation attached.
             </p>
             <div className="mt-8">
               <ProductScoutForm
-                submitLabel="Save to shortlist"
+                submitLabel="Add to Product List"
                 onSubmit={(productName, metrics) => {
                   const entry = onAddEntry(productName, metrics)
                   setSelectedId(entry.id)
-                  setView('detail')
+                  setView('list')
                 }}
-                onCancel={() => setView(entries.length > 0 ? 'list' : 'list')}
+                onCancel={openList}
               />
             </div>
           </div>
@@ -165,11 +177,11 @@ export function ProductScout({
         <div className="w-full">
           <button
             type="button"
-            onClick={() => setView('list')}
+            onClick={openList}
             className="link-elegant mb-6 inline-flex items-center gap-2 font-body text-sm text-stone"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to shortlist
+            Back to My Product List
           </button>
           <div className="border border-border-warm bg-white p-6 sm:p-8">
             <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -222,10 +234,10 @@ export function ProductScout({
             <div className="mt-8">
               <ProductScoutForm
                 {...entryToFormDefaults(selectedEntry)}
-                submitLabel="Update score"
+                submitLabel="Save to Product List"
                 onSubmit={(productName, metrics) => {
                   onUpdateEntry(selectedEntry.id, { productName, metrics })
-                  setView('detail')
+                  setView('list')
                 }}
                 onCancel={() => setView('detail')}
               />

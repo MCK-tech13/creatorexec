@@ -157,7 +157,7 @@ function ProductScoutCardContent({ productScout }: { productScout: ProductScoutH
   return (
     <div>
       <p className="font-body text-base font-semibold text-ink">
-        {productScout.count} product{productScout.count === 1 ? '' : 's'} on your shortlist
+        {productScout.count} product{productScout.count === 1 ? '' : 's'} on your product list
       </p>
       <p className="mt-2 font-body text-sm text-stone">
         Compare pre-purchase scores and funnel recommendations.

@@ -65,7 +65,8 @@ export function ProductScoutForm({
     return scoreProductScout(metrics)
   }, [metrics])
 
-  const canSubmit = productName.trim().length > 0 && previewResult !== null
+  const canSubmit = previewResult !== null
+  const [nameError, setNameError] = useState<string | null>(null)
 
   const updateMetric = (key: keyof ProductScoutMetrics, field: 'value' | 'delta', next: string) => {
     setMetrics((prev) => ({
@@ -80,7 +81,15 @@ export function ProductScoutForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
-    onSubmit(productName.trim(), metrics)
+
+    const trimmedName = productName.trim()
+    if (!trimmedName) {
+      setNameError('Enter a product name to add this to your list.')
+      return
+    }
+
+    setNameError(null)
+    onSubmit(trimmedName, metrics)
   }
 
   return (
@@ -90,11 +99,20 @@ export function ProductScoutForm({
         <input
           type="text"
           value={productName}
-          onChange={(e) => setProductName(e.target.value)}
-          required
-          className="input-field w-full px-3 py-3"
+          onChange={(e) => {
+            setProductName(e.target.value)
+            if (nameError) setNameError(null)
+          }}
+          className={`input-field w-full px-3 py-3 ${nameError ? 'border-blush ring-1 ring-blush' : ''}`}
           placeholder="e.g. Vitamin C serum — GlowLab"
+          aria-invalid={nameError ? true : undefined}
+          aria-describedby={nameError ? 'product-name-error' : undefined}
         />
+        {nameError && (
+          <p id="product-name-error" className="mt-2 font-body text-sm text-stone">
+            {nameError}
+          </p>
+        )}
       </label>
 
       <div className="space-y-6">
@@ -154,10 +172,19 @@ export function ProductScoutForm({
         <button type="button" onClick={onCancel} className="btn-outline flex-1 py-3">
           Cancel
         </button>
-        <button type="submit" disabled={!canSubmit} className="btn-primary flex-1 py-3">
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="btn-primary flex-1 py-3 disabled:cursor-not-allowed"
+        >
           {submitLabel}
         </button>
       </div>
+      {canSubmit && !productName.trim() && (
+        <p className="font-body text-xs text-stone">
+          Add a product name above, then click {submitLabel}.
+        </p>
+      )}
     </form>
   )
 }
