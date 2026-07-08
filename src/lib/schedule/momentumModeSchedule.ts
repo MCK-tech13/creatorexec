@@ -23,6 +23,11 @@ import {
 } from './slotAllocation'
 import { isTrialComplete } from './trialProgress'
 import { logDailyCapacityDiagnostics } from './scheduleDiagnostics'
+import {
+  buildProvenSlotsMap,
+  createPlacementReasonBuilder,
+  deadlineReason,
+} from './placementReasons'
 
 function buildDeadlineVideos(deadlineProducts: DeadlineProduct[]): ScheduledVideo[] {
   const sorted = [...deadlineProducts].sort(
@@ -45,6 +50,7 @@ function buildDeadlineVideos(deadlineProducts: DeadlineProduct[]): ScheduledVide
         videosFilmed: item.videosFilmed,
         deadlineDate: item.deadlineDate,
         brand: item.brand,
+        placementReason: deadlineReason(item.deadlineDate),
       })
     }
   }
@@ -114,6 +120,12 @@ export function buildMomentumModeSchedule(
 
   const risingIds = new Set(rising.map((p) => p.id))
   const angleSession = new AngleRotationSession()
+  const reasonBuilder = createPlacementReasonBuilder({
+    mode: 'momentum',
+    topAnchorIds: new Set(),
+    provenSlotsByProduct: buildProvenSlotsMap(allocations),
+    sprintDays,
+  })
 
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
 
@@ -124,9 +136,16 @@ export function buildMomentumModeSchedule(
 
   const rows = buildPlacementRows(allocations)
 
-  placeTestProductsWithSpread(perDay, rows, cap, sprintDays, angleSession)
-  placeProvenProductsRoundRobin(perDay, rows, cap, risingIds, angleSession)
-  placeRemainingByTier(perDay, rows, cap, ['Test', 'Rising'], angleSession)
+  placeTestProductsWithSpread(perDay, rows, cap, sprintDays, angleSession, reasonBuilder)
+  placeProvenProductsRoundRobin(perDay, rows, cap, risingIds, angleSession, reasonBuilder)
+  placeRemainingByTier(
+    perDay,
+    rows,
+    cap,
+    ['Test', 'Rising'],
+    angleSession,
+    reasonBuilder,
+  )
 
   const fillPool: DailyFillProduct[] = [
     ...tests.map((product) => ({ product, tier: 'Test' as const })),
@@ -149,6 +168,7 @@ export function buildMomentumModeSchedule(
     sprintDays,
     maxSprintByProduct,
     angleSession,
+    reasonBuilder,
   )
 
   angleSession.persist()

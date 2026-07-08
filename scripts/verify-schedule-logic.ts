@@ -1,7 +1,7 @@
 /**
  * Run: npx tsx scripts/verify-schedule-logic.ts
  */
-import type { MergedProduct, ScheduledVideo, SprintConfig } from '../src/types'
+import type { MergedProduct, ScheduledVideo, SprintConfig, DaySchedule } from '../src/types'
 import { CONTENT_ANGLE_POOL } from '../src/lib/schedule/anglePool'
 import {
   AngleRotationSession,
@@ -304,6 +304,63 @@ function runDailyCapacityFillTest(): void {
     `Test: ${sampleDay.videos.filter((v) => v.tier === 'Test').length},`,
     `Retainer: ${sampleDay.videos.filter((v) => v.tier === 'Retainer').length}`,
   )
+  console.log('PASS')
+}
+
+function assertAllVideosHavePlacementReasons(schedule: DaySchedule[]): void {
+  for (const day of schedule) {
+    for (const video of day.videos) {
+      assert(
+        Boolean(video.placementReason && video.placementReason.length > 0),
+        `Missing placement reason for ${video.productName} on day ${day.day}`,
+      )
+    }
+  }
+}
+
+function runPlacementReasonsTest(): void {
+  console.log('\n=== Placement reasons on scheduled videos ===')
+  const config: SprintConfig = { videosPerDay: 5, sprintDays: 7 }
+  const anchors = [
+    mockProduct('a1', 'Anchor Top 1', 'Anchor', 500),
+    mockProduct('a2', 'Anchor Top 2', 'Anchor', 400),
+    mockProduct('a3', 'Anchor Top 3', 'Anchor', 300),
+    mockProduct('a4', 'Anchor 4', 'Anchor', 200),
+  ]
+  const rising = [mockProduct('r1', 'Rising 1', 'Rising', 150)]
+  const tests = [mockProduct('t1', 'Test 1', 'Test', 50, 2)]
+
+  const schedule = buildFilmingSchedule([...anchors, ...rising, ...tests], config)
+  assertAllVideosHavePlacementReasons(schedule)
+
+  const topAnchor = schedule[0].videos.find((video) => video.productKey === 'a1')
+  assert(
+    topAnchor?.placementReason === 'Top seller — daily rotation',
+    `Top anchor reason expected, got ${topAnchor?.placementReason}`,
+  )
+
+  const testVideo = schedule.flatMap((day) => day.videos).find((video) => video.tier === 'Test')
+  assert(
+    testVideo?.placementReason?.startsWith('Trial video'),
+    `Test reason expected, got ${testVideo?.placementReason}`,
+  )
+
+  const momentumSchedule = buildMomentumModeSchedule(
+    [...rising, ...tests],
+    config,
+    [],
+    new Set(),
+    [],
+  )
+  assertAllVideosHavePlacementReasons(momentumSchedule)
+  const momentumRising = momentumSchedule
+    .flatMap((day) => day.videos)
+    .find((video) => video.tier === 'Rising')
+  assert(
+    momentumRising?.placementReason === 'Building sales history — early testing phase',
+    `Momentum rising reason expected, got ${momentumRising?.placementReason}`,
+  )
+
   console.log('PASS')
 }
 
@@ -816,6 +873,7 @@ try {
   runLargeTestQueueSchedulingTest()
   runAngleRotationTest()
   runRetainerCapTest()
+  runPlacementReasonsTest()
   console.log('\nAll schedule verification checks passed.')
 } catch (error) {
   console.error('\nVERIFICATION FAILED:', error)

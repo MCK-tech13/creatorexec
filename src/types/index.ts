@@ -69,6 +69,8 @@ export interface ScheduledVideo {
   videosFilmed: number
   deadlineDate?: string
   brand?: string
+  /** Plain-language explanation of why this slot was scheduled. */
+  placementReason?: string
 }
 
 export interface DaySchedule {

@@ -1,5 +1,6 @@
 import type { DaySchedule, DeadlineProduct, MergedProduct, ScheduledVideo } from '../../types'
 import type { AngleRotationSession } from './angleRotation'
+import { deadlineReason, retainerReason, type PlacementReasonBuilder } from './placementReasons'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
   MAX_PROVEN_VIDEOS_PER_DAY,
@@ -114,6 +115,7 @@ export function toTierScheduledVideo(
   product: MergedProduct,
   tier: ScheduleTier,
   angleSession: AngleRotationSession,
+  placementReason: string,
 ): ScheduledVideo {
   return {
     slotId: '',
@@ -124,6 +126,7 @@ export function toTierScheduledVideo(
     suggestedAngle: angleSession.consumeAngle(product),
     commission: product.commission,
     videosFilmed: product.videosFilmed,
+    placementReason,
   }
 }
 
@@ -134,6 +137,7 @@ export function placeTestProductsWithSpread(
   cap: number,
   sprintDays: number,
   angleSession: AngleRotationSession,
+  reasonBuilder: PlacementReasonBuilder,
 ): void {
   const tests = rows
     .filter((row) => row.tier === 'Test' && row.remaining > 0)
@@ -162,7 +166,15 @@ export function placeTestProductsWithSpread(
           tryPushVideo(
             perDay,
             day,
-            toTierScheduledVideo(row.product, 'Test', angleSession),
+            toTierScheduledVideo(
+              row.product,
+              'Test',
+              angleSession,
+              reasonBuilder.forTestSlot(
+                row.product.videosFilmed,
+                countProductInSprint(perDay, row.product.id),
+              ),
+            ),
             cap,
           )
         ) {
@@ -183,7 +195,15 @@ export function placeTestProductsWithSpread(
           tryPushVideo(
             perDay,
             day,
-            toTierScheduledVideo(row.product, 'Test', angleSession),
+            toTierScheduledVideo(
+              row.product,
+              'Test',
+              angleSession,
+              reasonBuilder.forTestSlot(
+                row.product.videosFilmed,
+                countProductInSprint(perDay, row.product.id),
+              ),
+            ),
             cap,
           )
         ) {
@@ -206,6 +226,7 @@ export function placeTopAnchorsDaily(
   cap: number,
   sprintDays: number,
   angleSession: AngleRotationSession,
+  reasonBuilder: PlacementReasonBuilder,
 ): void {
   const topAnchors = rows
     .filter((row) => topAnchorIds.has(row.product.id) && row.tier === 'Anchor')
@@ -220,7 +241,17 @@ export function placeTopAnchorsDaily(
         continue
       }
       if (
-        tryPushVideo(perDay, day, toTierScheduledVideo(product, 'Anchor', angleSession), cap)
+        tryPushVideo(
+          perDay,
+          day,
+          toTierScheduledVideo(
+            product,
+            'Anchor',
+            angleSession,
+            reasonBuilder.forTopAnchor(),
+          ),
+          cap,
+        )
       ) {
         row.remaining -= 1
       }
@@ -235,6 +266,7 @@ export function placeProvenProductsRoundRobin(
   cap: number,
   provenProductIds: Set<string>,
   angleSession: AngleRotationSession,
+  reasonBuilder: PlacementReasonBuilder,
 ): void {
   const proven = rows
     .filter((row) => provenProductIds.has(row.product.id) && row.remaining > 0)
@@ -256,7 +288,18 @@ export function placeProvenProductsRoundRobin(
         tryPushVideo(
           perDay,
           day,
-          toTierScheduledVideo(row.product, row.tier, angleSession),
+          toTierScheduledVideo(
+            row.product,
+            row.tier,
+            angleSession,
+            reasonBuilder.forTierPlacement(
+              row.product.id,
+              row.tier,
+              row.product.videosFilmed,
+              countProductInSprint(perDay, row.product.id),
+              'proven',
+            ),
+          ),
           cap,
         )
       ) {
@@ -273,6 +316,7 @@ export function placeRemainingByTier(
   cap: number,
   tierOrder: ScheduleTier[],
   angleSession: AngleRotationSession,
+  reasonBuilder: PlacementReasonBuilder,
 ): void {
   const ordered = rows
     .filter((row) => row.remaining > 0)
@@ -293,7 +337,18 @@ export function placeRemainingByTier(
         tryPushVideo(
           perDay,
           day,
-          toTierScheduledVideo(row.product, row.tier, angleSession),
+          toTierScheduledVideo(
+            row.product,
+            row.tier,
+            angleSession,
+            reasonBuilder.forTierPlacement(
+              row.product.id,
+              row.tier,
+              row.product.videosFilmed,
+              countProductInSprint(perDay, row.product.id),
+              'remaining',
+            ),
+          ),
           cap,
         )
       ) {
@@ -325,6 +380,7 @@ export function fillDailyCapacity(
   sprintDays: number,
   maxSprintByProduct: Map<string, number>,
   angleSession: AngleRotationSession,
+  reasonBuilder: PlacementReasonBuilder,
 ): void {
   if (cap <= 0) return
 
@@ -349,7 +405,18 @@ export function fillDailyCapacity(
           tryPushVideo(
             perDay,
             day,
-            toTierScheduledVideo(row.product, row.tier, angleSession),
+            toTierScheduledVideo(
+              row.product,
+              row.tier,
+              angleSession,
+              reasonBuilder.forTierPlacement(
+                row.product.id,
+                row.tier,
+                row.product.videosFilmed,
+                countProductInSprint(perDay, row.product.id),
+                'fill',
+              ),
+            ),
             cap,
           )
         ) {
@@ -406,7 +473,18 @@ export function fillDailyCapacity(
         tryPushVideo(
           perDay,
           day,
-          toTierScheduledVideo(entry.product, entry.tier, angleSession),
+          toTierScheduledVideo(
+            entry.product,
+            entry.tier,
+            angleSession,
+            reasonBuilder.forTierPlacement(
+              entry.product.id,
+              entry.tier,
+              entry.product.videosFilmed,
+              countProductInSprint(perDay, entry.product.id),
+              'fill',
+            ),
+          ),
           cap,
         )
       ) {
@@ -445,6 +523,7 @@ export function buildDeadlineScheduledVideos(
         videosFilmed: item.videosFilmed,
         deadlineDate: item.deadlineDate,
         brand: item.brand,
+        placementReason: deadlineReason(item.deadlineDate),
       })
     }
   }
@@ -471,16 +550,22 @@ export function placeRetainerVideos(
   const sprintDays = perDay.length
 
   for (const video of retainerVideos) {
+    const annotated: ScheduledVideo = {
+      ...video,
+      placementReason:
+        video.placementReason ??
+        retainerReason(video.brand ?? video.productName.split(' — ')[0] ?? 'Retainer', video.deadlineDate),
+    }
     let placed = false
     for (let attempt = 0; attempt < sprintDays; attempt++) {
       const day = (cursor + attempt) % sprintDays
       if (remainingDayCapacity(perDay, day, cap) <= 0) continue
       if (
-        countProductOnDay(perDay, day, video.productKey) >= MAX_RETAINER_VIDEOS_PER_DAY
+        countProductOnDay(perDay, day, annotated.productKey) >= MAX_RETAINER_VIDEOS_PER_DAY
       ) {
         continue
       }
-      perDay[day].push(video)
+      perDay[day].push(annotated)
       cursor = (day + 1) % sprintDays
       placed = true
       break

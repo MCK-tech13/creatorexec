@@ -7,14 +7,15 @@ import type {
   SprintConfig,
 } from '../../types'
 import { AngleRotationSession } from './angleRotation'
-import { formatScheduleProductName } from './scheduleDisplay'
 import {
   assignSlotIds,
   buildDeadlineScheduledVideos,
   placeRetainerVideos,
   placeVideosRoundRobin,
   remainingDayCapacity,
+  toTierScheduledVideo,
 } from './schedulePlacement'
+import { createPlacementReasonBuilder, type PlacementReasonBuilder } from './placementReasons'
 
 /** Favorites first, then samples by date received (oldest first). */
 export function sortSampleProductsForSchedule(products: SampleProduct[]): SampleProduct[] {
@@ -46,18 +47,25 @@ export function sampleProductsToMerged(products: SampleProduct[]): MergedProduct
   }))
 }
 
-function toScheduledVideo(product: MergedProduct, angleSession: AngleRotationSession): ScheduledVideo {
+function toSampleScheduledVideo(
+  product: MergedProduct,
+  angleSession: AngleRotationSession,
+  reasonBuilder: PlacementReasonBuilder,
+  alreadyPlacedInSprint: number,
+): ReturnType<typeof toTierScheduledVideo> {
   const tier = product.tier === 'Rising' ? 'Rising' : 'Test'
-  return {
-    slotId: '',
-    productKey: product.id,
-    productId: product.productId,
-    productName: formatScheduleProductName(product.productName),
+  return toTierScheduledVideo(
+    product,
     tier,
-    suggestedAngle: angleSession.consumeAngle(product),
-    commission: 0,
-    videosFilmed: product.videosFilmed,
-  }
+    angleSession,
+    reasonBuilder.forTierPlacement(
+      product.id,
+      tier,
+      product.videosFilmed,
+      alreadyPlacedInSprint,
+      'remaining',
+    ),
+  )
 }
 
 export function buildSampleModeSchedule(
@@ -78,6 +86,12 @@ export function buildSampleModeSchedule(
   const sampleSlots = Math.max(0, totalSlots - priorityCount)
   const toSchedule = products.slice(0, sampleSlots)
   const angleSession = new AngleRotationSession()
+  const reasonBuilder = createPlacementReasonBuilder({
+    mode: 'sample',
+    topAnchorIds: new Set(),
+    provenSlotsByProduct: new Map(),
+    sprintDays,
+  })
 
   let dayCursor = 0
   for (const product of toSchedule) {
@@ -85,7 +99,13 @@ export function buildSampleModeSchedule(
     for (let attempt = 0; attempt < sprintDays; attempt++) {
       const day = (dayCursor + attempt) % sprintDays
       if (remainingDayCapacity(perDay, day, cap) > 0) {
-        perDay[day].push(toScheduledVideo(product, angleSession))
+        const alreadyPlaced = perDay.reduce(
+          (sum, videos) => sum + videos.filter((video) => video.productKey === product.id).length,
+          0,
+        )
+        perDay[day].push(
+          toSampleScheduledVideo(product, angleSession, reasonBuilder, alreadyPlaced),
+        )
         dayCursor = (day + 1) % sprintDays
         placed = true
         break

@@ -28,6 +28,11 @@ import {
 } from './slotAllocation'
 import { isTrialComplete, summarizeTrialScheduling } from './trialProgress'
 import { logDailyCapacityDiagnostics } from './scheduleDiagnostics'
+import {
+  buildProvenSlotsMap,
+  createPlacementReasonBuilder,
+  deadlineReason,
+} from './placementReasons'
 
 const DEADLINE_ANGLE = 'Sample / deadline content — film ASAP'
 
@@ -64,6 +69,7 @@ function buildDeadlineVideos(deadlineProducts: DeadlineProduct[]): ScheduledVide
         videosFilmed: item.videosFilmed,
         deadlineDate: item.deadlineDate,
         brand: item.brand,
+        placementReason: deadlineReason(item.deadlineDate),
       })
     }
   }
@@ -153,19 +159,33 @@ function allocateSchedule(
   fillPool: DailyFillProduct[],
   sprintDays: number,
   cap: number,
+  placementMode: 'full' | 'momentum' = 'full',
 ): ScheduledVideo[][] {
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
   const angleSession = new AngleRotationSession()
+  const reasonBuilder = createPlacementReasonBuilder({
+    mode: placementMode,
+    topAnchorIds,
+    provenSlotsByProduct: buildProvenSlotsMap(allocations),
+    sprintDays,
+  })
 
   placeRetainerVideos(perDay, retainerVideos, cap)
   placeDeadlineVideos(perDay, deadlineVideos, cap)
 
   const rows = buildPlacementRows(allocations)
 
-  placeTopAnchorsDaily(perDay, topAnchorIds, rows, cap, sprintDays, angleSession)
-  placeTestProductsWithSpread(perDay, rows, cap, sprintDays, angleSession)
-  placeProvenProductsRoundRobin(perDay, rows, cap, provenProductIds, angleSession)
-  placeRemainingByTier(perDay, rows, cap, ['Test', 'Rising', 'Anchor'], angleSession)
+  placeTopAnchorsDaily(perDay, topAnchorIds, rows, cap, sprintDays, angleSession, reasonBuilder)
+  placeTestProductsWithSpread(perDay, rows, cap, sprintDays, angleSession, reasonBuilder)
+  placeProvenProductsRoundRobin(perDay, rows, cap, provenProductIds, angleSession, reasonBuilder)
+  placeRemainingByTier(
+    perDay,
+    rows,
+    cap,
+    ['Test', 'Rising', 'Anchor'],
+    angleSession,
+    reasonBuilder,
+  )
 
   const maxSprintByProduct = new Map(
     allocations.map((row) => [row.product.id, row.slots]),
@@ -185,6 +205,7 @@ function allocateSchedule(
     sprintDays,
     maxSprintByProduct,
     angleSession,
+    reasonBuilder,
   )
 
   angleSession.persist()
@@ -289,7 +310,7 @@ export function formatScheduleText(schedule: DaySchedule[]): string {
       const lines = day.videos.map((v) => {
         const countdown =
           v.deadlineDate != null ? ` (${formatDeadlineCountdown(v.deadlineDate)})` : ''
-        return `  [${v.tier}] ${v.productName}${countdown} — ${v.suggestedAngle}`
+        return `  [${v.tier}] ${v.productName}${countdown} — ${v.placementReason ?? v.suggestedAngle}`
       })
       return `Day ${day.day} — ${dayLabel}\n${lines.join('\n')}`
     })

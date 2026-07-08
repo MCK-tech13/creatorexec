@@ -1,4 +1,5 @@
 import type { DaySchedule, ScheduledVideo, ScheduleTierLabel } from '../../types'
+import { mergePlacementReasons } from './placementReasons'
 
 export interface CollapsedScheduleRow {
   rowKey: string
@@ -6,6 +7,7 @@ export interface CollapsedScheduleRow {
   productName: string
   tier: ScheduleTierLabel
   suggestedAngle: string
+  placementReason: string
   deadlineDate?: string
   total: number
   slotIds: string[]
@@ -24,6 +26,10 @@ export function collapseDayVideos(day: number, videos: ScheduledVideo[]): Collap
     if (existingIdx !== undefined) {
       rows[existingIdx].total += 1
       rows[existingIdx].slotIds.push(video.slotId)
+      rows[existingIdx].placementReason = mergePlacementReasons([
+        rows[existingIdx].placementReason,
+        video.placementReason ?? '',
+      ])
       if (!rows[existingIdx].deadlineDate && video.deadlineDate) {
         rows[existingIdx].deadlineDate = video.deadlineDate
       }
@@ -35,6 +41,7 @@ export function collapseDayVideos(day: number, videos: ScheduledVideo[]): Collap
         productName: video.productName,
         tier: video.tier,
         suggestedAngle: video.suggestedAngle,
+        placementReason: video.placementReason ?? '',
         deadlineDate: video.deadlineDate,
         total: 1,
         slotIds: [video.slotId],

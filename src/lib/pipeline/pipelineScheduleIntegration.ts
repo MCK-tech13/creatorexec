@@ -2,6 +2,7 @@ import type { BrandDeal } from '../../types/pipeline'
 import type { DeadlineProduct, RetainerScheduleEntry, ScheduledVideo, SprintConfig } from '../../types'
 import { countVideosCompleted, calcRetainerProgress, isActiveRetainer } from './retainerUtils'
 import { formatScheduleProductName } from '../schedule/scheduleDisplay'
+import { retainerReason } from '../schedule/placementReasons'
 import { MAX_RETAINER_VIDEOS_PER_DAY } from '../schedule/slotAllocation'
 
 const RETAINER_ANGLE = 'Retainer deliverable — brand partnership content'
@@ -69,6 +70,7 @@ export function buildRetainerVideos(
           videosFilmed: entry.videosFilmed,
           deadlineDate: entry.deadlineDate,
           brand: entry.brandName,
+          placementReason: retainerReason(entry.brandName, entry.deadlineDate),
         })
       }
     }

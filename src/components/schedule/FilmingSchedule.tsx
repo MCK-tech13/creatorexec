@@ -267,13 +267,19 @@ export function FilmingSchedule({
                                     </span>
                                   )}
                                 </div>
-                                {beginnerMode && scheduleExplanation ? (
-                                  <p className="mt-1 font-body text-sm text-stone">
-                                    {scheduleExplanation}
+                                {row.placementReason && (
+                                  <p className="mt-1 font-body text-xs font-medium text-emerald sm:text-sm">
+                                    {row.placementReason}
                                   </p>
-                                ) : !beginnerMode ? (
+                                )}
+                                {!beginnerMode && row.suggestedAngle && (
                                   <p className="mt-1 font-body text-sm text-stone">
                                     {row.suggestedAngle}
+                                  </p>
+                                )}
+                                {beginnerMode && !row.placementReason && scheduleExplanation ? (
+                                  <p className="mt-1 font-body text-sm text-stone">
+                                    {scheduleExplanation}
                                   </p>
                                 ) : null}
                               </div>
