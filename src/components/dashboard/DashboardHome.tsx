@@ -194,6 +194,14 @@ export function DashboardHome({
         </FeatureCard>
 
         <FeatureCard
+          title="Product Scout"
+          icon={<Search className="h-5 w-5" strokeWidth={2} />}
+          onClick={() => onNavigate('product-scout')}
+        >
+          <ProductScoutCardContent productScout={productScout} />
+        </FeatureCard>
+
+        <FeatureCard
           title="Retainer Deals"
           icon={<Users className="h-5 w-5" strokeWidth={2} />}
           onClick={() => onNavigate('retainers')}
@@ -207,14 +215,6 @@ export function DashboardHome({
           onClick={() => onNavigate('income')}
         >
           <IncomeCardContent income={income} />
-        </FeatureCard>
-
-        <FeatureCard
-          title="Product Scout"
-          icon={<Search className="h-5 w-5" strokeWidth={2} />}
-          onClick={() => onNavigate('product-scout')}
-        >
-          <ProductScoutCardContent productScout={productScout} />
         </FeatureCard>
       </div>
     </div>
