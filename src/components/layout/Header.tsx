@@ -1,13 +1,14 @@
 import { Home } from 'lucide-react'
 import { CreatorExecWordmark } from '../ui/CreatorExecWordmark'
+import type { MainSection } from '../../types'
 
 export function Header({
   mainSection,
   onSectionChange,
   onGoHome,
 }: {
-  mainSection: 'sprint' | 'retainers' | 'income' | 'product-scout'
-  onSectionChange: (section: 'sprint' | 'retainers' | 'income' | 'product-scout') => void
+  mainSection: MainSection
+  onSectionChange: (section: MainSection) => void
   onGoHome: () => void
 }) {
   return (

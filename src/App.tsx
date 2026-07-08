@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { AppShell } from './components/layout/AppShell'
 import { OnboardingQuiz } from './components/onboarding/OnboardingQuiz'
@@ -16,7 +16,15 @@ import { FilmingSchedule } from './components/schedule/FilmingSchedule'
 import { RetainerDeals } from './components/pipeline/RetainerDeals'
 import { IncomeTracker } from './components/income/IncomeTracker'
 import { ProductScout } from './components/productScout/ProductScout'
+import { DashboardHome } from './components/dashboard/DashboardHome'
 import { useProductScout } from './hooks/useProductScout'
+import {
+  buildIncomeHomePreview,
+  buildProductScoutHomePreview,
+  buildRetainerHomePreview,
+  buildSprintHomePreview,
+} from './lib/dashboard/homePreview'
+import { loadIncomeTracker } from './lib/income/incomeStorage'
 import { SprintEmptyState } from './components/sprint/SprintEmptyState'
 import { SprintReviewModal } from './components/sprint/SprintReviewModal'
 import type { DeadlineFormData } from './components/schedule/AddDeadlineModal'
@@ -69,7 +77,6 @@ import {
   markSprintEntrySeen,
 } from './lib/onboarding/sprintEntryStorage'
 import {
-  clearWelcomeSeen,
   isWelcomeSeen,
   markWelcomeSeen,
 } from './lib/onboarding/welcomeStorage'
@@ -185,7 +192,7 @@ function App() {
   const [sampleProducts, setSampleProducts] = useState<SampleProduct[]>([])
   const [pendingProducts, setPendingProducts] = useState<MergedProduct[] | null>(null)
   const [showMomentumPrompt, setShowMomentumPrompt] = useState(false)
-  const [mainSection, setMainSection] = useState<MainSection>('sprint')
+  const [mainSection, setMainSection] = useState<MainSection>('home')
   const [showUploadPanel, setShowUploadPanel] = useState(false)
   const [openNewRetainerDeal, setOpenNewRetainerDeal] = useState(false)
   const [showProductEntry, setShowProductEntry] = useState(false)
@@ -321,10 +328,9 @@ function App() {
   const handleResetOnboarding = useCallback(() => {
     clearOnboardingProfile()
     clearSprintEntrySeen()
-    clearWelcomeSeen()
-    setWelcomeSeen(false)
     setOnboardingComplete(false)
     setUserMode('beginner')
+    setMainSection('home')
     setStage('upload')
     setProducts([])
     setDeadlineProducts([])
@@ -721,26 +727,55 @@ function App() {
     !showProductEntry
 
   const useWideContent =
+    mainSection === 'home' ||
     mainSection === 'retainers' ||
     mainSection === 'income' ||
     mainSection === 'product-scout' ||
-    stage === 'dashboard' ||
-    stage === 'schedule' ||
-    showRetainerOnlySchedule
+    (mainSection === 'sprint' &&
+      onboardingComplete &&
+      (stage === 'dashboard' ||
+        stage === 'schedule' ||
+        showRetainerOnlySchedule))
 
   const handleSectionChange = useCallback((section: MainSection) => {
     setMainSection(section)
   }, [])
 
   const handleGoHome = useCallback(() => {
-    // True app landing: WelcomeScreen (welcomeSeen === false). View state only — no localStorage.
-    setWelcomeSeen(false)
+    setMainSection('home')
   }, [])
 
   const handleAddRetainerFromEmpty = useCallback(() => {
     setOpenNewRetainerDeal(true)
     setMainSection('retainers')
   }, [])
+
+  const dashboardPreviews = useMemo(
+    () => ({
+      sprint: buildSprintHomePreview({
+        sprintOnboardingComplete: onboardingComplete,
+        hasProductData,
+        hasActiveRetainers,
+        schedule,
+        productCount: products.length,
+        videosPerDay: sprintConfig.videosPerDay,
+      }),
+      retainers: buildRetainerHomePreview(brandDeals),
+      income: buildIncomeHomePreview(loadIncomeTracker()),
+      productScout: buildProductScoutHomePreview(productScoutEntries),
+    }),
+    [
+      onboardingComplete,
+      hasProductData,
+      hasActiveRetainers,
+      schedule,
+      products.length,
+      sprintConfig.videosPerDay,
+      brandDeals,
+      productScoutEntries,
+      mainSection,
+    ],
+  )
 
   useEffect(() => {
     if (!onboardingComplete || hasSeenSprintEntry()) return
@@ -774,10 +809,6 @@ function App() {
     return <WelcomeScreen onContinue={handleWelcomeContinue} />
   }
 
-  if (!onboardingComplete) {
-    return <OnboardingQuiz onComplete={handleOnboardingComplete} />
-  }
-
   return (
     <AppShell
       stage={stage}
@@ -786,8 +817,17 @@ function App() {
       onGoHome={handleGoHome}
       onResetOnboarding={handleResetOnboarding}
       contentWidth={useWideContent ? 'wide' : 'narrow'}
+      showSprintStepper={mainSection === 'sprint' && onboardingComplete}
     >
-      {mainSection === 'retainers' ? (
+      {mainSection === 'home' ? (
+        <DashboardHome
+          sprint={dashboardPreviews.sprint}
+          retainers={dashboardPreviews.retainers}
+          income={dashboardPreviews.income}
+          productScout={dashboardPreviews.productScout}
+          onNavigate={handleSectionChange}
+        />
+      ) : mainSection === 'retainers' ? (
         <RetainerDeals
           deals={brandDeals}
           dailyPostingVolume={dailyPostingVolume}
@@ -810,6 +850,8 @@ function App() {
           onUpdateEntry={updateProductScoutEntry}
           onRemoveEntry={removeProductScoutEntry}
         />
+      ) : mainSection === 'sprint' && !onboardingComplete ? (
+        <OnboardingQuiz onComplete={handleOnboardingComplete} embedded />
       ) : (
         <>
       {showSprintEmptyState ? (

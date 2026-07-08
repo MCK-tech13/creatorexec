@@ -11,7 +11,7 @@ export function AppFooter({ onResetOnboarding }: AppFooterProps) {
           onClick={onResetOnboarding}
           className="link-elegant font-body text-xs uppercase tracking-[0.14em] text-stone"
         >
-          Reset onboarding
+          Reset sprint setup
         </button>
       </div>
     </footer>
