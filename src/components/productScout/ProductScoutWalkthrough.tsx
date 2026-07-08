@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Volume2, VolumeX, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import {
   dismissProductScoutWalkthrough,
   isProductScoutWalkthroughDismissed,
@@ -20,7 +20,6 @@ export function ProductScoutWalkthrough({
   const [dismissed, setDismissed] = useState(() => isProductScoutWalkthroughDismissed())
   const [collapsed, setCollapsed] = useState(false)
   const [videoError, setVideoError] = useState(false)
-  const [muted, setMuted] = useState(true)
 
   const handleDismiss = () => {
     videoRef.current?.pause()
@@ -33,11 +32,6 @@ export function ProductScoutWalkthrough({
     setDismissed(false)
     setCollapsed(false)
     setVideoError(false)
-    setMuted(true)
-  }
-
-  const toggleMuted = () => {
-    setMuted((value) => !value)
   }
 
   useEffect(() => {
@@ -47,18 +41,18 @@ export function ProductScoutWalkthrough({
       return
     }
 
-    video.muted = muted
+    video.muted = true
 
     const playVideo = async () => {
       try {
         await video.play()
       } catch {
-        // Browser may block autoplay; controls remain available.
+        // Browser may block autoplay in edge cases.
       }
     }
 
     void playVideo()
-  }, [collapsed, dismissed, muted, videoError, videoSrc])
+  }, [collapsed, dismissed, videoError, videoSrc])
 
   if (dismissed) {
     return (
@@ -116,37 +110,20 @@ export function ProductScoutWalkthrough({
                 Walkthrough video could not be loaded. Try refreshing the page.
               </p>
             ) : (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={toggleMuted}
-                  className="absolute right-2 top-2 z-10 inline-flex items-center gap-1.5 border border-border-warm bg-white/95 px-2.5 py-1.5 font-body text-xs font-medium text-ink shadow-sm transition hover:border-emerald/40 hover:text-emerald"
-                  aria-label={muted ? 'Unmute walkthrough' : 'Mute walkthrough'}
-                  aria-pressed={!muted}
-                >
-                  {muted ? (
-                    <VolumeX className="h-3.5 w-3.5" aria-hidden />
-                  ) : (
-                    <Volume2 className="h-3.5 w-3.5" aria-hidden />
-                  )}
-                  <span>{muted ? 'Unmute' : 'Mute'}</span>
-                </button>
-                <video
-                  ref={videoRef}
-                  key={videoSrc}
-                  src={videoSrc}
-                  autoPlay
-                  muted={muted}
-                  controls
-                  playsInline
-                  preload="auto"
-                  onError={() => setVideoError(true)}
-                  className="aspect-[9/16] w-full border border-border-warm bg-ink object-contain"
-                  aria-label="Screen recording: TikTok Shop promotion info and Product trends metrics"
-                >
-                  <track kind="captions" />
-                </video>
-              </div>
+              <video
+                ref={videoRef}
+                key={videoSrc}
+                src={videoSrc}
+                autoPlay
+                muted
+                playsInline
+                preload="auto"
+                disablePictureInPicture
+                controlsList="nodownload nofullscreen noremoteplayback"
+                onError={() => setVideoError(true)}
+                className="aspect-[9/16] w-full border border-border-warm bg-ink object-contain"
+                aria-label="Screen recording: TikTok Shop promotion info and Product trends metrics"
+              />
             )}
           </div>
         </div>
