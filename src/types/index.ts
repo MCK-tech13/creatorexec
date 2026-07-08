@@ -78,7 +78,7 @@ export interface DaySchedule {
 
 export type AppStage = 'upload' | 'sample' | 'momentum' | 'dashboard' | 'config' | 'schedule'
 
-export type MainSection = 'sprint' | 'retainers' | 'income' | 'product-scout'
+export type MainSection = 'home' | 'sprint' | 'retainers' | 'income' | 'product-scout'
 
 export type ScheduleMode = 'full' | 'sample' | 'momentum'
 

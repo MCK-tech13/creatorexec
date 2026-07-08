@@ -19,6 +19,7 @@ interface AppShellProps {
   children: ReactNode
   onResetOnboarding: () => void
   contentWidth?: PageContainerVariant
+  showSprintStepper?: boolean
 }
 
 function stageIndex(stage: AppStage): number {
@@ -34,10 +35,11 @@ export function AppShell({
   children,
   onResetOnboarding,
   contentWidth = 'narrow',
+  showSprintStepper = false,
 }: AppShellProps) {
   const current = stageIndex(stage)
   const isSprintUpload = mainSection === 'sprint' && stage === 'upload'
-  const showStepper = mainSection === 'sprint'
+  const showStepper = showSprintStepper
 
   return (
     <div className="flex min-h-screen flex-col bg-white">

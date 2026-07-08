@@ -98,9 +98,9 @@ export function ProductScoutForm({
       </label>
 
       <div className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,220px)_1fr] lg:items-start">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] lg:items-start xl:gap-8">
           <ProductScoutWalkthrough />
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <div>
               <p className="label-caps mb-1">TikTok Product trends</p>
               <p className="font-body text-sm text-stone">
@@ -109,34 +109,36 @@ export function ProductScoutForm({
               </p>
             </div>
 
-            {METRIC_FIELDS.map((field) => (
-              <fieldset key={field.key} className="border border-border-warm p-5">
-                <legend className="px-1 font-body text-sm font-semibold text-ink">{field.label}</legend>
-                <p className="mb-4 font-body text-xs text-stone">{field.hint}</p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="label-caps mb-2 block">Value</span>
-                    <input
-                      type="text"
-                      value={metrics[field.key].value}
-                      onChange={(e) => updateMetric(field.key, 'value', e.target.value)}
-                      className="input-field w-full px-3 py-3"
-                      placeholder={field.valuePlaceholder}
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="label-caps mb-2 block">Delta</span>
-                    <input
-                      type="text"
-                      value={metrics[field.key].delta}
-                      onChange={(e) => updateMetric(field.key, 'delta', e.target.value)}
-                      className="input-field w-full px-3 py-3"
-                      placeholder={field.deltaPlaceholder}
-                    />
-                  </label>
-                </div>
-              </fieldset>
-            ))}
+            <div className="grid gap-6 xl:grid-cols-2">
+              {METRIC_FIELDS.map((field) => (
+                <fieldset key={field.key} className="border border-border-warm p-5">
+                  <legend className="px-1 font-body text-sm font-semibold text-ink">{field.label}</legend>
+                  <p className="mb-4 font-body text-xs text-stone">{field.hint}</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="label-caps mb-2 block">Value</span>
+                      <input
+                        type="text"
+                        value={metrics[field.key].value}
+                        onChange={(e) => updateMetric(field.key, 'value', e.target.value)}
+                        className="input-field w-full px-3 py-3"
+                        placeholder={field.valuePlaceholder}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="label-caps mb-2 block">Delta</span>
+                      <input
+                        type="text"
+                        value={metrics[field.key].delta}
+                        onChange={(e) => updateMetric(field.key, 'delta', e.target.value)}
+                        className="input-field w-full px-3 py-3"
+                        placeholder={field.deltaPlaceholder}
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+              ))}
+            </div>
           </div>
         </div>
       </div>
