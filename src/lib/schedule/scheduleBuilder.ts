@@ -6,6 +6,7 @@ import type {
   ScheduleTierLabel,
   SprintConfig,
 } from '../../types'
+import { AngleRotationSession } from './angleRotation'
 import { formatDeadlineCountdown } from './deadlineUtils'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
@@ -21,15 +22,8 @@ import {
   selectProvenTierProducts,
   totalDeadlineSlotsNeeded,
   type ProductSlotAllocation,
-  type ScheduleTier,
 } from './slotAllocation'
 import { isTrialComplete, summarizeTrialScheduling } from './trialProgress'
-
-const TIER_ANGLES: Record<ScheduleTier, string> = {
-  Anchor: 'UGC testimonial / before-after',
-  Rising: 'Problem/solution hook',
-  Test: 'First impression / unboxing',
-}
 
 const DEADLINE_ANGLE = 'Sample / deadline content — film ASAP'
 
@@ -165,16 +159,19 @@ function allocateSchedule(
   cap: number,
 ): ScheduledVideo[][] {
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
+  const angleSession = new AngleRotationSession()
 
   placeRetainerVideos(perDay, retainerVideos, cap)
   placeDeadlineVideos(perDay, deadlineVideos, cap)
 
   const rows = buildPlacementRows(allocations)
 
-  placeTopAnchorsDaily(perDay, topAnchorIds, rows, cap, sprintDays, TIER_ANGLES)
-  placeTestProductsWithSpread(perDay, rows, cap, sprintDays, TIER_ANGLES)
-  placeProvenProductsRoundRobin(perDay, rows, cap, provenProductIds, TIER_ANGLES)
-  placeRemainingByTier(perDay, rows, cap, ['Anchor', 'Rising', 'Test'], TIER_ANGLES)
+  placeTopAnchorsDaily(perDay, topAnchorIds, rows, cap, sprintDays, angleSession)
+  placeTestProductsWithSpread(perDay, rows, cap, sprintDays, angleSession)
+  placeProvenProductsRoundRobin(perDay, rows, cap, provenProductIds, angleSession)
+  placeRemainingByTier(perDay, rows, cap, ['Anchor', 'Rising', 'Test'], angleSession)
+
+  angleSession.persist()
 
   return perDay
 }

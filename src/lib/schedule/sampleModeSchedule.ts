@@ -6,6 +6,7 @@ import type {
   ScheduledVideo,
   SprintConfig,
 } from '../../types'
+import { AngleRotationSession } from './angleRotation'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
   assignSlotIds,
@@ -13,11 +14,6 @@ import {
   placeVideosRoundRobin,
   remainingDayCapacity,
 } from './schedulePlacement'
-
-const TIER_ANGLES = {
-  Rising: 'Problem/solution hook',
-  Test: 'First impression / unboxing',
-} as const
 
 /** Favorites first, then samples by date received (oldest first). */
 export function sortSampleProductsForSchedule(products: SampleProduct[]): SampleProduct[] {
@@ -49,7 +45,7 @@ export function sampleProductsToMerged(products: SampleProduct[]): MergedProduct
   }))
 }
 
-function toScheduledVideo(product: MergedProduct): ScheduledVideo {
+function toScheduledVideo(product: MergedProduct, angleSession: AngleRotationSession): ScheduledVideo {
   const tier = product.tier === 'Rising' ? 'Rising' : 'Test'
   return {
     slotId: '',
@@ -57,7 +53,7 @@ function toScheduledVideo(product: MergedProduct): ScheduledVideo {
     productId: product.productId,
     productName: formatScheduleProductName(product.productName),
     tier,
-    suggestedAngle: TIER_ANGLES[tier],
+    suggestedAngle: angleSession.consumeAngle(product),
     commission: 0,
     videosFilmed: product.videosFilmed,
   }
@@ -80,6 +76,7 @@ export function buildSampleModeSchedule(
   const priorityCount = perDay.reduce((sum, day) => sum + day.length, 0)
   const sampleSlots = Math.max(0, totalSlots - priorityCount)
   const toSchedule = products.slice(0, sampleSlots)
+  const angleSession = new AngleRotationSession()
 
   let dayCursor = 0
   for (const product of toSchedule) {
@@ -87,7 +84,7 @@ export function buildSampleModeSchedule(
     for (let attempt = 0; attempt < sprintDays; attempt++) {
       const day = (dayCursor + attempt) % sprintDays
       if (remainingDayCapacity(perDay, day, cap) > 0) {
-        perDay[day].push(toScheduledVideo(product))
+        perDay[day].push(toScheduledVideo(product, angleSession))
         dayCursor = (day + 1) % sprintDays
         placed = true
         break
@@ -95,6 +92,8 @@ export function buildSampleModeSchedule(
     }
     if (!placed) break
   }
+
+  angleSession.persist()
 
   return assignSlotIds(perDay, sprintDays)
 }

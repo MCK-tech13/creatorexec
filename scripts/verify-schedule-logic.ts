@@ -2,6 +2,12 @@
  * Run: npx tsx scripts/verify-schedule-logic.ts
  */
 import type { MergedProduct, SprintConfig } from '../src/types'
+import { CONTENT_ANGLE_POOL } from '../src/lib/schedule/anglePool'
+import {
+  AngleRotationSession,
+  getAngleRotationIndex,
+} from '../src/lib/schedule/angleRotation'
+import { clearAngleRotation, loadAngleRotation } from '../src/lib/schedule/angleRotationStorage'
 import { buildFilmingSchedule } from '../src/lib/schedule/scheduleBuilder'
 import { buildMomentumModeSchedule } from '../src/lib/schedule/momentumModeSchedule'
 import {
@@ -18,6 +24,22 @@ import {
   summarizeTrialScheduling,
 } from '../src/lib/schedule/trialProgress'
 import type { TrialProgressStore } from '../src/lib/schedule/trialProgressStorage'
+
+const memoryStorage = new Map<string, string>()
+;(globalThis as { localStorage?: Storage }).localStorage = {
+  getItem: (key) => memoryStorage.get(key) ?? null,
+  setItem: (key, value) => {
+    memoryStorage.set(key, value)
+  },
+  removeItem: (key) => {
+    memoryStorage.delete(key)
+  },
+  clear: () => {
+    memoryStorage.clear()
+  },
+  key: () => null,
+  length: 0,
+}
 
 function mockProduct(
   id: string,
@@ -461,6 +483,76 @@ function runPartialTrialTest(): void {
   console.log('PASS')
 }
 
+function collectProductAngles(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  productId: string,
+): string[] {
+  return schedule.flatMap((day) =>
+    day.videos.filter((v) => v.productKey === productId).map((v) => v.suggestedAngle),
+  )
+}
+
+function runAngleRotationTest(): void {
+  console.log('\n=== Angle rotation pool (per product, across sprints) ===')
+  clearAngleRotation()
+
+  const config: SprintConfig = { videosPerDay: 5, sprintDays: 7 }
+  const anchor = mockProduct('a1', 'Anchor product', 'Anchor', 300)
+  const rising = mockProduct('r1', 'Rising product', 'Rising', 100)
+  const testProduct = mockProduct('t1', 'Test product', 'Test', 50)
+
+  const sprint1 = buildFilmingSchedule([anchor, rising, testProduct], config)
+  const anchorAngles = collectProductAngles(sprint1, 'a1')
+  const risingAngles = collectProductAngles(sprint1, 'r1')
+  const testAngles = collectProductAngles(sprint1, 't1')
+
+  assert(anchorAngles.length > 1, 'Anchor should be scheduled more than once in sprint 1')
+  assert(
+    anchorAngles.every((angle) => CONTENT_ANGLE_POOL.includes(angle as (typeof CONTENT_ANGLE_POOL)[number])),
+    'Anchor angles should come from the shared pool',
+  )
+  assert(
+    new Set(anchorAngles).size === anchorAngles.length,
+    'Repeated anchor slots in one sprint should not reuse the same angle',
+  )
+  assert(
+    risingAngles.every((angle) => CONTENT_ANGLE_POOL.includes(angle as (typeof CONTENT_ANGLE_POOL)[number])),
+    'Rising angles should come from the shared pool',
+  )
+  assert(
+    testAngles.every((angle) => CONTENT_ANGLE_POOL.includes(angle as (typeof CONTENT_ANGLE_POOL)[number])),
+    'Test angles should come from the shared pool',
+  )
+
+  const afterSprint1Index = getAngleRotationIndex(anchor)
+  assert(afterSprint1Index === anchorAngles.length, 'Rotation index should advance after sprint 1')
+
+  const sprint2 = buildFilmingSchedule([anchor, rising, testProduct], config)
+  const anchorAnglesSprint2 = collectProductAngles(sprint2, 'a1')
+
+  assert(anchorAnglesSprint2.length > 0, 'Anchor should appear in sprint 2')
+  assert(
+    anchorAnglesSprint2[0] === CONTENT_ANGLE_POOL[afterSprint1Index % CONTENT_ANGLE_POOL.length],
+    'Sprint 2 should continue rotation from persisted index, not restart at angle 1',
+  )
+  assert(
+    anchorAnglesSprint2[0] !== anchorAngles[0] || afterSprint1Index % CONTENT_ANGLE_POOL.length === 0,
+    'Sprint 2 first angle should differ from sprint 1 first angle unless pool wrapped',
+  )
+
+  const session = new AngleRotationSession({ 'pid-wrap': { nextIndex: 4 } })
+  assert(session.consumeAngle({ id: 'wrap', productId: 'pid-wrap' }) === CONTENT_ANGLE_POOL[4])
+  assert(session.consumeAngle({ id: 'wrap', productId: 'pid-wrap' }) === CONTENT_ANGLE_POOL[0])
+  assert(
+    loadAngleRotation()['pid-wrap'] === undefined,
+    'In-memory session should not persist until explicitly saved',
+  )
+
+  console.log('Sprint 1 anchor angles:', anchorAngles.join(' → '))
+  console.log('Sprint 2 anchor angles:', anchorAnglesSprint2.join(' → '))
+  console.log('PASS')
+}
+
 try {
   runHighVolumeTest()
   runLowVolumeTest()
@@ -469,6 +561,7 @@ try {
   runSalesHistoryHydrationTest()
   runTrialCapTest()
   runLargeTestQueueSchedulingTest()
+  runAngleRotationTest()
   console.log('\nAll schedule verification checks passed.')
 } catch (error) {
   console.error('\nVERIFICATION FAILED:', error)

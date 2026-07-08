@@ -5,6 +5,7 @@ import type {
   ScheduledVideo,
   SprintConfig,
 } from '../../types'
+import { AngleRotationSession } from './angleRotation'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
   placeProvenProductsRoundRobin,
@@ -16,15 +17,8 @@ import {
   computeMomentumSlotAllocations,
   totalDeadlineSlotsNeeded,
   type ProductSlotAllocation,
-  type ScheduleTier,
 } from './slotAllocation'
 import { isTrialComplete } from './trialProgress'
-
-const TIER_ANGLES: Record<ScheduleTier, string> = {
-  Anchor: '',
-  Rising: 'Problem/solution hook',
-  Test: 'First impression / unboxing',
-}
 
 function buildDeadlineVideos(deadlineProducts: DeadlineProduct[]): ScheduledVideo[] {
   const sorted = [...deadlineProducts].sort(
@@ -136,6 +130,7 @@ export function buildMomentumModeSchedule(
   )
 
   const risingIds = new Set(rising.map((p) => p.id))
+  const angleSession = new AngleRotationSession()
 
   const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
 
@@ -146,9 +141,11 @@ export function buildMomentumModeSchedule(
 
   const rows = buildPlacementRows(allocations)
 
-  placeTestProductsWithSpread(perDay, rows, cap, sprintDays, TIER_ANGLES)
-  placeProvenProductsRoundRobin(perDay, rows, cap, risingIds, TIER_ANGLES)
-  placeRemainingByTier(perDay, rows, cap, ['Rising', 'Test'], TIER_ANGLES)
+  placeTestProductsWithSpread(perDay, rows, cap, sprintDays, angleSession)
+  placeProvenProductsRoundRobin(perDay, rows, cap, risingIds, angleSession)
+  placeRemainingByTier(perDay, rows, cap, ['Rising', 'Test'], angleSession)
+
+  angleSession.persist()
 
   return Array.from({ length: sprintDays }, (_, i) => ({
     day: i + 1,
