@@ -51,7 +51,7 @@ export function ProductScoutWalkthrough({
 
   if (dismissed) {
     return (
-      <div className="border border-border-warm bg-white px-4 py-3">
+      <div className="w-full border border-border-warm bg-white px-4 py-3">
         <button
           type="button"
           onClick={handleRestore}
@@ -65,7 +65,7 @@ export function ProductScoutWalkthrough({
 
   return (
     <section
-      className="border border-border-warm bg-blush-tint"
+      className="w-full border border-border-warm bg-blush-tint lg:sticky lg:top-6"
       aria-label="How to find Product Scout metrics"
     >
       <div className="flex items-start justify-between gap-3 border-b border-border-warm px-4 py-3">
@@ -99,7 +99,7 @@ export function ProductScoutWalkthrough({
 
       {!collapsed && (
         <div className="flex justify-center p-4 sm:p-5">
-          <div className="w-full max-w-[220px]">
+          <div className="mx-auto w-full max-w-[280px] lg:max-w-none">
             {videoSrc && videoAvailable ? (
               <video
                 src={videoSrc}

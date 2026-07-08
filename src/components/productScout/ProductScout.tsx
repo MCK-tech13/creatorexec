@@ -127,7 +127,7 @@ export function ProductScout({
       )}
 
       {view === 'new' && (
-        <div className="max-w-3xl">
+        <div className="w-full">
           {entries.length > 0 && (
             <button
               type="button"
@@ -162,7 +162,7 @@ export function ProductScout({
       )}
 
       {view === 'detail' && selectedEntry && selectedResult && (
-        <div className="max-w-3xl">
+        <div className="w-full">
           <button
             type="button"
             onClick={() => setView('list')}
@@ -208,7 +208,7 @@ export function ProductScout({
       )}
 
       {view === 'edit' && selectedEntry && (
-        <div className="max-w-3xl">
+        <div className="w-full">
           <button
             type="button"
             onClick={() => setView('detail')}
