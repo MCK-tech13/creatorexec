@@ -18,6 +18,8 @@ interface AppShellProps {
   onGoHome: () => void
   children: ReactNode
   onResetOnboarding: () => void
+  onStartSprintSetup: () => void
+  sprintSetupComplete: boolean
   contentWidth?: PageContainerVariant
   showSprintStepper?: boolean
 }
@@ -34,6 +36,8 @@ export function AppShell({
   onGoHome,
   children,
   onResetOnboarding,
+  onStartSprintSetup,
+  sprintSetupComplete,
   contentWidth = 'narrow',
   showSprintStepper = false,
 }: AppShellProps) {
@@ -88,7 +92,11 @@ export function AppShell({
       <main className={`flex-1 bg-white ${isSprintUpload ? '' : 'py-10 sm:py-16'}`}>
         <PageContainer variant={contentWidth}>{children}</PageContainer>
       </main>
-      <AppFooter onResetOnboarding={onResetOnboarding} />
+      <AppFooter
+        sprintSetupComplete={sprintSetupComplete}
+        onStartSprintSetup={onStartSprintSetup}
+        onResetOnboarding={onResetOnboarding}
+      />
     </div>
   )
 }
