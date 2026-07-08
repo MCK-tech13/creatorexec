@@ -18,6 +18,7 @@ import { IncomeTracker } from './components/income/IncomeTracker'
 import { ProductScout } from './components/productScout/ProductScout'
 import { useProductScout } from './hooks/useProductScout'
 import { SprintEmptyState } from './components/sprint/SprintEmptyState'
+import { SprintReviewModal } from './components/sprint/SprintReviewModal'
 import type { DeadlineFormData } from './components/schedule/AddDeadlineModal'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
 import { tierProducts, computeScore } from './lib/analysis/tierEngine'
@@ -38,7 +39,16 @@ import {
   hydrateProductsTrialProgress,
   persistProductVideosFilmed,
 } from './lib/schedule/trialProgress'
-import { clearTrialProgress } from './lib/schedule/trialProgressStorage'
+import {
+  clearTrialProgress,
+  trialStorageKey,
+} from './lib/schedule/trialProgressStorage'
+import { captureSprintEndReview } from './lib/sprint/finalizeSprint'
+import {
+  clearSprintSnapshots,
+  saveSprintStartSnapshot,
+} from './lib/sprint/sprintSnapshotStorage'
+import { snapshotFromProducts } from './types/sprintReview'
 import { useBrandDeals } from './hooks/useBrandDeals'
 import {
   buildRetainerScheduleEntries,
@@ -78,6 +88,7 @@ import type {
 import { TIER_REVIEW_VIDEO_COUNT } from './types'
 import type { OnboardingProfile, UserMode } from './types/onboarding'
 import type { BrandDeal } from './types/pipeline'
+import type { SprintReview } from './types/sprintReview'
 import { isActiveRetainer } from './lib/pipeline/retainerUtils'
 
 function initialSprintConfig(): SprintConfig {
@@ -178,6 +189,24 @@ function App() {
   const [showUploadPanel, setShowUploadPanel] = useState(false)
   const [openNewRetainerDeal, setOpenNewRetainerDeal] = useState(false)
   const [showProductEntry, setShowProductEntry] = useState(false)
+  const [sprintReview, setSprintReview] = useState<SprintReview | null>(null)
+  const [pendingSprintReset, setPendingSprintReset] = useState<'upload' | 'start-over' | null>(
+    null,
+  )
+
+  const saveCurrentSprintStart = useCallback(
+    (
+      productList: MergedProduct[],
+      config: SprintConfig,
+      mode: ScheduleMode,
+      reportName: string | null,
+    ) => {
+      saveSprintStartSnapshot(
+        snapshotFromProducts(productList, config, mode, reportName, trialStorageKey),
+      )
+    },
+    [],
+  )
 
   const {
     deals: brandDeals,
@@ -254,8 +283,9 @@ function App() {
   )
 
   const finishUpload = useCallback(
-    (tiered: MergedProduct[], mode: ScheduleMode) => {
-      setProducts(hydrateProductsTrialProgress(tiered))
+    (tiered: MergedProduct[], mode: ScheduleMode, reportName: string | null = fileName) => {
+      const hydrated = hydrateProductsTrialProgress(tiered)
+      setProducts(hydrated)
       setScheduleMode(mode)
       setSampleProducts([])
       setDeadlineProducts([])
@@ -263,8 +293,9 @@ function App() {
       setActiveTier('All')
       setIsProcessing(false)
       setStage('dashboard')
+      saveCurrentSprintStart(hydrated, sprintConfig, mode, reportName)
     },
-    [],
+    [fileName, saveCurrentSprintStart, sprintConfig],
   )
 
   const handleWelcomeContinue = useCallback(() => {
@@ -305,6 +336,7 @@ function App() {
     setActiveTier('All')
     clearFilmingProgress()
     clearTrialProgress()
+    clearSprintSnapshots()
     setScheduleMode('full')
     setSampleProducts([])
     setPendingProducts(null)
@@ -330,7 +362,7 @@ function App() {
         const fullTiered = tierProducts(result.products)
 
         if (options?.fromMomentumEntry) {
-          finishUpload(tierProductsMomentum(result.products), 'momentum')
+          finishUpload(tierProductsMomentum(result.products), 'momentum', file.name)
           return
         }
 
@@ -341,7 +373,7 @@ function App() {
           return
         }
 
-        finishUpload(fullTiered, 'full')
+        finishUpload(fullTiered, 'full', file.name)
       } catch {
         setError('Failed to read the file. Please try again.')
         setIsProcessing(false)
@@ -511,7 +543,64 @@ function App() {
     ],
   )
 
+  const resetSprintState = useCallback(() => {
+    setShowProductEntry(false)
+    setProducts([])
+    setDeadlineProducts([])
+    setExcludedFromSchedule(new Set())
+    setSchedule([])
+    setError(null)
+    setFileName(null)
+    setScheduleMode('full')
+    setSampleProducts([])
+    setPendingProducts(null)
+    setShowMomentumPrompt(false)
+    setSprintConfig((prev) => ({
+      videosPerDay: loadOnboardingProfile()?.videosPerDay ?? prev.videosPerDay,
+      sprintDays: 7,
+    }))
+    clearFilmingProgress()
+  }, [])
+
+  const beginNextSprint = useCallback(
+    (resetKind: 'upload' | 'start-over') => {
+      if (products.length === 0) {
+        resetSprintState()
+        setUploadLandingMode(resetKind === 'start-over' ? 'empty' : 'routed')
+        setStage('upload')
+        return
+      }
+
+      const review = captureSprintEndReview(
+        products,
+        sprintConfig,
+        scheduleMode,
+        fileName,
+      )
+      if (!review) {
+        resetSprintState()
+        setUploadLandingMode(resetKind === 'start-over' ? 'empty' : 'routed')
+        setStage('upload')
+        return
+      }
+
+      setSprintReview(review)
+      setPendingSprintReset(resetKind)
+    },
+    [products, sprintConfig, scheduleMode, fileName, resetSprintState],
+  )
+
+  const handleSprintReviewContinue = useCallback(() => {
+    setSprintReview(null)
+    const resetKind = pendingSprintReset ?? 'upload'
+    setPendingSprintReset(null)
+    resetSprintState()
+    setUploadLandingMode(resetKind === 'start-over' ? 'empty' : 'routed')
+    setStage('upload')
+  }, [pendingSprintReset, resetSprintState])
+
   const handleGenerateSchedule = () => {
+    saveCurrentSprintStart(products, sprintConfig, scheduleMode, fileName)
     rebuildSchedule(
       products,
       deadlineProducts,
@@ -562,26 +651,18 @@ function App() {
 
   const handleSampleBuildSchedule = useCallback((items: SampleProduct[]) => {
     setSampleProducts(items)
-    setProducts(hydrateProductsTrialProgress(sampleProductsToMerged(items)))
+    const merged = hydrateProductsTrialProgress(sampleProductsToMerged(items))
+    setProducts(merged)
     setScheduleMode('sample')
     setDeadlineProducts([])
     setExcludedFromSchedule(new Set())
     setStage('config')
-  }, [])
+    saveCurrentSprintStart(merged, sprintConfig, 'sample', null)
+  }, [saveCurrentSprintStart, sprintConfig])
 
   const handleUploadReport = useCallback(() => {
-    setScheduleMode('full')
-    setProducts([])
-    setSampleProducts([])
-    setDeadlineProducts([])
-    setExcludedFromSchedule(new Set())
-    setSchedule([])
-    setError(null)
-    setFileName(null)
-    setUploadLandingMode('routed')
-    setStage('upload')
-    clearFilmingProgress()
-  }, [])
+    beginNextSprint('upload')
+  }, [beginNextSprint])
 
   const handleAddDeadline = useCallback(
     (data: DeadlineFormData) => {
@@ -615,24 +696,7 @@ function App() {
   )
 
   const handleStartOver = () => {
-    setShowProductEntry(false)
-    setUploadLandingMode('empty')
-    setStage('upload')
-    setProducts([])
-    setDeadlineProducts([])
-    setExcludedFromSchedule(new Set())
-    setSchedule([])
-    setError(null)
-    setFileName(null)
-    setScheduleMode('full')
-    setSampleProducts([])
-    setPendingProducts(null)
-    setShowMomentumPrompt(false)
-    setSprintConfig((prev) => ({
-      videosPerDay: loadOnboardingProfile()?.videosPerDay ?? prev.videosPerDay,
-      sprintDays: 7,
-    }))
-    clearFilmingProgress()
+    beginNextSprint('start-over')
   }
 
   const topEarnerLine = isMomentumMode ? formatTopEarnerLine(products) : null
@@ -964,6 +1028,10 @@ function App() {
           onConfirm={handleMomentumPromptConfirm}
           onDecline={handleMomentumPromptDecline}
         />
+      )}
+
+      {sprintReview && (
+        <SprintReviewModal review={sprintReview} onContinue={handleSprintReviewContinue} />
       )}
         </>
       )}
