@@ -9,6 +9,7 @@
     "prepare:walkthrough-video": "bash scripts/prepare-walkthrough-video.sh",
     "generate:favicons": "node scripts/generate-favicons.mjs",
     "test:supabase": "node scripts/test-supabase.mjs",
+    "verify:phase1": "bash scripts/verify-phase1.sh",
     "lint": "oxlint",
     "preview": "vite preview"
   },
