@@ -26,7 +26,7 @@ export function RetainerFields({
   return (
     <div
       className={`border p-5 transition-colors ${
-        isRetainer ? 'border-emerald bg-blush-tint' : 'border-border-warm bg-white'
+        isRetainer ? 'border-emerald bg-terracotta-tint' : 'border-border-warm bg-white'
       }`}
     >
       <div className="flex items-center justify-between gap-4">
@@ -96,7 +96,7 @@ export function RetainerFields({
               </p>
               <div className="mt-3 h-px w-full bg-track">
                 <div
-                  className="h-px bg-blush transition-all"
+                  className="h-px bg-terracotta transition-all"
                   style={{
                     width: `${(retainerProgress.completed / retainerProgress.total) * 100}%`,
                   }}

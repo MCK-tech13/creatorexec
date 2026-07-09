@@ -159,7 +159,7 @@ export function OnboardingQuiz({ onComplete, embedded = false }: OnboardingQuizP
     )
   }
 
-  return <div className="flex min-h-screen flex-col bg-white">{quizBody}</div>
+  return <div className="flex min-h-screen flex-col bg-cream-warm">{quizBody}</div>
 }
 
 function OptionCard({
@@ -177,8 +177,8 @@ function OptionCard({
       onClick={onSelect}
       className={`flex w-full items-center justify-between gap-3 border bg-transparent px-5 py-3.5 text-left font-body text-base transition ${
         selected
-          ? 'border-border-warm border-l-2 border-l-blush bg-blush-tint font-medium text-ink'
-          : 'border-border-warm text-ink hover:border-blush/60'
+          ? 'border-border-warm border-l-2 border-l-terracotta bg-terracotta-tint font-medium text-ink'
+          : 'border-border-warm text-ink hover:border-terracotta/60'
       }`}
     >
       <span>{label}</span>

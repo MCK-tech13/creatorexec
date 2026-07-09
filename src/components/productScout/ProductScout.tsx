@@ -126,7 +126,7 @@ export function ProductScout({
                     <button
                       type="button"
                       onClick={() => handleDelete(selectedEntry.id)}
-                      className="btn-outline inline-flex items-center gap-2 px-4 py-2 text-sm text-stone hover:border-blush hover:text-ink"
+                      className="btn-outline inline-flex items-center gap-2 px-4 py-2 text-sm text-stone hover:border-terracotta hover:text-ink"
                     >
                       <Trash2 className="h-4 w-4" />
                       Remove
@@ -207,7 +207,7 @@ export function ProductScout({
                 <button
                   type="button"
                   onClick={() => handleDelete(selectedEntry.id)}
-                  className="btn-outline inline-flex items-center gap-2 px-4 py-2 text-sm text-stone hover:border-blush hover:text-ink"
+                  className="btn-outline inline-flex items-center gap-2 px-4 py-2 text-sm text-stone hover:border-terracotta hover:text-ink"
                 >
                   <Trash2 className="h-4 w-4" />
                   Remove

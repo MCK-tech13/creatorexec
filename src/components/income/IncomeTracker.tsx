@@ -114,7 +114,7 @@ export function IncomeTracker() {
 
       {viewMode === 'month' ? (
         <>
-          <div className="mb-8 flex flex-col gap-4 border border-border-warm bg-blush-tint p-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mb-8 flex flex-col gap-4 border border-border-warm bg-white p-6 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex-1">
               <label htmlFor="income-month-select" className="label-caps mb-2 block">
                 Month
@@ -250,7 +250,7 @@ export function IncomeTracker() {
         </>
       ) : (
         <>
-          <div className="mb-8 border border-border-warm bg-blush-tint p-6">
+          <div className="mb-8 border border-border-warm bg-stat-sage p-6">
             <label htmlFor="income-year-select" className="label-caps mb-2 block">
               Year
             </label>
@@ -297,7 +297,7 @@ export function IncomeTracker() {
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-emerald bg-blush-tint">
+                <tr className="border-t-2 border-emerald bg-stat-sage">
                   <td className="px-5 py-4 font-body font-semibold text-ink">Year total</td>
                   <td className="px-5 py-4 text-right font-display text-lg font-bold tabular-nums text-emerald">
                     {formatCurrency(yearIncomeTotal)}

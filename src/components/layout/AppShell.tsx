@@ -44,7 +44,7 @@ export function AppShell({
   const showStepper = showSprintStepper
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-cream-warm">
       <Header mainSection={mainSection} onSectionChange={onSectionChange} onGoHome={onGoHome} />
       {showStepper && (
       <div className="border-b border-border-warm bg-white">
@@ -87,7 +87,7 @@ export function AppShell({
         </div>
       </div>
       )}
-      <main className={`flex-1 bg-white ${isSprintUpload ? '' : 'py-10 sm:py-16'}`}>
+      <main className={`flex-1 bg-cream-warm ${isSprintUpload ? '' : 'py-10 sm:py-16'}`}>
         <PageContainer variant={contentWidth}>{children}</PageContainer>
       </main>
       {sprintSetupComplete && <AppFooter onResetOnboarding={onResetOnboarding} />}

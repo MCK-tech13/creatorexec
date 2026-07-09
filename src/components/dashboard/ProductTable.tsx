@@ -106,7 +106,7 @@ export function ProductTable({
               key={product.id}
               className={`px-4 py-4 ${
                 !product.inRotation && showRotationControls ? 'opacity-60' : ''
-              } ${product.tier === 'Rising' ? 'border-t border-t-blush' : ''}`}
+              } ${product.tier === 'Rising' ? 'border-t border-t-terracotta' : ''}`}
             >
               <p
                 className={`line-clamp-2 font-body text-sm leading-snug text-ink ${
@@ -210,7 +210,7 @@ export function ProductTable({
                 <tr
                   key={product.id}
                   className={`border-b border-border-warm ${
-                    product.tier === 'Rising' ? 'border-t border-t-blush' : ''
+                    product.tier === 'Rising' ? 'border-t border-t-terracotta' : ''
                   } ${!product.inRotation && showRotationControls ? 'opacity-40' : ''}`}
                 >
                   {showRotationControls && (

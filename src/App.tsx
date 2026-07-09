@@ -926,7 +926,7 @@ function App() {
             <p className="font-body text-sm font-medium text-emerald">Report analyzed ✓</p>
           )}
           {isMomentumMode && (
-            <div className="border border-blush/40 bg-blush-tint px-6 py-5">
+            <div className="border border-terracotta/40 bg-terracotta-tint px-6 py-5">
               <p className="font-body text-base text-ink">
                 You&apos;re in Momentum Mode. Keep filming consistently and your top products
                 will surface over time. Upload a new report each sprint to track your progress.

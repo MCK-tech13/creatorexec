@@ -57,7 +57,7 @@ export function DealCard({ deal, onClick, onDragStart, onDragEnd }: DealCardProp
       }}
       onDragEnd={onDragEnd}
       onClick={onClick}
-      className="cursor-pointer border border-border-warm bg-white p-4 transition hover:border-blush/60"
+      className="cursor-pointer border border-border-warm bg-white p-4 transition hover:border-terracotta/60"
     >
       <div className="flex items-start gap-3">
         <span

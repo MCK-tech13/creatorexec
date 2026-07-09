@@ -10,9 +10,9 @@ const VERDICT_STYLES: Record<
     dot: 'bg-stat-sage',
   },
   test: {
-    bg: 'bg-blush-tint border border-blush/50',
+    bg: 'bg-terracotta-tint border border-terracotta/50',
     text: 'text-ink',
-    dot: 'bg-blush',
+    dot: 'bg-terracotta',
   },
   pass: {
     bg: 'bg-white border border-border-warm',

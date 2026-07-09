@@ -21,7 +21,7 @@ export function ProductScoutList({
 }) {
   if (entries.length === 0) {
     return (
-      <div className="border border-border-warm bg-blush-tint px-6 py-8 text-center">
+      <div className="border border-border-warm bg-terracotta-tint px-6 py-8 text-center">
         <p className="font-body text-sm text-ink sm:text-base">No products scored yet.</p>
         <p className="mt-2 font-body text-sm text-stone">
           Score a potential product from TikTok&apos;s Product trends screen and build your product
@@ -42,8 +42,8 @@ export function ProductScoutList({
             key={entry.id}
             type="button"
             onClick={() => onSelect(entry.id)}
-            className={`flex w-full items-start justify-between gap-4 px-5 py-4 text-left transition hover:bg-blush-tint/60 ${
-              isSelected ? 'bg-blush-tint ring-1 ring-inset ring-emerald/30' : 'bg-white'
+            className={`flex w-full items-start justify-between gap-4 px-5 py-4 text-left transition hover:bg-terracotta-tint/60 ${
+              isSelected ? 'bg-terracotta-tint ring-1 ring-inset ring-emerald/30' : 'bg-white'
             }`}
           >
             <div className="min-w-0">

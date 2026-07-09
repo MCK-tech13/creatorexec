@@ -169,7 +169,7 @@ export function SampleModeScreen({
               <span
                 className={`badge-compact shrink-0 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${
                   product.type === 'sample'
-                    ? 'bg-blush text-white'
+                    ? 'bg-terracotta text-white'
                     : 'bg-emerald text-white'
                 }`}
               >

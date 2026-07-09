@@ -12,15 +12,15 @@ const SENTIMENT_STYLES = {
     detail: 'text-emerald',
   },
   neutral: {
-    border: 'border-blush/50',
-    bg: 'bg-blush-tint',
+    border: 'border-terracotta/50',
+    bg: 'bg-terracotta-tint',
     points: 'text-ink',
-    marker: 'bg-blush',
+    marker: 'bg-terracotta',
     detail: 'text-stone',
   },
   negative: {
-    border: 'border-blush/60',
-    bg: 'bg-blush-tint',
+    border: 'border-terracotta/60',
+    bg: 'bg-terracotta-tint',
     points: 'text-ink',
     marker: 'bg-stone',
     detail: 'text-stone',
@@ -63,7 +63,7 @@ function SignalRow({ signal }: { signal: ProductScoutSignal }) {
 export function ProductScoutResults({ result }: { result: ProductScoutScoreResult }) {
   return (
     <div className="space-y-6">
-      <div className="border border-border-warm bg-blush-tint px-6 py-6">
+      <div className="border border-border-warm bg-stat-sage px-6 py-6">
         <p className="label-caps mb-3">Verdict</p>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <ProductScoutVerdictBadge verdict={result.verdict} label={result.verdictLabel} />
@@ -96,7 +96,7 @@ export function ProductScoutResults({ result }: { result: ProductScoutScoreResul
             Positive
           </span>
           <span className="inline-flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-blush" aria-hidden />
+            <span className="h-2 w-2 rounded-full bg-terracotta" aria-hidden />
             Neutral
           </span>
           <span className="inline-flex items-center gap-2">
@@ -112,7 +112,7 @@ export function ProductScoutResults({ result }: { result: ProductScoutScoreResul
 
       <div className="border border-emerald/20 bg-stat-sage/40 px-6 py-5">
         <p className="label-caps mb-2 text-emerald">Funnel recommendation</p>
-        <p className="font-display text-base font-semibold text-ink sm:text-lg">{result.funnel.headline}</p>
+        <p className="font-display text-base font-bold text-ink sm:text-lg">{result.funnel.headline}</p>
         {result.funnel.detail && (
           <p className="mt-2 font-body text-sm leading-relaxed text-stone">{result.funnel.detail}</p>
         )}

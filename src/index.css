@@ -6,7 +6,7 @@
   --font-display: "Playfair Display", ui-serif, Georgia, serif;
 
   --color-white: #ffffff;
-  --color-cream: #ffffff;
+  --color-cream: #faf7f2;
   --color-cream-warm: #faf7f2;
   --color-cream-card: #ffffff;
   --color-ink: #1a1a1a;
@@ -18,9 +18,9 @@
   --color-track: #e8e8e8;
   --color-emerald: #1a4a3a;
   --color-emerald-light: #245a48;
-  --color-blush: #c9a99a;
-  --color-blush-light: #d4b8ab;
-  --color-blush-tint: #fdf8f6;
+  --color-terracotta: #c1633f;
+  --color-terracotta-light: #d4846a;
+  --color-terracotta-tint: #fdf4f0;
 
   /* Stat cards */
   --color-stat-sage: #eef2ee;
@@ -36,7 +36,7 @@
   --color-tier-rising-dot: #a8c4b8;
   --color-tier-test-border: #d8d2c4;
   --color-tier-test-text: #8a8578;
-  --color-tier-test-dot: #c9a99a;
+  --color-tier-test-dot: #c1633f;
   --color-tier-cut-border: #e5e0d5;
   --color-tier-cut-text: #b3aca0;
   --color-tier-cut-dot: #d8d2c4;
@@ -51,7 +51,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #ffffff;
+  background-color: #faf7f2;
   color: #1a1a1a;
   font-size: 16px;
   line-height: 1.6;
@@ -250,7 +250,7 @@ body {
   color: #1a1a1a;
   transition: border-color 0.2s ease, color 0.2s ease;
   &:hover {
-    border-color: #c9a99a;
+    border-color: #c1633f;
     color: #1a1a1a;
   }
 }
@@ -306,6 +306,6 @@ body {
     color: #1a4a3a;
     text-decoration: underline;
     text-underline-offset: 4px;
-    text-decoration-color: #c9a99a;
+    text-decoration-color: #c1633f;
   }
 }

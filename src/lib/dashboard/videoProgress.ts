@@ -1,7 +1,7 @@
 import { TIER_REVIEW_VIDEO_COUNT } from '../../types'
 
 export function getVideoProgressColor(_filmed: number): string {
-  return 'bg-blush'
+  return 'bg-terracotta'
 }
 
 export function isReadyForTierReview(filmed: number): boolean {

@@ -42,9 +42,9 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
   }, [])
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-cream-warm">
       {/* Section 1 — Hero */}
-      <section className="border-b border-border-warm bg-blush-tint/40 py-12 sm:py-16 md:py-20">
+      <section className="border-b border-border-warm bg-terracotta-tint/40 py-12 sm:py-16 md:py-20">
         <PageContainer className="max-w-4xl">
           <div className="flex justify-center lg:justify-start">
             <CreatorExecWordmark as="p" variant="light" size="compact" />
@@ -142,7 +142,7 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
         aria-label="Social proof — coming soon"
       >
         <PageContainer>
-          <div className="flex min-h-[12rem] items-center justify-center border border-dashed border-blush bg-blush-tint/50 px-6 py-12 sm:min-h-[14rem] sm:px-10">
+          <div className="flex min-h-[12rem] items-center justify-center border border-dashed border-terracotta bg-terracotta-tint/50 px-6 py-12 sm:min-h-[14rem] sm:px-10">
             <p className="text-center font-body text-sm text-stone sm:text-base">
               [Testimonials / beta results — TBD]
             </p>
@@ -151,7 +151,7 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
       </section>
 
       {/* Section 5 — Final CTA */}
-      <section className="border-t border-border-warm bg-blush-tint/30 py-14 sm:py-16 md:py-20">
+      <section className="border-t border-border-warm bg-terracotta-tint/30 py-14 sm:py-16 md:py-20">
         <PageContainer>
           <div className="mx-auto max-w-lg text-center">
             <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">

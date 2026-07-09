@@ -62,8 +62,8 @@ export function SprintReviewModal({ review, onContinue }: SprintReviewModalProps
       aria-modal="true"
       aria-labelledby="sprint-review-title"
     >
-      <div className="w-full max-w-2xl border border-border-warm bg-cream fade-in">
-        <div className="border-b border-emerald bg-blush-tint px-5 py-6 sm:px-8 sm:py-8">
+      <div className="w-full max-w-2xl border border-border-warm bg-cream-warm fade-in">
+        <div className="border-b border-emerald bg-terracotta-tint px-5 py-6 sm:px-8 sm:py-8">
           <p className="font-body text-[11px] font-medium uppercase tracking-[0.14em] text-emerald">
             Sprint complete
           </p>
@@ -104,7 +104,7 @@ export function SprintReviewModal({ review, onContinue }: SprintReviewModalProps
                       commissionIncreased
                         ? 'border-emerald/30 bg-emerald/5 text-emerald'
                         : commissionDecreased
-                          ? 'border-blush/60 bg-blush-tint text-ink'
+                          ? 'border-terracotta/60 bg-terracotta-tint text-ink'
                           : 'border-border-warm bg-white text-stone'
                     }`}
                   >
@@ -202,7 +202,7 @@ export function SprintReviewModal({ review, onContinue }: SprintReviewModalProps
             )}
           </Section>
 
-          <section className="border border-blush/40 bg-blush-tint px-5 py-4 sm:px-6 sm:py-5">
+          <section className="border border-terracotta/40 bg-terracotta-tint px-5 py-4 sm:px-6 sm:py-5">
             <p className="font-body text-[11px] font-medium uppercase tracking-[0.14em] text-stone">
               Still in progress
             </p>

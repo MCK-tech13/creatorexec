@@ -85,7 +85,7 @@ export function FilmingSchedule({
   return (
     <div>
       {retainerOnly && (
-        <div className="mb-6 border border-emerald/30 bg-blush-tint px-4 py-4 sm:mb-8 sm:px-6 sm:py-5">
+        <div className="mb-6 border border-emerald/30 bg-terracotta-tint px-4 py-4 sm:mb-8 sm:px-6 sm:py-5">
           <p className="font-body text-sm text-ink sm:text-base">
             Your sprint includes active retainer requirements. Add samples or upload a commission
             report anytime to fill the rest of your schedule.
@@ -94,7 +94,7 @@ export function FilmingSchedule({
       )}
 
       {momentumMode && (
-        <div className="mb-6 border border-blush/40 bg-blush-tint px-4 py-4 sm:mb-8 sm:px-6 sm:py-5">
+        <div className="mb-6 border border-terracotta/40 bg-terracotta-tint px-4 py-4 sm:mb-8 sm:px-6 sm:py-5">
           <p className="font-body text-sm text-ink sm:text-base">
             Momentum Mode — filming all your products consistently to find your winners.
           </p>
@@ -194,7 +194,7 @@ export function FilmingSchedule({
                   {totalSlots > 0 && (
                     <div className="mt-4 h-px w-full max-w-xs bg-track">
                       <div
-                        className="h-px bg-blush transition-all duration-300"
+                        className="h-px bg-terracotta transition-all duration-300"
                         style={{ width: `${progress}%` }}
                       />
                     </div>

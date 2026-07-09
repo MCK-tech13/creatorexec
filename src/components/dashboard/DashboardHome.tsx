@@ -32,7 +32,7 @@ function FeatureCard({ title, icon, onClick, children }: FeatureCardProps) {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center border border-border-warm bg-blush-tint text-emerald">
+          <span className="inline-flex h-10 w-10 items-center justify-center border border-border-warm bg-terracotta-tint text-emerald">
             {icon}
           </span>
           <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">{title}</h2>

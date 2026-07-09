@@ -103,7 +103,7 @@ export function ProductScoutForm({
             setProductName(e.target.value)
             if (nameError) setNameError(null)
           }}
-          className={`input-field w-full px-3 py-3 ${nameError ? 'border-blush ring-1 ring-blush' : ''}`}
+          className={`input-field w-full px-3 py-3 ${nameError ? 'border-terracotta ring-1 ring-terracotta' : ''}`}
           placeholder="e.g. Vitamin C serum — GlowLab"
           aria-invalid={nameError ? true : undefined}
           aria-describedby={nameError ? 'product-name-error' : undefined}

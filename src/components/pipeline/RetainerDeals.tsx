@@ -132,7 +132,7 @@ export function RetainerDeals({
       </div>
 
       {deals.length === 0 && (
-        <div className="mb-6 border border-border-warm bg-blush-tint px-4 py-5 text-center sm:mb-8 sm:px-6">
+        <div className="mb-6 border border-border-warm bg-terracotta-tint px-4 py-5 text-center sm:mb-8 sm:px-6">
           <p className="font-body text-sm text-ink sm:text-base">No retainer deals yet.</p>
           <button
             type="button"

@@ -73,7 +73,7 @@ export function SprintConfigForm({
                 className={`py-4 font-body text-sm font-medium transition ${
                   config.sprintDays === days
                     ? 'bg-emerald text-white'
-                    : 'bg-white text-stone hover:border-blush hover:text-ink'
+                    : 'bg-white text-stone hover:border-terracotta hover:text-ink'
                 }`}
               >
                 {days} days

@@ -70,7 +70,7 @@ export function ProductScoutWalkthrough({
 
   return (
     <section
-      className="w-full border border-border-warm bg-blush-tint lg:sticky lg:top-6"
+      className="w-full border border-border-warm bg-terracotta-tint lg:sticky lg:top-6"
       aria-label="How to find Product Scout metrics"
     >
       <div className="flex items-start justify-between gap-3 border-b border-border-warm px-4 py-3">
