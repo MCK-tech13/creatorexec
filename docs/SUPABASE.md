@@ -1,0 +1,59 @@
+# Supabase Phase 1 setup
+
+Database foundation for migrating localStorage domains to Postgres with row level security.
+
+## 1. Credentials
+
+In the [Supabase Dashboard](https://supabase.com/dashboard):
+
+1. Select your project
+2. **Settings** (gear) → **API**
+3. Copy **Project URL** → `VITE_SUPABASE_URL` and `SUPABASE_URL`
+4. Copy **anon public** key → `VITE_SUPABASE_ANON_KEY` and `SUPABASE_ANON_KEY`
+5. Copy **service_role** key (secret) → `SUPABASE_SERVICE_ROLE_KEY` (server/scripts only)
+
+```bash
+cp .env.example .env
+# Paste your values into .env (never commit .env)
+```
+
+## 2. Apply the schema
+
+Open **SQL Editor** in Supabase and run the migration file:
+
+`supabase/migrations/20260709000000_initial_schema.sql`
+
+This creates:
+
+| Table | Maps from localStorage / types |
+|-------|--------------------------------|
+| `trial_progress` | `creatorexec-trial-progress` |
+| `retainer_deals` | `creatorexec-brand-deals` (`BrandDeal`) |
+| `income_entries` | `creatorexec-income-tracker` |
+| `sprint_history` | sprint snapshots + recap (`SprintSnapshot`, `SprintReview`) |
+| `product_scout_list` | `creatorexec-product-scout` |
+| `onboarding_state` | `creatorexec-onboarding` + welcome/sprint-entry flags |
+
+All tables have **RLS enabled** with per-user policies (`auth.uid() = user_id`).
+
+## 3. Test reads/writes + RLS
+
+```bash
+npm run test:supabase
+```
+
+The test script:
+
+- Creates two temporary auth users (service role)
+- Signs in as each with the anon key
+- Inserts sample rows for every table as user A
+- Confirms user B cannot read user A's data
+- Deletes test users on completion
+
+## 4. App client (Phase 2+)
+
+```ts
+import { getSupabaseClient, isSupabaseConfigured } from './lib/supabase/client'
+```
+
+Phase 1 does **not** change existing localStorage modules.

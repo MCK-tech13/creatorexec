@@ -8,10 +8,12 @@
     "build": "tsc -b && vite build",
     "prepare:walkthrough-video": "bash scripts/prepare-walkthrough-video.sh",
     "generate:favicons": "node scripts/generate-favicons.mjs",
+    "test:supabase": "node scripts/test-supabase.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.1",
     "lucide-react": "^1.21.0",
     "papaparse": "^5.5.4",
     "react": "^19.2.7",
