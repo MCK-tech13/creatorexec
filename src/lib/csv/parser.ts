@@ -1,10 +1,30 @@
 import Papa from 'papaparse'
-import * as XLSX from 'xlsx'
 import { aggregateOrdersByProduct } from '../analysis/orderAggregator'
 import { mapColumns, normalizeHeader } from './columnMapper'
 import { cleanString, parseCurrency, parseInteger } from './normalizer'
+import {
+  COMMISSION_PARSE_TIMEOUT_MS,
+  fileTooLargeMessage,
+  invalidXlsxMessage,
+  isFileTooLarge,
+  isXlsxZipBuffer,
+  MAX_COMMISSION_PARSED_ROWS,
+  parseTimeoutMessage,
+  tooManyRowsMessage,
+} from './uploadLimits'
 import type { ParseError, ParseResult, RawOrderRow } from '../../types'
 import type { ColumnMapping } from '../../types'
+
+type XlsxModule = typeof import('@e965/xlsx')
+
+let xlsxModulePromise: Promise<XlsxModule> | null = null
+
+function loadXlsxModule(): Promise<XlsxModule> {
+  if (!xlsxModulePromise) {
+    xlsxModulePromise = import('@e965/xlsx')
+  }
+  return xlsxModulePromise
+}
 
 function isLikelyHeaderRow(row: string[]): boolean {
   const normalized = row.map(normalizeHeader)
@@ -29,6 +49,20 @@ function normalizeSheetRows(rows: unknown[][]): string[][] {
   return rows
     .map((row) => (row ?? []).map(cellToString))
     .filter((row) => row.some((cell) => cell.length > 0))
+}
+
+function rowLimitError(rowCount: number): ParseError {
+  return {
+    message: tooManyRowsMessage(rowCount),
+    foundHeaders: [],
+  }
+}
+
+function enforceRowLimit(allRows: string[][]): ParseError | null {
+  if (allRows.length > MAX_COMMISSION_PARSED_ROWS) {
+    return rowLimitError(allRows.length)
+  }
+  return null
 }
 
 function parseOrderRow(row: string[], mapping: ColumnMapping): RawOrderRow | null {
@@ -57,6 +91,9 @@ function parseCommissionRows(allRows: string[][]): ParseResult | ParseError {
   if (allRows.length === 0) {
     return { message: 'The file appears to be empty.', foundHeaders: [] }
   }
+
+  const rowLimit = enforceRowLimit(allRows)
+  if (rowLimit) return rowLimit
 
   const headerIndex = findHeaderRowIndex(allRows)
   const headers = allRows[headerIndex]
@@ -113,8 +150,13 @@ export function parseCommissionCsv(text: string): ParseResult | ParseError {
   return parseCommissionRows(allRows)
 }
 
-export function parseCommissionXlsx(buffer: ArrayBuffer): ParseResult | ParseError {
+export async function parseCommissionXlsx(buffer: ArrayBuffer): Promise<ParseResult | ParseError> {
+  if (!isXlsxZipBuffer(buffer)) {
+    return { message: invalidXlsxMessage(), foundHeaders: [] }
+  }
+
   try {
+    const XLSX = await loadXlsxModule()
     const workbook = XLSX.read(buffer, { type: 'array' })
     const sheetName = workbook.SheetNames[0]
 
@@ -139,7 +181,30 @@ export function parseCommissionXlsx(buffer: ArrayBuffer): ParseResult | ParseErr
   }
 }
 
-export async function parseCommissionFile(file: File): Promise<ParseResult | ParseError> {
+class ParseTimeoutError extends Error {
+  constructor() {
+    super('PARSE_TIMEOUT')
+    this.name = 'ParseTimeoutError'
+  }
+}
+
+function withParseTimeout<T>(promise: Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new ParseTimeoutError()), COMMISSION_PARSE_TIMEOUT_MS)
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
+}
+
+async function parseCommissionFileInner(file: File): Promise<ParseResult | ParseError> {
   const name = file.name.toLowerCase()
 
   if (name.endsWith('.csv')) {
@@ -155,6 +220,21 @@ export async function parseCommissionFile(file: File): Promise<ParseResult | Par
   return {
     message: 'Unsupported file type. Please upload a .csv or .xlsx file.',
     foundHeaders: [],
+  }
+}
+
+export async function parseCommissionFile(file: File): Promise<ParseResult | ParseError> {
+  if (isFileTooLarge(file)) {
+    return { message: fileTooLargeMessage(file), foundHeaders: [] }
+  }
+
+  try {
+    return await withParseTimeout(parseCommissionFileInner(file))
+  } catch (error) {
+    if (error instanceof ParseTimeoutError) {
+      return { message: parseTimeoutMessage(), foundHeaders: [] }
+    }
+    return { message: 'Failed to read the file. Please try again.', foundHeaders: [] }
   }
 }
 
