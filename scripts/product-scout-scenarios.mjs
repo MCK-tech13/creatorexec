@@ -117,12 +117,17 @@ const scenarios = [
 ]
 
 function formatSignals(signals) {
-  return signals.map((s) => `${s.label}: ${s.points >= 0 ? '+' : ''}${s.points}`).join(' | ')
+  return signals
+    .map((s) => {
+      const points = s.countsTowardScore ? `${s.points >= 0 ? '+' : ''}${s.points}` : '—'
+      return `${s.label}: ${points}`
+    })
+    .join(' | ')
 }
 
 console.log('Product Scout scenario audit\n' + '='.repeat(72))
 
-const verdictCounts = { strong: 0, test: 0, pass: 0 }
+const verdictCounts = { strong: 0, test: 0, pass: 0, insufficient: 0 }
 const funnelCounts = {}
 
 for (const scenario of scenarios) {
