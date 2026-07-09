@@ -110,10 +110,18 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
             What&apos;s Inside
           </h2>
           <ul className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5">
-            {WHATS_INSIDE.map((item) => (
+            {WHATS_INSIDE.map((item, index) => {
+              const isLoneLastCard =
+                index === WHATS_INSIDE.length - 1 && WHATS_INSIDE.length % 2 !== 0
+
+              return (
               <li
                 key={item.label}
-                className="border border-border-warm bg-white p-5 text-left sm:p-6"
+                className={`border border-border-warm bg-white p-5 text-left sm:p-6${
+                  isLoneLastCard
+                    ? ' sm:col-span-2 sm:justify-self-center sm:w-[calc((100%-1.25rem)/2)]'
+                    : ''
+                }`}
               >
                 <p className="font-body text-sm font-semibold text-emerald sm:text-base">
                   {item.label}
@@ -122,7 +130,8 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
                   {item.description}
                 </p>
               </li>
-            ))}
+              )
+            })}
           </ul>
         </PageContainer>
       </section>
