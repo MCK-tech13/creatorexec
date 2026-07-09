@@ -1,10 +1,7 @@
 import { useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { PageContainer } from '../layout/PageContainer'
 import { CreatorExecWordmark } from '../ui/CreatorExecWordmark'
-
-interface WelcomeScreenProps {
-  onContinue: () => void
-}
 
 const WHATS_INSIDE = [
   {
@@ -34,7 +31,7 @@ const WHATS_INSIDE = [
   },
 ] as const
 
-export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
+export function WelcomeScreen() {
   const whatsInsideRef = useRef<HTMLElement>(null)
 
   const scrollToWhatsInside = useCallback(() => {
@@ -43,6 +40,24 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-cream-warm">
+      <div className="border-b border-border-warm bg-white">
+        <PageContainer className="max-w-5xl">
+          <div className="flex items-center justify-between gap-4 py-4">
+            <CreatorExecWordmark as="p" variant="light" size="compact" />
+            <div className="flex items-center gap-3">
+              <Link
+                to="/login"
+                className="link-elegant font-body text-sm font-medium text-stone"
+              >
+                Log in
+              </Link>
+              <Link to="/signup" className="btn-primary inline-flex px-4 py-2.5 font-body text-sm">
+                Sign up
+              </Link>
+            </div>
+          </div>
+        </PageContainer>
+      </div>
       {/* Section 1 — Hero */}
       <section className="border-b border-border-warm bg-terracotta-tint/40 py-12 sm:py-16 md:py-20">
         <PageContainer className="max-w-4xl">
@@ -163,13 +178,18 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
               one dashboard.
             </p>
             <div className="mt-8">
-              <button
-                type="button"
-                onClick={onContinue}
+              <Link
+                to="/signup"
                 className="btn-primary inline-flex w-full items-center justify-center px-8 py-4 sm:w-auto"
               >
                 Get Started →
-              </button>
+              </Link>
+              <p className="mt-4 font-body text-sm text-stone">
+                Already have an account?{' '}
+                <Link to="/login" className="link-elegant font-medium text-ink">
+                  Log in
+                </Link>
+              </p>
             </div>
           </div>
         </PageContainer>

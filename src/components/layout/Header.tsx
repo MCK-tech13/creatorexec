@@ -6,10 +6,14 @@ export function Header({
   mainSection,
   onSectionChange,
   onGoHome,
+  userEmail,
+  onSignOut,
 }: {
   mainSection: MainSection
   onSectionChange: (section: MainSection) => void
   onGoHome: () => void
+  userEmail?: string | null
+  onSignOut?: () => void
 }) {
   return (
     <header className="border-b border-border-warm bg-white">
@@ -22,15 +26,34 @@ export function Header({
               Your TikTok Shop Operating System
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onGoHome}
-            className="btn-outline inline-flex shrink-0 items-center gap-1.5 px-2.5 py-2 font-body text-xs font-medium uppercase tracking-[0.08em] text-emerald sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm sm:tracking-[0.1em]"
-            aria-label="Home"
-          >
-            <Home className="h-4 w-4" strokeWidth={2} />
-            <span className="hidden sm:inline">Home</span>
-          </button>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            {userEmail && (
+              <span
+                className="hidden max-w-[10rem] truncate font-body text-xs text-stone sm:inline md:max-w-[14rem]"
+                title={userEmail}
+              >
+                {userEmail}
+              </span>
+            )}
+            {onSignOut && (
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="btn-outline inline-flex shrink-0 items-center px-2.5 py-2 font-body text-xs font-medium uppercase tracking-[0.08em] text-stone sm:px-3 sm:text-sm"
+              >
+                Log out
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onGoHome}
+              className="btn-outline inline-flex shrink-0 items-center gap-1.5 px-2.5 py-2 font-body text-xs font-medium uppercase tracking-[0.08em] text-emerald sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm sm:tracking-[0.1em]"
+              aria-label="Home"
+            >
+              <Home className="h-4 w-4" strokeWidth={2} />
+              <span className="hidden sm:inline">Home</span>
+            </button>
+          </div>
         </div>
       </div>
       <nav

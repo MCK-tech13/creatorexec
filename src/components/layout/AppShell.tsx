@@ -16,6 +16,8 @@ interface AppShellProps {
   mainSection: MainSection
   onSectionChange: (section: MainSection) => void
   onGoHome: () => void
+  onSignOut?: () => void
+  userEmail?: string | null
   children: ReactNode
   onResetOnboarding: () => void
   sprintSetupComplete: boolean
@@ -33,6 +35,8 @@ export function AppShell({
   mainSection,
   onSectionChange,
   onGoHome,
+  onSignOut,
+  userEmail,
   children,
   onResetOnboarding,
   sprintSetupComplete,
@@ -45,7 +49,13 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col bg-cream-warm">
-      <Header mainSection={mainSection} onSectionChange={onSectionChange} onGoHome={onGoHome} />
+      <Header
+        mainSection={mainSection}
+        onSectionChange={onSectionChange}
+        onGoHome={onGoHome}
+        onSignOut={onSignOut}
+        userEmail={userEmail}
+      />
       {showStepper && (
       <div className="border-b border-border-warm bg-white">
         <div className="mx-auto max-w-7xl px-5 py-6 sm:px-8 sm:py-8">

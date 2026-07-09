@@ -16,11 +16,17 @@ function assertSupabaseEnv(): { url: string; anonKey: string } {
   return { url: supabaseUrl, anonKey: supabaseAnonKey }
 }
 
-/** Browser Supabase client (anon key). Used after auth is wired in Phase 2. */
+/** Browser Supabase client (anon key) with persistent auth sessions. */
 export function getSupabaseClient(): SupabaseClient<Database> {
   if (!client) {
     const { url, anonKey } = assertSupabaseEnv()
-    client = createClient<Database>(url, anonKey)
+    client = createClient<Database>(url, anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    })
   }
 
   return client
@@ -31,7 +37,13 @@ export function createSupabaseClient(
   url: string,
   anonKey: string,
 ): SupabaseClient<Database> {
-  return createClient<Database>(url, anonKey)
+  return createClient<Database>(url, anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  })
 }
 
 export function isSupabaseConfigured(): boolean {

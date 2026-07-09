@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
+import { useAuth } from './contexts/AuthContext'
 import { AppShell } from './components/layout/AppShell'
 import { OnboardingQuiz } from './components/onboarding/OnboardingQuiz'
-import { WelcomeScreen } from './components/onboarding/WelcomeScreen'
 import { CsvUploadZone } from './components/upload/CsvUploadZone'
 import { SampleModeScreen } from './components/sample/SampleModeScreen'
 import { MomentumModeScreen } from './components/momentum/MomentumModeScreen'
@@ -76,10 +77,6 @@ import {
   hasSeenSprintEntry,
   markSprintEntrySeen,
 } from './lib/onboarding/sprintEntryStorage'
-import {
-  isWelcomeSeen,
-  markWelcomeSeen,
-} from './lib/onboarding/welcomeStorage'
 import type {
   AppStage,
   DaySchedule,
@@ -104,15 +101,6 @@ function initialSprintConfig(): SprintConfig {
     videosPerDay: stored && stored >= 1 ? stored : 5,
     sprintDays: 7,
   }
-}
-
-function initialWelcomeSeen(): boolean {
-  if (isWelcomeSeen()) return true
-  if (loadOnboardingProfile() !== null) {
-    markWelcomeSeen()
-    return true
-  }
-  return false
 }
 
 function initialAppStage(): AppStage {
@@ -167,8 +155,9 @@ function buildScheduleForMode(
   )
 }
 
-function App() {
-  const [welcomeSeen, setWelcomeSeen] = useState(initialWelcomeSeen)
+export default function CreatorExecApp() {
+  const navigate = useNavigate()
+  const { user, signOut } = useAuth()
   const [onboardingComplete, setOnboardingComplete] = useState(
     () => loadOnboardingProfile() !== null,
   )
@@ -304,11 +293,6 @@ function App() {
     },
     [fileName, saveCurrentSprintStart, sprintConfig],
   )
-
-  const handleWelcomeContinue = useCallback(() => {
-    markWelcomeSeen()
-    setWelcomeSeen(true)
-  }, [])
 
   const handleOnboardingComplete = useCallback((profile: OnboardingProfile) => {
     saveOnboardingProfile(profile)
@@ -745,6 +729,13 @@ function App() {
     setMainSection('home')
   }, [])
 
+  const handleSignOut = useCallback(async () => {
+    const result = await signOut()
+    if (!result.error) {
+      navigate('/login', { replace: true })
+    }
+  }, [navigate, signOut])
+
   const handleAddRetainerFromEmpty = useCallback(() => {
     setOpenNewRetainerDeal(true)
     setMainSection('retainers')
@@ -805,16 +796,14 @@ function App() {
     }
   }, [brandDeals])
 
-  if (!welcomeSeen) {
-    return <WelcomeScreen onContinue={handleWelcomeContinue} />
-  }
-
   return (
     <AppShell
       stage={stage}
       mainSection={mainSection}
       onSectionChange={handleSectionChange}
       onGoHome={handleGoHome}
+      onSignOut={handleSignOut}
+      userEmail={user?.email ?? null}
       onResetOnboarding={handleResetOnboarding}
       sprintSetupComplete={onboardingComplete}
       contentWidth={useWideContent ? 'wide' : 'narrow'}
@@ -1081,5 +1070,3 @@ function App() {
     </AppShell>
   )
 }
-
-export default App

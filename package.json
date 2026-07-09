@@ -12,6 +12,7 @@
     "test:supabase:local": "bash scripts/run-local-supabase-test.sh",
     "test:product-scout": "tsx scripts/product-scout-scenarios.mjs",
     "test:commission-upload": "tsx scripts/test-commission-upload.mjs",
+    "test:auth": "node scripts/test-auth.mjs",
     "verify:phase1": "bash scripts/verify-phase1.sh",
     "lint": "oxlint",
     "preview": "vite preview"
@@ -22,7 +23,8 @@
     "lucide-react": "^1.21.0",
     "papaparse": "^5.5.4",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.1",

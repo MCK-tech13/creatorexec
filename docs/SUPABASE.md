@@ -63,4 +63,23 @@ Local proof (no Supabase credentials): `npm run test:supabase:local`
 import { getSupabaseClient, isSupabaseConfigured } from './lib/supabase/client'
 ```
 
-Phase 1 does **not** change existing localStorage modules.
+Phase 2 wires **Supabase Auth** (email/password signup, login, logout, password reset). Feature data still uses localStorage until Phase 3.
+
+### Auth redirect URLs (Supabase Dashboard → Authentication → URL Configuration)
+
+Add your site URLs, including:
+
+- `http://localhost:5173/reset-password` (local dev)
+- `https://creatorexec.app/reset-password` (production)
+
+Site URL can be `http://localhost:5173` for dev or your production domain.
+
+### Verify auth
+
+```bash
+npm run test:auth
+```
+
+This creates a temporary user, confirms it appears in Authentication → Users, tests login/session/logout, then deletes the user.
+
+Phase 1 does **not** change existing localStorage modules beyond requiring login to reach `/app`.
