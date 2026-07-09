@@ -67,15 +67,32 @@ async function createTestUser(adminClient, label) {
   return { id: data.user.id, email, password }
 }
 
-async function signIn(url, anonKey, email, password) {
-  const client = createClient(url, anonKey)
+async function signIn(url, anonKey, email, password, expectedUserId) {
+  const client = createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+
   const { data, error } = await client.auth.signInWithPassword({ email, password })
   if (error || !data.session) {
     throw new Error(`Failed to sign in ${email}: ${error?.message ?? 'no session'}`)
   }
-  return createClient(url, anonKey, {
-    global: { headers: { Authorization: `Bearer ${data.session.access_token}` } },
-  })
+
+  const { data: userData, error: userError } = await client.auth.getUser()
+  if (userError || !userData.user) {
+    throw new Error(`Auth session invalid for ${email}: ${userError?.message ?? 'no user'}`)
+  }
+
+  if (userData.user.id !== expectedUserId) {
+    throw new Error(
+      `Signed-in user id mismatch for ${email}: expected ${expectedUserId}, got ${userData.user.id}`,
+    )
+  }
+
+  if (!data.session.access_token) {
+    throw new Error(`Missing access token after sign-in for ${email}`)
+  }
+
+  return { client, user: userData.user, session: data.session }
 }
 
 async function assertOk(promise, message) {
@@ -113,8 +130,8 @@ async function main() {
   const userA = await createTestUser(admin, 'user-a')
   const userB = await createTestUser(admin, 'user-b')
 
-  const clientA = await signIn(url, anonKey, userA.email, userA.password)
-  const clientB = await signIn(url, anonKey, userB.email, userB.password)
+  const { client: clientA } = await signIn(url, anonKey, userA.email, userA.password, userA.id)
+  const { client: clientB } = await signIn(url, anonKey, userB.email, userB.password, userB.id)
 
   try {
     const trialRow = await assertOk(
@@ -274,7 +291,7 @@ async function main() {
       'user B must not read user A sprint_history',
     )
 
-  console.log('Supabase foundation test passed: inserts, own reads, and cross-user RLS denials verified.')
+    console.log('Supabase foundation test passed: inserts, own reads, and cross-user RLS denials verified.')
   } finally {
     await cleanup(admin, [userA.id, userB.id])
   }

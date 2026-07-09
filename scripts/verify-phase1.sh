@@ -27,6 +27,7 @@ echo
 
 check ".env.example exists" test -f .env.example
 check "supabase migration exists" test -f supabase/migrations/20260709000000_initial_schema.sql
+check "supabase grants migration exists" test -f supabase/migrations/20260709000001_grant_authenticated.sql
 check "supabase client exists" test -f src/lib/supabase/client.ts
 check "database types exist" test -f src/lib/supabase/database.types.ts
 check "test script exists" test -f scripts/test-supabase.mjs
