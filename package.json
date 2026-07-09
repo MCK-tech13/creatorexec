@@ -9,6 +9,7 @@
     "prepare:walkthrough-video": "bash scripts/prepare-walkthrough-video.sh",
     "generate:favicons": "node scripts/generate-favicons.mjs",
     "test:supabase": "node scripts/test-supabase.mjs",
+    "test:supabase:local": "bash scripts/run-local-supabase-test.sh",
     "verify:phase1": "bash scripts/verify-phase1.sh",
     "lint": "oxlint",
     "preview": "vite preview"
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "oxlint": "^1.69.0",
+    "pg": "^8.22.0",
     "sharp": "^0.35.3",
     "tailwindcss": "^4.3.1",
     "to-ico": "^1.1.5",

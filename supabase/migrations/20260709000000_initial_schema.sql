@@ -317,3 +317,31 @@ create policy "onboarding_state_update_own"
 create policy "onboarding_state_delete_own"
   on public.onboarding_state for delete
   using (auth.uid() = user_id);
+
+-- Privileges for Supabase API roles (see also 20260709000001_grant_authenticated.sql)
+grant usage on schema public to postgres, anon, authenticated, service_role;
+
+grant all on all tables in schema public to postgres, service_role;
+
+grant select, insert, update, delete on table public.trial_progress to anon, authenticated;
+grant select, insert, update, delete on table public.retainer_deals to anon, authenticated;
+grant select, insert, update, delete on table public.income_entries to anon, authenticated;
+grant select, insert, update, delete on table public.sprint_history to anon, authenticated;
+grant select, insert, update, delete on table public.product_scout_list to anon, authenticated;
+grant select, insert, update, delete on table public.onboarding_state to anon, authenticated;
+
+grant usage on type public.deal_stage to anon, authenticated;
+grant usage on type public.deal_type to anon, authenticated;
+grant usage on type public.trial_progress_source to anon, authenticated;
+grant usage on type public.user_mode to anon, authenticated;
+grant usage on type public.monthly_commission_level to anon, authenticated;
+grant usage on type public.filming_approach to anon, authenticated;
+grant usage on type public.schedule_mode to anon, authenticated;
+grant usage on type public.product_scout_verdict to anon, authenticated;
+grant usage on type public.tier_label to anon, authenticated;
+
+alter default privileges in schema public
+  grant all on tables to postgres, service_role;
+
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to anon, authenticated;

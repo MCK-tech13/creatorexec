@@ -19,9 +19,12 @@ cp .env.example .env
 
 ## 2. Apply the schema
 
-Open **SQL Editor** in Supabase and run the migration file:
+Open **SQL Editor** in Supabase and run **both** migration files in order:
 
-`supabase/migrations/20260709000000_initial_schema.sql`
+1. `supabase/migrations/20260709000000_initial_schema.sql`
+2. `supabase/migrations/20260709000001_grant_authenticated.sql`
+
+If you already applied the initial schema before grants were added, you only need to run the second file.
 
 This creates:
 
@@ -36,6 +39,8 @@ This creates:
 
 All tables have **RLS enabled** with per-user policies (`auth.uid() = user_id`).
 
+The grants migration gives `authenticated` and `anon` the table privileges PostgREST needs. Without it, inserts fail with `permission denied for table ...` even when RLS policies are correct.
+
 ## 3. Test reads/writes + RLS
 
 ```bash
@@ -49,6 +54,8 @@ The test script:
 - Inserts sample rows for every table as user A
 - Confirms user B cannot read user A's data
 - Deletes test users on completion
+
+Local proof (no Supabase credentials): `npm run test:supabase:local`
 
 ## 4. App client (Phase 2+)
 
