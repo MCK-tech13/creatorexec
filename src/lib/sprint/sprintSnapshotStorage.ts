@@ -1,55 +1,36 @@
 import type { SprintSnapshot } from '../../types/sprintReview'
-
-const START_KEY = 'creatorexec-sprint-start'
-const PREVIOUS_KEY = 'creatorexec-sprint-previous'
-
-function readJson<T>(key: string): T | null {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return null
-    return JSON.parse(raw) as T
-  } catch {
-    return null
-  }
-}
-
-function writeJson(key: string, value: unknown): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // Ignore when storage is unavailable.
-  }
-}
+import {
+  getUserDataSnapshot,
+  updateSprintPreviousSnapshot,
+  updateSprintStartSnapshot,
+} from '../supabase/dataStore'
+import { scheduleOnboardingPersist } from '../supabase/sync'
 
 export function loadSprintStartSnapshot(): SprintSnapshot | null {
-  return readJson<SprintSnapshot>(START_KEY)
+  return getUserDataSnapshot().sprintStartSnapshot
 }
 
 export function saveSprintStartSnapshot(snapshot: SprintSnapshot): void {
-  writeJson(START_KEY, snapshot)
+  updateSprintStartSnapshot(snapshot)
+  scheduleOnboardingPersist()
 }
 
 export function loadPreviousSprintSnapshot(): SprintSnapshot | null {
-  return readJson<SprintSnapshot>(PREVIOUS_KEY)
+  return getUserDataSnapshot().sprintPreviousSnapshot
 }
 
 export function savePreviousSprintSnapshot(snapshot: SprintSnapshot): void {
-  writeJson(PREVIOUS_KEY, snapshot)
+  updateSprintPreviousSnapshot(snapshot)
+  scheduleOnboardingPersist()
 }
 
 export function clearSprintStartSnapshot(): void {
-  try {
-    localStorage.removeItem(START_KEY)
-  } catch {
-    // Ignore when storage is unavailable.
-  }
+  updateSprintStartSnapshot(null)
+  scheduleOnboardingPersist()
 }
 
 export function clearSprintSnapshots(): void {
-  clearSprintStartSnapshot()
-  try {
-    localStorage.removeItem(PREVIOUS_KEY)
-  } catch {
-    // Ignore when storage is unavailable.
-  }
+  updateSprintStartSnapshot(null)
+  updateSprintPreviousSnapshot(null)
+  scheduleOnboardingPersist()
 }

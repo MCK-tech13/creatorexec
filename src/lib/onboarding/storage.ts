@@ -1,27 +1,9 @@
 import type { MonthlyCommissionLevel, OnboardingProfile, UserMode } from '../../types/onboarding'
-
-const STORAGE_KEY = 'creatorexec-onboarding'
+import { getUserDataSnapshot, updateOnboardingProfile } from '../supabase/dataStore'
+import { scheduleOnboardingPersist } from '../supabase/sync'
 
 export function loadOnboardingProfile(): OnboardingProfile | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as OnboardingProfile & {
-      answers?: OnboardingProfile['answers'] & { experience?: MonthlyCommissionLevel }
-    }
-    if (parsed?.completed !== true || !parsed.mode || !parsed.videosPerDay) {
-      return null
-    }
-    if (parsed.answers?.experience && !parsed.answers.monthlyCommission) {
-      parsed.answers.monthlyCommission = parsed.answers.experience
-    }
-    if (!parsed.answers?.monthlyCommission) {
-      return null
-    }
-    return parsed as OnboardingProfile
-  } catch {
-    return null
-  }
+  return getUserDataSnapshot().onboardingProfile
 }
 
 export function isOnboardingComplete(): boolean {
@@ -29,7 +11,8 @@ export function isOnboardingComplete(): boolean {
 }
 
 export function saveOnboardingProfile(profile: OnboardingProfile): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profile))
+  updateOnboardingProfile(profile)
+  scheduleOnboardingPersist()
 }
 
 export function updateUserMode(mode: UserMode): void {
@@ -39,7 +22,8 @@ export function updateUserMode(mode: UserMode): void {
 }
 
 export function clearOnboardingProfile(): void {
-  localStorage.removeItem(STORAGE_KEY)
+  updateOnboardingProfile(null)
+  scheduleOnboardingPersist()
 }
 
 export function getStoredVideosPerDay(): number | null {
@@ -48,4 +32,21 @@ export function getStoredVideosPerDay(): number | null {
 
 export function getStoredUserMode(): UserMode | null {
   return loadOnboardingProfile()?.mode ?? null
+}
+
+export function normalizeLegacyOnboardingProfile(
+  parsed: OnboardingProfile & {
+    answers?: OnboardingProfile['answers'] & { experience?: MonthlyCommissionLevel }
+  },
+): OnboardingProfile | null {
+  if (parsed?.completed !== true || !parsed.mode || !parsed.videosPerDay) {
+    return null
+  }
+  if (parsed.answers?.experience && !parsed.answers.monthlyCommission) {
+    parsed.answers.monthlyCommission = parsed.answers.experience
+  }
+  if (!parsed.answers?.monthlyCommission) {
+    return null
+  }
+  return parsed as OnboardingProfile
 }

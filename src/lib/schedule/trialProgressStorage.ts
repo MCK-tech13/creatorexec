@@ -1,6 +1,6 @@
 import { TIER_REVIEW_VIDEO_COUNT } from '../../types'
-
-const STORAGE_KEY = 'creatorexec-trial-progress'
+import { getUserDataSnapshot, updateTrialProgress } from '../supabase/dataStore'
+import { scheduleTrialProgressPersist } from '../supabase/sync'
 
 export interface TrialProgressEntry {
   videosFilmed: number
@@ -22,29 +22,12 @@ export function remainingTrialSlots(videosFilmed: number): number {
 }
 
 export function loadTrialProgress(): TrialProgressStore {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as TrialProgressStore
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      return {}
-    }
-    return Object.fromEntries(
-      Object.entries(parsed).map(([key, entry]) => [
-        key,
-        {
-          videosFilmed: Math.max(0, Number(entry?.videosFilmed) || 0),
-          source: entry?.source,
-        },
-      ]),
-    )
-  } catch {
-    return {}
-  }
+  return getUserDataSnapshot().trialProgress
 }
 
 export function saveTrialProgress(store: TrialProgressStore): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+  updateTrialProgress(store)
+  scheduleTrialProgressPersist()
 }
 
 export function hasTrialProgressEntry(
@@ -73,5 +56,5 @@ export function setTrialVideosFilmed(
 }
 
 export function clearTrialProgress(): void {
-  localStorage.removeItem(STORAGE_KEY)
+  saveTrialProgress({})
 }

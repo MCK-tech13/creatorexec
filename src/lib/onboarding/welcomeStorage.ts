@@ -1,17 +1,16 @@
-const WELCOME_STORAGE_KEY = 'creatorexec-welcome-seen'
+import { getUserDataSnapshot, updateWelcomeSeen } from '../supabase/dataStore'
+import { scheduleOnboardingPersist } from '../supabase/sync'
 
 export function isWelcomeSeen(): boolean {
-  try {
-    return localStorage.getItem(WELCOME_STORAGE_KEY) === 'true'
-  } catch {
-    return false
-  }
+  return getUserDataSnapshot().welcomeSeen
 }
 
 export function markWelcomeSeen(): void {
-  localStorage.setItem(WELCOME_STORAGE_KEY, 'true')
+  updateWelcomeSeen(true)
+  scheduleOnboardingPersist()
 }
 
 export function clearWelcomeSeen(): void {
-  localStorage.removeItem(WELCOME_STORAGE_KEY)
+  updateWelcomeSeen(false)
+  scheduleOnboardingPersist()
 }

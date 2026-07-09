@@ -6,6 +6,7 @@ import { ForgotPasswordPage } from './components/auth/ForgotPasswordPage'
 import { ResetPasswordPage } from './components/auth/ResetPasswordPage'
 import { LandingRoute, ProtectedRoute } from './components/auth/AuthRoutes'
 import { SupabaseConfigNotice } from './components/auth/SupabaseConfigNotice'
+import { UserDataProvider } from './contexts/UserDataContext'
 import CreatorExecApp from './CreatorExecApp'
 
 export function AppRouter() {
@@ -28,7 +29,9 @@ export function AppRouter() {
           path="/app"
           element={
             <ProtectedRoute>
-              <CreatorExecApp />
+              <UserDataProvider>
+                <CreatorExecApp />
+              </UserDataProvider>
             </ProtectedRoute>
           }
         />

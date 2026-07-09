@@ -1,18 +1,17 @@
-const STORAGE_KEY = 'creatorexec-sprint-entry-seen'
+import { getUserDataSnapshot, updateSprintEntrySeen } from '../supabase/dataStore'
+import { scheduleOnboardingPersist } from '../supabase/sync'
 
 /** Whether the user has already been routed to their Q1 entry screen. */
 export function hasSeenSprintEntry(): boolean {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === 'true'
-  } catch {
-    return false
-  }
+  return getUserDataSnapshot().sprintEntrySeen
 }
 
 export function markSprintEntrySeen(): void {
-  localStorage.setItem(STORAGE_KEY, 'true')
+  updateSprintEntrySeen(true)
+  scheduleOnboardingPersist()
 }
 
 export function clearSprintEntrySeen(): void {
-  localStorage.removeItem(STORAGE_KEY)
+  updateSprintEntrySeen(false)
+  scheduleOnboardingPersist()
 }

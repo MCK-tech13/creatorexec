@@ -256,6 +256,8 @@ export type Database = {
           filming_approach: Database['public']['Enums']['filming_approach'] | null
           welcome_seen: boolean
           sprint_entry_seen: boolean
+          sprint_start_snapshot: Json | null
+          sprint_previous_snapshot: Json | null
           created_at: string
           updated_at: string
         }
@@ -268,6 +270,8 @@ export type Database = {
           filming_approach?: Database['public']['Enums']['filming_approach'] | null
           welcome_seen?: boolean
           sprint_entry_seen?: boolean
+          sprint_start_snapshot?: Json | null
+          sprint_previous_snapshot?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -280,6 +284,8 @@ export type Database = {
           filming_approach?: Database['public']['Enums']['filming_approach'] | null
           welcome_seen?: boolean
           sprint_entry_seen?: boolean
+          sprint_start_snapshot?: Json | null
+          sprint_previous_snapshot?: Json | null
           created_at?: string
           updated_at?: string
         }

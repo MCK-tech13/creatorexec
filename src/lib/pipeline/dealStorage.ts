@@ -1,7 +1,6 @@
 import type { BrandDeal, BrandDealInsert, DealStage } from '../../types/pipeline'
-import { normalizeDealVideoDeliverables } from './videoDeliverableUtils'
-
-const STORAGE_KEY = 'creatorexec-brand-deals'
+import { getUserDataSnapshot, updateBrandDeals } from '../supabase/dataStore'
+import { scheduleBrandDealsPersist } from '../supabase/sync'
 
 function defaultDeal(partial: BrandDealInsert): BrandDeal {
   const now = new Date().toISOString()
@@ -28,28 +27,12 @@ function defaultDeal(partial: BrandDealInsert): BrandDeal {
 }
 
 export function loadBrandDeals(): BrandDeal[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as BrandDeal[]
-    if (!Array.isArray(parsed)) return []
-    return parsed.map((deal) =>
-      normalizeDealVideoDeliverables({
-        ...deal,
-        isRetainer: deal.isRetainer ?? false,
-        contractSigned: deal.contractSigned ?? false,
-        filmingChecklist: deal.filmingChecklist ?? [],
-        product: deal.product ?? '',
-        videoDeliverables: deal.videoDeliverables ?? [],
-      }),
-    )
-  } catch {
-    return []
-  }
+  return getUserDataSnapshot().brandDeals
 }
 
 export function saveBrandDeals(deals: BrandDeal[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(deals))
+  updateBrandDeals(deals)
+  scheduleBrandDealsPersist()
 }
 
 export function createBrandDeal(partial: BrandDealInsert): BrandDeal {

@@ -9,6 +9,9 @@ import {
   savePreviousSprintSnapshot,
 } from './sprintSnapshotStorage'
 import { trialStorageKey } from '../schedule/trialProgressStorage'
+import { getActiveUserId, isDataStoreReady } from '../supabase/dataStore'
+import { getSupabaseClient } from '../supabase/client'
+import { insertSprintHistoryRecord } from '../supabase/sprintHistory'
 
 export function captureSprintEndReview(
   products: MergedProduct[],
@@ -31,6 +34,15 @@ export function captureSprintEndReview(
   const review = buildSprintReview(sprintStart, endSnapshot, previousCompleted)
   savePreviousSprintSnapshot(endSnapshot)
   clearSprintStartSnapshot()
+
+  if (isDataStoreReady()) {
+    const userId = getActiveUserId()
+    void insertSprintHistoryRecord(getSupabaseClient(), userId, sprintStart, endSnapshot, review).catch(
+      (error) => {
+        console.error('Failed to save sprint history', error)
+      },
+    )
+  }
 
   return review
 }

@@ -63,7 +63,7 @@ Local proof (no Supabase credentials): `npm run test:supabase:local`
 import { getSupabaseClient, isSupabaseConfigured } from './lib/supabase/client'
 ```
 
-Phase 2 wires **Supabase Auth** (email/password signup, login, logout, password reset). Feature data still uses localStorage until Phase 3.
+Phase 2 wires **Supabase Auth** (email/password signup, login, logout, password reset). Phase 3 migrates feature data from localStorage to Supabase tables tied to the logged-in user.
 
 ### Auth redirect URLs (Supabase Dashboard → Authentication → URL Configuration)
 
@@ -82,4 +82,25 @@ npm run test:auth
 
 This creates a temporary user, confirms it appears in Authentication → Users, tests login/session/logout, then deletes the user.
 
-Phase 1 does **not** change existing localStorage modules beyond requiring login to reach `/app`.
+## 5. Phase 3 — user data in Supabase
+
+Apply the sprint snapshot migration if you set up Phase 1 before Phase 3 shipped:
+
+3. `supabase/migrations/20260709000002_onboarding_sprint_snapshots.sql`
+
+On first login after updating the app, any existing browser `localStorage` data for the six domains is uploaded once to Supabase under that user's account. After migration, reads and writes go to Supabase (not localStorage).
+
+### Verify Phase 3 data layer
+
+```bash
+npm run test:phase3
+```
+
+The script:
+
+- Creates a fresh auth user and confirms RLS-scoped writes/reads
+- Simulates pre-login `localStorage` data and one-time migration (no duplicates on re-run)
+- Signs in again as the same user in a new session (cross-device read)
+- Prints actual table row JSON via the service role as proof
+
+Phase 1 does **not** change unrelated localStorage modules (filming progress, angle rotation, Product Scout walkthrough flag).

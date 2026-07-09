@@ -1,21 +1,14 @@
 import type { ProductScoutEntry, ProductScoutEntryInsert } from '../../types/productScout'
-
-const STORAGE_KEY = 'creatorexec-product-scout'
+import { getUserDataSnapshot, updateProductScoutEntries } from '../supabase/dataStore'
+import { scheduleProductScoutPersist } from '../supabase/sync'
 
 export function loadProductScoutEntries(): ProductScoutEntry[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as ProductScoutEntry[]
-    if (!Array.isArray(parsed)) return []
-    return parsed
-  } catch {
-    return []
-  }
+  return getUserDataSnapshot().productScoutEntries
 }
 
 export function saveProductScoutEntries(entries: ProductScoutEntry[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries))
+  updateProductScoutEntries(entries)
+  scheduleProductScoutPersist()
 }
 
 export function createProductScoutEntry(partial: ProductScoutEntryInsert): ProductScoutEntry {
