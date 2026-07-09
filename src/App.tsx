@@ -745,10 +745,6 @@ function App() {
     setMainSection('home')
   }, [])
 
-  const handleStartSprintSetup = useCallback(() => {
-    setMainSection('sprint')
-  }, [])
-
   const handleAddRetainerFromEmpty = useCallback(() => {
     setOpenNewRetainerDeal(true)
     setMainSection('retainers')
@@ -820,7 +816,6 @@ function App() {
       onSectionChange={handleSectionChange}
       onGoHome={handleGoHome}
       onResetOnboarding={handleResetOnboarding}
-      onStartSprintSetup={handleStartSprintSetup}
       sprintSetupComplete={onboardingComplete}
       contentWidth={useWideContent ? 'wide' : 'narrow'}
       showSprintStepper={mainSection === 'sprint' && onboardingComplete}
