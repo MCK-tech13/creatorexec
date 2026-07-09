@@ -49,7 +49,7 @@ function scoreOrdersTrend(ordersDelta: number | null): ProductScoutSignal {
       id: 'orders-trend',
       label: 'Orders Trend',
       detail: 'Orders rising — demand is healthy',
-      points: 2,
+      points: 1,
       sentiment: 'positive',
     }
   }
@@ -112,7 +112,7 @@ function scoreCreatorSaturation(
     id: 'creator-saturation',
     label: 'Creator Saturation',
     detail: 'Crowded (2,000+ creators)',
-    points: -1,
+    points: -2,
     sentiment: 'negative',
   }
 }
@@ -133,6 +133,7 @@ function scoreCtr(
   }
 
   const highCreatorCount = creatorLevel != null && creatorLevel >= 2_000
+  const competitiveMarket = creatorLevel != null && creatorLevel >= 500
   const decliningCtr = ctrDelta != null && ctrDelta < 0
 
   if (decliningCtr && highCreatorCount) {
@@ -152,6 +153,16 @@ function scoreCtr(
       detail: 'Strong hook (CTR ≥ 4%)',
       points: 2,
       sentiment: 'positive',
+    }
+  }
+
+  if (ctrValue < 2.5 && competitiveMarket) {
+    return {
+      id: 'ctr-hook',
+      label: 'CTR / Hook Strength',
+      detail: 'Weak hook in a competitive market — hooks are not breaking through',
+      points: -1,
+      sentiment: 'negative',
     }
   }
 
@@ -177,6 +188,8 @@ function scoreConversion(orders: number | null, atcUsers: number | null): Produc
 
   const rate = orders / atcUsers
   const ratePercent = (rate * 100).toFixed(1)
+  const browseToOrderRatio = atcUsers / orders
+  const heavyBrowsing = browseToOrderRatio > 15 && rate < 0.08
 
   if (rate >= 0.2) {
     return {
@@ -188,11 +201,15 @@ function scoreConversion(orders: number | null, atcUsers: number | null): Produc
     }
   }
   if (rate < 0.08) {
+    const detail = heavyBrowsing
+      ? `High friction (${ratePercent}% ATC-to-order) — lots of add-to-carts but few buyers`
+      : `High friction (${ratePercent}% ATC-to-order) — price, trust, checkout, or too many creators splitting buyers`
+
     return {
       id: 'atc-conversion',
       label: 'ATC-to-Order Conversion',
-      detail: `High friction (${ratePercent}% ATC-to-order) — price, trust, checkout, or too many creators splitting buyers`,
-      points: -2,
+      detail,
+      points: heavyBrowsing ? -3 : -2,
       sentiment: 'negative',
     }
   }
@@ -206,36 +223,73 @@ function scoreConversion(orders: number | null, atcUsers: number | null): Produc
 }
 
 function verdictFromScore(totalScore: number): { verdict: ProductScoutVerdict; label: string } {
-  if (totalScore >= 4) {
+  if (totalScore >= 5) {
     return { verdict: 'strong', label: 'Strong opportunity' }
   }
-  if (totalScore >= 0) {
+  if (totalScore >= 1) {
     return { verdict: 'test', label: 'Worth testing' }
   }
   return { verdict: 'pass', label: 'Pass' }
 }
 
-function funnelRecommendation(creatorLevel: number | null): ProductScoutFunnelRecommendation {
-  if (creatorLevel == null) {
+function conversionRate(parsed: ParsedScoutMetrics): number | null {
+  if (parsed.orders == null || parsed.atcUsers == null || parsed.atcUsers === 0) {
+    return null
+  }
+  return parsed.orders / parsed.atcUsers
+}
+
+function funnelRecommendation(parsed: ParsedScoutMetrics): ProductScoutFunnelRecommendation {
+  const { creators, ctr, ctrDelta } = parsed
+
+  if (creators == null) {
     return {
       headline: 'Add creator count to see funnel recommendation',
       detail: '',
     }
   }
-  if (creatorLevel < 500) {
+
+  const rate = conversionRate(parsed)
+  const decliningCtr = ctrDelta != null && ctrDelta < 0
+  const weakCtr = ctr != null && ctr < 3
+
+  if (creators < 500) {
     return {
       headline: 'Lead TOF, then MOF fast',
       detail:
         'Low competition — claim the hook space early, then follow up with mid-funnel content quickly before others catch on.',
     }
   }
-  if (creatorLevel >= 2_000) {
+
+  if (creators >= 2_000) {
+    if (decliningCtr || weakCtr) {
+      return {
+        headline: 'Fresh TOF angle first',
+        detail:
+          'Hooks look tired in a crowded market — differentiated top-of-funnel content is the gap, not more direct-sell.',
+      }
+    }
+    if (rate != null && rate >= 0.2) {
+      return {
+        headline: 'Skip to BOF / live',
+        detail:
+          'People are buying despite heavy competition — direct-sell and live content can capture demand that is already converting.',
+      }
+    }
+    if (rate != null && rate < 0.08) {
+      return {
+        headline: 'MOF first — fix conversion',
+        detail:
+          'Add-to-cart interest is not turning into orders — build trust, handle objections, and fix conversion before bottom-funnel direct-sell.',
+      }
+    }
     return {
-      headline: 'Skip to BOF / live',
+      headline: 'MOF first, then layer BOF',
       detail:
-        'Most competitors stop at TOF/MOF on crowded products — direct-sell content is the open gap even here.',
+        'Crowded product with mixed signals — strengthen mid-funnel conversion before layering direct-sell content.',
     }
   }
+
   return {
     headline: 'MOF first, then layer BOF',
     detail:
@@ -269,7 +323,7 @@ export function scoreProductScout(metrics: ProductScoutMetrics): ProductScoutSco
     totalScore,
     verdict,
     verdictLabel: label,
-    funnel: funnelRecommendation(parsed.creators),
+    funnel: funnelRecommendation(parsed),
   }
 }
 
