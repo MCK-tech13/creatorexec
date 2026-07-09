@@ -53,7 +53,7 @@ function SignalRow({ signal }: { signal: ProductScoutSignal }) {
           <p className={`mt-1 font-body text-sm ${styles.detail}`}>{signal.detail}</p>
         </div>
         <span className={`shrink-0 font-body text-sm font-semibold tabular-nums ${styles.points}`}>
-          {formatPoints(signal.points)}
+          {signal.countsTowardScore ? formatPoints(signal.points) : '—'}
         </span>
       </div>
     </div>
@@ -70,8 +70,18 @@ export function ProductScoutResults({ result }: { result: ProductScoutScoreResul
           <p className="font-body text-sm text-stone">
             Total score:{' '}
             <span className="font-semibold text-ink tabular-nums">{formatPoints(result.totalScore)}</span>
+            <span className="text-grey">
+              {' '}
+              (from {result.scoredSignalCount} of {result.signals.length} signals with data)
+            </span>
           </p>
         </div>
+        {result.verdict === 'insufficient' && (
+          <p className="mt-3 font-body text-sm text-stone">
+            Add orders and CTR trend deltas when you have them — missing trend data limits how
+            confidently we can score demand direction.
+          </p>
+        )}
         {result.atcConversionRate !== null && (
           <p className="mt-4 font-body text-sm text-stone">
             ATC → order conversion:{' '}

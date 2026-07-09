@@ -17,6 +17,21 @@ interface ParsedScoutMetrics {
   atcUsers: number | null
 }
 
+function noDataSignal(
+  id: string,
+  label: string,
+  detail = 'No data — not counted in score',
+): ProductScoutSignal {
+  return {
+    id,
+    label,
+    detail,
+    points: 0,
+    sentiment: 'muted',
+    countsTowardScore: false,
+  }
+}
+
 function parseScoutMetrics(metrics: ProductScoutMetrics): ParsedScoutMetrics {
   return {
     orders: parseCompactNumber(metrics.orders.value),
@@ -36,13 +51,7 @@ export function hasProductScoutData(metrics: ProductScoutMetrics): boolean {
 
 function scoreOrdersTrend(ordersDelta: number | null): ProductScoutSignal {
   if (ordersDelta == null) {
-    return {
-      id: 'orders-trend',
-      label: 'Orders Trend',
-      detail: 'No data',
-      points: 0,
-      sentiment: 'muted',
-    }
+    return noDataSignal('orders-trend', 'Orders Trend', 'No trend data — add an orders delta to score demand direction')
   }
   if (ordersDelta > 0) {
     return {
@@ -51,6 +60,7 @@ function scoreOrdersTrend(ordersDelta: number | null): ProductScoutSignal {
       detail: 'Orders rising — demand is healthy',
       points: 1,
       sentiment: 'positive',
+      countsTowardScore: true,
     }
   }
   return {
@@ -59,6 +69,7 @@ function scoreOrdersTrend(ordersDelta: number | null): ProductScoutSignal {
     detail: 'Orders falling — demand may be cooling',
     points: -2,
     sentiment: 'negative',
+    countsTowardScore: true,
   }
 }
 
@@ -66,15 +77,10 @@ function scoreCreatorSaturation(
   creatorLevel: number | null,
   creatorDelta: number | null,
   ordersDelta: number | null,
+  conversionRate: number | null,
 ): ProductScoutSignal {
   if (creatorLevel == null) {
-    return {
-      id: 'creator-saturation',
-      label: 'Creator Saturation',
-      detail: 'No data',
-      points: 0,
-      sentiment: 'muted',
-    }
+    return noDataSignal('creator-saturation', 'Creator Saturation')
   }
 
   const climbingWhileOrdersFlat =
@@ -87,6 +93,7 @@ function scoreCreatorSaturation(
       detail: "Creators climbing while orders aren't — product is saturating",
       points: -2,
       sentiment: 'negative',
+      countsTowardScore: true,
     }
   }
 
@@ -97,6 +104,7 @@ function scoreCreatorSaturation(
       detail: 'Low competition (<200 creators)',
       points: 2,
       sentiment: 'positive',
+      countsTowardScore: true,
     }
   }
   if (creatorLevel < 2_000) {
@@ -106,14 +114,42 @@ function scoreCreatorSaturation(
       detail: 'Moderate competition (<2,000 creators)',
       points: 0,
       sentiment: 'neutral',
+      countsTowardScore: true,
     }
   }
+
+  const healthyConversion = conversionRate != null && conversionRate >= 0.08
+  const ordersRising = ordersDelta != null && ordersDelta > 0
+
+  if (healthyConversion && ordersRising) {
+    return {
+      id: 'creator-saturation',
+      label: 'Creator Saturation',
+      detail: 'Crowded (2,000+ creators) but orders are rising and conversion is healthy',
+      points: 0,
+      sentiment: 'neutral',
+      countsTowardScore: true,
+    }
+  }
+
+  if (healthyConversion && ordersDelta == null) {
+    return {
+      id: 'creator-saturation',
+      label: 'Creator Saturation',
+      detail: 'Crowded (2,000+ creators) with healthy conversion — add an orders trend to refine this',
+      points: -1,
+      sentiment: 'neutral',
+      countsTowardScore: true,
+    }
+  }
+
   return {
     id: 'creator-saturation',
     label: 'Creator Saturation',
     detail: 'Crowded (2,000+ creators)',
-    points: -2,
+    points: -1,
     sentiment: 'negative',
+    countsTowardScore: true,
   }
 }
 
@@ -123,13 +159,7 @@ function scoreCtr(
   creatorLevel: number | null,
 ): ProductScoutSignal {
   if (ctrValue == null) {
-    return {
-      id: 'ctr-hook',
-      label: 'CTR / Hook Strength',
-      detail: 'No data',
-      points: 0,
-      sentiment: 'muted',
-    }
+    return noDataSignal('ctr-hook', 'CTR / Hook Strength')
   }
 
   const highCreatorCount = creatorLevel != null && creatorLevel >= 2_000
@@ -143,6 +173,7 @@ function scoreCtr(
       detail: 'CTR declining + high creator count — content fatigue',
       points: -2,
       sentiment: 'negative',
+      countsTowardScore: true,
     }
   }
 
@@ -153,6 +184,7 @@ function scoreCtr(
       detail: 'Strong hook (CTR ≥ 4%)',
       points: 2,
       sentiment: 'positive',
+      countsTowardScore: true,
     }
   }
 
@@ -163,6 +195,7 @@ function scoreCtr(
       detail: 'Weak hook in a competitive market — hooks are not breaking through',
       points: -1,
       sentiment: 'negative',
+      countsTowardScore: true,
     }
   }
 
@@ -172,18 +205,13 @@ function scoreCtr(
     detail: 'CTR below 4% — average hook strength',
     points: 0,
     sentiment: 'neutral',
+    countsTowardScore: true,
   }
 }
 
 function scoreConversion(orders: number | null, atcUsers: number | null): ProductScoutSignal {
   if (orders == null || atcUsers == null || atcUsers === 0) {
-    return {
-      id: 'atc-conversion',
-      label: 'ATC-to-Order Conversion',
-      detail: 'No data',
-      points: 0,
-      sentiment: 'muted',
-    }
+    return noDataSignal('atc-conversion', 'ATC-to-Order Conversion')
   }
 
   const rate = orders / atcUsers
@@ -198,6 +226,7 @@ function scoreConversion(orders: number | null, atcUsers: number | null): Produc
       detail: `Converting well (${ratePercent}% ATC-to-order)`,
       points: 2,
       sentiment: 'positive',
+      countsTowardScore: true,
     }
   }
   if (rate < 0.08) {
@@ -211,6 +240,7 @@ function scoreConversion(orders: number | null, atcUsers: number | null): Produc
       detail,
       points: heavyBrowsing ? -3 : -2,
       sentiment: 'negative',
+      countsTowardScore: true,
     }
   }
   return {
@@ -219,6 +249,7 @@ function scoreConversion(orders: number | null, atcUsers: number | null): Produc
     detail: `Moderate conversion (${ratePercent}% ATC-to-order)`,
     points: 0,
     sentiment: 'neutral',
+    countsTowardScore: true,
   }
 }
 
@@ -230,6 +261,31 @@ function verdictFromScore(totalScore: number): { verdict: ProductScoutVerdict; l
     return { verdict: 'test', label: 'Worth testing' }
   }
   return { verdict: 'pass', label: 'Pass' }
+}
+
+function resolveVerdict(
+  totalScore: number,
+  parsed: ParsedScoutMetrics,
+  conversionRate: number | null,
+): { verdict: ProductScoutVerdict; label: string } {
+  const base = verdictFromScore(totalScore)
+
+  if (base.verdict !== 'pass') {
+    return base
+  }
+
+  const ordersTrendMissing = parsed.ordersDelta == null
+  const confirmedWeakDemand = parsed.ordersDelta != null && parsed.ordersDelta <= 0
+  const confirmedWeakConversion = conversionRate != null && conversionRate < 0.08
+
+  if (ordersTrendMissing && !confirmedWeakDemand && !confirmedWeakConversion) {
+    return {
+      verdict: 'insufficient',
+      label: 'Insufficient data for a confident verdict',
+    }
+  }
+
+  return base
 }
 
 function conversionRate(parsed: ParsedScoutMetrics): number | null {
@@ -301,26 +357,26 @@ export function scoreProductScout(metrics: ProductScoutMetrics): ProductScoutSco
   if (!hasProductScoutData(metrics)) return null
 
   const parsed = parseScoutMetrics(metrics)
+  const rate = conversionRate(parsed)
 
   const signals: ProductScoutSignal[] = [
     scoreOrdersTrend(parsed.ordersDelta),
-    scoreCreatorSaturation(parsed.creators, parsed.creatorsDelta, parsed.ordersDelta),
+    scoreCreatorSaturation(parsed.creators, parsed.creatorsDelta, parsed.ordersDelta, rate),
     scoreCtr(parsed.ctr, parsed.ctrDelta, parsed.creators),
     scoreConversion(parsed.orders, parsed.atcUsers),
   ]
 
-  const totalScore = signals.reduce((sum, signal) => sum + signal.points, 0)
-  const { verdict, label } = verdictFromScore(totalScore)
+  const scoredSignals = signals.filter((signal) => signal.countsTowardScore)
+  const totalScore = scoredSignals.reduce((sum, signal) => sum + signal.points, 0)
+  const { verdict, label } = resolveVerdict(totalScore, parsed, rate)
 
-  const atcConversionRate =
-    parsed.orders != null && parsed.atcUsers != null && parsed.atcUsers > 0
-      ? (parsed.orders / parsed.atcUsers) * 100
-      : null
+  const atcConversionRate = rate != null ? rate * 100 : null
 
   return {
     atcConversionRate,
     signals,
     totalScore,
+    scoredSignalCount: scoredSignals.length,
     verdict,
     verdictLabel: label,
     funnel: funnelRecommendation(parsed),

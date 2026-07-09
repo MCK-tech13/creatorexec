@@ -1,4 +1,4 @@
-export type ProductScoutVerdict = 'strong' | 'test' | 'pass'
+export type ProductScoutVerdict = 'strong' | 'test' | 'pass' | 'insufficient'
 
 export type SignalSentiment = 'positive' | 'neutral' | 'negative' | 'muted'
 
@@ -25,6 +25,8 @@ export interface ProductScoutSignal {
   detail: string
   points: number
   sentiment: SignalSentiment
+  /** When false, signal is shown but excluded from total score (missing input). */
+  countsTowardScore: boolean
 }
 
 export interface ProductScoutFunnelRecommendation {
@@ -36,6 +38,7 @@ export interface ProductScoutScoreResult {
   atcConversionRate: number | null
   signals: ProductScoutSignal[]
   totalScore: number
+  scoredSignalCount: number
   verdict: ProductScoutVerdict
   verdictLabel: string
   funnel: ProductScoutFunnelRecommendation

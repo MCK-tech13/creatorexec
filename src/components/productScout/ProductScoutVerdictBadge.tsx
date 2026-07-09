@@ -19,6 +19,11 @@ const VERDICT_STYLES: Record<
     text: 'text-stone',
     dot: 'bg-grey-light',
   },
+  insufficient: {
+    bg: 'bg-white border border-dashed border-border-warm',
+    text: 'text-stone',
+    dot: 'bg-grey',
+  },
 }
 
 export function ProductScoutVerdictBadge({
