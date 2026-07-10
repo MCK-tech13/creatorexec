@@ -14,6 +14,8 @@
     "test:commission-upload": "tsx scripts/test-commission-upload.mjs",
     "test:auth": "node scripts/test-auth.mjs",
     "test:phase3": "node scripts/test-phase3-data.mjs",
+    "test:stripe": "node scripts/test-stripe.mjs",
+    "dev:api": "node server/index.mjs",
     "verify:phase1": "bash scripts/verify-phase1.sh",
     "lint": "oxlint",
     "preview": "vite preview"
@@ -21,11 +23,13 @@
   "dependencies": {
     "@e965/xlsx": "^0.20.3",
     "@supabase/supabase-js": "^2.110.1",
+    "express": "^5.1.0",
     "lucide-react": "^1.21.0",
     "papaparse": "^5.5.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1"
+    "react-router-dom": "^7.18.1",
+    "stripe": "^18.5.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.1",

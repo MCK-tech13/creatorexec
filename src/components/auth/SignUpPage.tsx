@@ -14,7 +14,7 @@ export function SignUpPage() {
   const [submitting, setSubmitting] = useState(false)
 
   if (!loading && session) {
-    return <Navigate to="/app" replace />
+    return <Navigate to="/subscribe" replace />
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -46,7 +46,7 @@ export function SignUpPage() {
     }
 
     if (result.sessionCreated) {
-      navigate('/app', { replace: true })
+      navigate('/subscribe', { replace: true })
       return
     }
 

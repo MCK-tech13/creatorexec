@@ -25,7 +25,7 @@ export function LandingRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (session) {
-    return <Navigate to="/app" replace />
+    return <Navigate to="/subscribe" replace />
   }
 
   return children

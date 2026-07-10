@@ -6,6 +6,9 @@ import { ForgotPasswordPage } from './components/auth/ForgotPasswordPage'
 import { ResetPasswordPage } from './components/auth/ResetPasswordPage'
 import { LandingRoute, ProtectedRoute } from './components/auth/AuthRoutes'
 import { SupabaseConfigNotice } from './components/auth/SupabaseConfigNotice'
+import { SubscribePage } from './components/billing/SubscribePage'
+import { SubscriptionGate } from './components/billing/SubscriptionGate'
+import { SubscriptionProvider } from './contexts/SubscriptionContext'
 import { UserDataProvider } from './contexts/UserDataContext'
 import CreatorExecApp from './CreatorExecApp'
 
@@ -26,12 +29,26 @@ export function AppRouter() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route
+          path="/subscribe"
+          element={
+            <ProtectedRoute>
+              <SubscriptionProvider>
+                <SubscribePage />
+              </SubscriptionProvider>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/app"
           element={
             <ProtectedRoute>
-              <UserDataProvider>
-                <CreatorExecApp />
-              </UserDataProvider>
+              <SubscriptionProvider>
+                <SubscriptionGate>
+                  <UserDataProvider>
+                    <CreatorExecApp />
+                  </UserDataProvider>
+                </SubscriptionGate>
+              </SubscriptionProvider>
             </ProtectedRoute>
           }
         />

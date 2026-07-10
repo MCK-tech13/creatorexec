@@ -291,10 +291,56 @@ export type Database = {
         }
         Relationships: []
       }
+      user_subscriptions: {
+        Row: {
+          user_id: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: Database['public']['Enums']['subscription_status']
+          price_id: string | null
+          current_period_end: string | null
+          cancel_at_period_end: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: Database['public']['Enums']['subscription_status']
+          price_id?: string | null
+          current_period_end?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: Database['public']['Enums']['subscription_status']
+          price_id?: string | null
+          current_period_end?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
     Enums: {
+      subscription_status:
+        | 'none'
+        | 'incomplete'
+        | 'incomplete_expired'
+        | 'trialing'
+        | 'active'
+        | 'past_due'
+        | 'canceled'
+        | 'unpaid'
+        | 'paused'
       deal_stage:
         | 'negotiating'
         | 'contract_sent'

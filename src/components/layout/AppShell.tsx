@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { AppStage, MainSection } from '../../types'
+import { BillingBanner } from '../billing/BillingBanner'
 import { AppFooter } from './AppFooter'
 import { Header } from './Header'
 import { PageContainer, type PageContainerVariant } from './PageContainer'
@@ -56,6 +57,7 @@ export function AppShell({
         onSignOut={onSignOut}
         userEmail={userEmail}
       />
+      <BillingBanner />
       {showStepper && (
       <div className="border-b border-border-warm bg-white">
         <div className="mx-auto max-w-7xl px-5 py-6 sm:px-8 sm:py-8">
