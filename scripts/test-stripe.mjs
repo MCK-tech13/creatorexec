@@ -2,7 +2,6 @@
  * Stripe billing verification (test mode only).
  * Usage: npm run test:stripe
  */
-import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import { loadEnvFile, assertBillingEnv } from '../server/env.mjs'
 import { getSupabaseAdmin } from '../server/supabaseAdmin.mjs'
@@ -10,6 +9,7 @@ import {
   getSubscriptionPeriodEnd,
   markSubscriptionPastDue,
   syncCheckoutSessionCompleted,
+  syncInvoicePeriod,
   syncStripeSubscriptionEvent,
 } from '../server/subscriptionSync.mjs'
 
@@ -26,6 +26,12 @@ function assertPeriodEndMapping() {
     status: 'active',
     current_period_end: 1_712_678_400,
   }
+  const invoiceShape = {
+    id: 'sub_invoice',
+    status: 'active',
+    items: { data: [] },
+    latest_invoice: { period_end: 1_712_678_400 },
+  }
 
   if (getSubscriptionPeriodEnd(basilShape) !== 1_712_678_400) {
     throw new Error('Basil API period-end mapping failed')
@@ -33,7 +39,10 @@ function assertPeriodEndMapping() {
   if (getSubscriptionPeriodEnd(legacyShape) !== 1_712_678_400) {
     throw new Error('Legacy API period-end mapping failed')
   }
-  console.log('PASS: current_period_end mapping (Basil + legacy shapes)')
+  if (getSubscriptionPeriodEnd(invoiceShape) !== 1_712_678_400) {
+    throw new Error('Invoice fallback period-end mapping failed')
+  }
+  console.log('PASS: current_period_end mapping (Basil + legacy + invoice shapes)')
 }
 
 function randomSuffix() {
@@ -52,6 +61,18 @@ async function createTestUser(admin, label) {
     throw new Error(`Failed to create ${label} user: ${error?.message ?? 'unknown'}`)
   }
   return { id: data.user.id, email, password }
+}
+
+async function attachTestPaymentMethod(stripe, customerId) {
+  const paymentMethod = await stripe.paymentMethods.create({
+    type: 'card',
+    card: { token: 'tok_visa' },
+  })
+  await stripe.paymentMethods.attach(paymentMethod.id, { customer: customerId })
+  await stripe.customers.update(customerId, {
+    invoice_settings: { default_payment_method: paymentMethod.id },
+  })
+  return paymentMethod.id
 }
 
 async function dumpSubscription(admin, userId, label) {
@@ -81,7 +102,6 @@ async function main() {
   console.log(`Test user: ${user.email} (${user.id})`)
 
   try {
-    // 1) Checkout session can be created
     const customer = await stripe.customers.create({
       email: user.email,
       metadata: { user_id: user.id },
@@ -100,14 +120,18 @@ async function main() {
     if (!checkoutSession.url) {
       throw new Error('Checkout session missing URL')
     }
-    console.log('\n[1/4] PASS: Stripe Checkout session created')
+    console.log('\n[1/5] PASS: Stripe Checkout session created')
     console.log(`checkout_session_id: ${checkoutSession.id}`)
 
-    // 2) Simulate checkout.session.completed webhook
-    const subscription = await stripe.subscriptions.create({
+    const paymentMethodId = await attachTestPaymentMethod(stripe, customer.id)
+    const createdSubscription = await stripe.subscriptions.create({
       customer: customer.id,
       items: [{ price: env.stripeBetaPriceId }],
+      default_payment_method: paymentMethodId,
       metadata: { user_id: user.id, price_id: env.stripeBetaPriceId },
+    })
+    const subscription = await stripe.subscriptions.retrieve(createdSubscription.id, {
+      expand: ['items.data.price', 'latest_invoice'],
     })
 
     await syncCheckoutSessionCompleted(admin, stripe, {
@@ -128,7 +152,20 @@ async function main() {
     console.log('[2/5] PASS: checkout.session.completed → active with current_period_end')
     console.log(`current_period_end: ${afterCheckout.current_period_end}`)
 
-    // 3) Cancellation
+    const invoices = await stripe.invoices.list({ subscription: subscription.id, limit: 1 })
+    const invoice = invoices.data[0]
+    if (!invoice) {
+      throw new Error('Expected at least one invoice for test subscription')
+    }
+    await syncInvoicePeriod(admin, stripe, invoice, 'invoice.paid')
+
+    const afterInvoice = await dumpSubscription(admin, user.id, 'after invoice.paid sync')
+    if (!afterInvoice?.current_period_end) {
+      throw new Error('Expected current_period_end after invoice.paid sync')
+    }
+    console.log('[3/5] PASS: invoice.paid → current_period_end set')
+    console.log(`current_period_end: ${afterInvoice.current_period_end}`)
+
     const canceled = await stripe.subscriptions.update(subscription.id, {
       cancel_at_period_end: true,
     })
@@ -138,35 +175,26 @@ async function main() {
     if (!afterCancel?.cancel_at_period_end) {
       throw new Error('Expected cancel_at_period_end=true')
     }
-    console.log('[3/5] PASS: subscription updated with cancel_at_period_end')
     if (!afterCancel?.current_period_end) {
       throw new Error('Expected current_period_end to remain set after cancel_at_period_end')
     }
+    console.log('[4/5] PASS: subscription updated with cancel_at_period_end')
 
-    // 4) Failed payment
     await markSubscriptionPastDue(admin, stripe, {
       customer: customer.id,
       subscription: subscription.id,
       metadata: { user_id: user.id },
+      period_end: invoice.period_end,
     })
 
     const afterFailed = await dumpSubscription(admin, user.id, 'after invoice.payment_failed')
     if (afterFailed?.subscription_status !== 'past_due') {
       throw new Error(`Expected past_due after payment_failed, got ${afterFailed?.subscription_status}`)
     }
-    console.log('[4/5] PASS: invoice.payment_failed → subscription_status past_due')
-
-    const events = await stripe.events.list({ limit: 5 })
-    console.log('\n--- Recent Stripe test events (dashboard → Developers → Events) ---')
-    console.log(
-      JSON.stringify(
-        events.data.map((event) => ({ id: event.id, type: event.type, created: event.created })),
-        null,
-        2,
-      ),
-    )
-
-    console.log('[5/5] PASS: period end persisted across subscription lifecycle')
+    if (!afterFailed?.current_period_end) {
+      throw new Error('Expected current_period_end to remain set after payment_failed')
+    }
+    console.log('[5/5] PASS: invoice.payment_failed → past_due with current_period_end preserved')
 
     console.log('\n' + '='.repeat(60))
     console.log('All Stripe billing tests passed (test mode).')

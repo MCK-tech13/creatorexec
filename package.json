@@ -15,6 +15,7 @@
     "test:auth": "node scripts/test-auth.mjs",
     "test:phase3": "node scripts/test-phase3-data.mjs",
     "test:stripe": "node scripts/test-stripe.mjs",
+    "debug:stripe-period": "node scripts/debug-stripe-period.mjs",
     "dev:api": "node server/index.mjs",
     "verify:phase1": "bash scripts/verify-phase1.sh",
     "lint": "oxlint",

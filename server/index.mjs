@@ -5,6 +5,7 @@ import { getSupabaseAdmin, verifySupabaseAccessToken } from './supabaseAdmin.mjs
 import {
   markSubscriptionPastDue,
   syncCheckoutSessionCompleted,
+  syncInvoicePeriod,
   syncStripeSubscriptionEvent,
   upsertUserSubscription,
 } from './subscriptionSync.mjs'
@@ -219,6 +220,10 @@ app.post(
           break
         case 'customer.subscription.deleted':
           await syncStripeSubscriptionEvent(admin, stripe, event.data.object, event.type)
+          break
+        case 'invoice.paid':
+        case 'invoice.payment_succeeded':
+          await syncInvoicePeriod(admin, stripe, event.data.object, event.type)
           break
         case 'invoice.payment_failed':
           await markSubscriptionPastDue(admin, stripe, event.data.object)

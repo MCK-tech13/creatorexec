@@ -133,6 +133,17 @@ Uses Stripe **test mode** only. Simulates webhook sync, cancellation, and failed
 
 ## 10. `current_period_end` and Stripe API Basil (2025-03-31)
 
-Stripe moved `current_period_end` from the Subscription object to **subscription items** (`items.data[].current_period_end`). The webhook sync reads item-level periods first, with a fallback to the legacy top-level field.
+Stripe moved `current_period_end` off the Subscription object. The sync now resolves period end from, in order:
 
-If an existing row has `current_period_end = NULL`, trigger a refresh by updating the subscription in Customer Portal or resend `customer.subscription.updated` from the Stripe Dashboard — the webhook will repopulate the field.
+1. `subscription.items.data[].current_period_end` (Basil)
+2. `subscription.current_period_end` (legacy webhooks)
+3. `subscription.latest_invoice.period_end`
+4. `invoices.list({ subscription })` → `period_end`
+
+Webhook handlers log `period-probe:*` lines showing the payload structure. Upserts also **preserve** an existing non-null `current_period_end` if a later event cannot resolve one (prevents race overwrites).
+
+Debug a live subscription:
+
+```bash
+npm run debug:stripe-period -- sub_xxxxxxxx
+```
