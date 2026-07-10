@@ -1,6 +1,6 @@
 import express from 'express'
 import Stripe from 'stripe'
-import { assertBillingEnv, loadEnvFile } from './env.mjs'
+import { assertBillingEnv, getWebhookEnvStatus, loadEnvFile, logServerStartup } from './env.mjs'
 import { getSupabaseAdmin, verifySupabaseAccessToken } from './supabaseAdmin.mjs'
 import {
   markSubscriptionPastDue,
@@ -9,16 +9,30 @@ import {
   upsertUserSubscription,
 } from './subscriptionSync.mjs'
 
-loadEnvFile()
-
+const envFileResult = loadEnvFile()
 const env = assertBillingEnv()
 const stripe = new Stripe(env.stripeSecretKey)
 const admin = getSupabaseAdmin(env.supabaseUrl, env.supabaseServiceRoleKey)
 
 const app = express()
 
+/** Stripe sends application/json; charset=utf-8 — match any JSON content-type. */
+function stripeWebhookBodyParser(req, res, buf) {
+  if (buf?.length) {
+    req.rawBody = buf
+  }
+}
+
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true })
+  const webhook = getWebhookEnvStatus(env)
+  res.json({
+    ok: true,
+    webhook: {
+      configured: webhook.configured,
+      prefix: webhook.prefix,
+      looksLikeCliSecret: webhook.looksLikeCliSecret,
+    },
+  })
 })
 
 app.post('/api/stripe/create-checkout-session', express.json(), async (req, res) => {
@@ -98,7 +112,7 @@ app.post('/api/stripe/create-checkout-session', express.json(), async (req, res)
 
     res.json({ url: session.url })
   } catch (error) {
-    console.error('create-checkout-session failed', error)
+    console.error('[billing-api] create-checkout-session failed', error)
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Could not start checkout',
     })
@@ -138,7 +152,7 @@ app.post('/api/stripe/create-portal-session', express.json(), async (req, res) =
 
     res.json({ url: portalSession.url })
   } catch (error) {
-    console.error('create-portal-session failed', error)
+    console.error('[billing-api] create-portal-session failed', error)
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Could not open billing portal',
     })
@@ -147,29 +161,54 @@ app.post('/api/stripe/create-portal-session', express.json(), async (req, res) =
 
 app.post(
   '/api/stripe/webhook',
-  express.raw({ type: 'application/json' }),
+  express.raw({
+    type: (req) => Boolean(req.headers['content-type']?.includes('application/json')),
+    verify: stripeWebhookBodyParser,
+  }),
   async (req, res) => {
-    if (!env.stripeWebhookSecret) {
-      res.status(500).send('STRIPE_WEBHOOK_SECRET is not configured')
-      return
-    }
+    const requestId = crypto.randomUUID().slice(0, 8)
+    const body = req.rawBody ?? req.body
+    const bodyByteLength = Buffer.isBuffer(body) ? body.length : 0
 
-    const signature = req.headers['stripe-signature']
-    if (!signature) {
-      res.status(400).send('Missing stripe-signature header')
-      return
-    }
-
-    let event
-    try {
-      event = stripe.webhooks.constructEvent(req.body, signature, env.stripeWebhookSecret)
-    } catch (error) {
-      console.error('Webhook signature verification failed', error)
-      res.status(400).send(`Webhook Error: ${error instanceof Error ? error.message : 'invalid'}`)
-      return
-    }
+    console.log(
+      `[billing-api] webhook:${requestId} incoming type=${req.headers['content-type'] ?? 'none'} bytes=${bodyByteLength}`,
+    )
 
     try {
+      if (!env.stripeWebhookSecret) {
+        console.error(
+          `[billing-api] webhook:${requestId} STRIPE_WEBHOOK_SECRET is not configured — returning 500`,
+        )
+        res.status(500).send('STRIPE_WEBHOOK_SECRET is not configured')
+        return
+      }
+
+      const signature = req.headers['stripe-signature']
+      if (!signature) {
+        console.error(`[billing-api] webhook:${requestId} missing stripe-signature header`)
+        res.status(400).send('Missing stripe-signature header')
+        return
+      }
+
+      if (!Buffer.isBuffer(body) || bodyByteLength === 0) {
+        console.error(
+          `[billing-api] webhook:${requestId} empty or unparsed body — check Content-Type and express.raw middleware`,
+        )
+        res.status(400).send('Webhook body was not parsed as raw JSON')
+        return
+      }
+
+      let event
+      try {
+        event = stripe.webhooks.constructEvent(body, signature, env.stripeWebhookSecret)
+      } catch (error) {
+        console.error(`[billing-api] webhook:${requestId} signature verification failed`, error)
+        res.status(400).send(`Webhook Error: ${error instanceof Error ? error.message : 'invalid'}`)
+        return
+      }
+
+      console.log(`[billing-api] webhook:${requestId} verified event=${event.type} id=${event.id}`)
+
       switch (event.type) {
         case 'checkout.session.completed':
           await syncCheckoutSessionCompleted(admin, stripe, event.data.object)
@@ -185,17 +224,32 @@ app.post(
           await markSubscriptionPastDue(admin, stripe, event.data.object)
           break
         default:
+          console.log(`[billing-api] webhook:${requestId} ignored unhandled event type=${event.type}`)
           break
       }
 
+      console.log(`[billing-api] webhook:${requestId} handled event=${event.type}`)
       res.json({ received: true })
     } catch (error) {
-      console.error(`Webhook handler failed for ${event.type}`, error)
-      res.status(500).send('Webhook handler failed')
+      console.error(`[billing-api] webhook:${requestId} handler error`, error)
+      if (!res.headersSent) {
+        res.status(500).send(
+          `Webhook handler failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+        )
+      }
     }
   },
 )
 
+app.use((error, _req, res, _next) => {
+  console.error('[billing-api] unhandled Express error', error)
+  if (!res.headersSent) {
+    res.status(500).send('Internal server error')
+  }
+})
+
 app.listen(env.port, () => {
-  console.log(`Stripe API listening on http://localhost:${env.port}`)
+  logServerStartup(env, envFileResult)
+  console.log(`[billing-api] listening on http://localhost:${env.port}`)
+  console.log(`[billing-api] health check: http://localhost:${env.port}/api/health`)
 })

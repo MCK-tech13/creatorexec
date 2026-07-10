@@ -61,6 +61,24 @@ stripe listen --forward-to localhost:4242/api/stripe/webhook
 
 Copy the printed `whsec_...` into `.env` as `STRIPE_WEBHOOK_SECRET`, then **restart** `npm run dev:api`.
 
+**Important:** Use the secret from the **current** `stripe listen` session (it changes each restart). The Dashboard webhook signing secret is different and will not work with `stripe listen`.
+
+### Verify env vars are loaded
+
+On startup, `npm run dev:api` prints a masked checklist. Look for:
+
+```
+STRIPE_WEBHOOK_SECRET: whsec_12… (xx chars)
+```
+
+Quick check while the server is running:
+
+```bash
+curl http://localhost:4242/api/health
+```
+
+If `webhook.configured` is `false`, webhooks return 500 — add `STRIPE_WEBHOOK_SECRET` to `.env` and restart the billing API.
+
 Trigger test events (optional):
 
 ```bash
