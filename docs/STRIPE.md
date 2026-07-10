@@ -130,3 +130,9 @@ Uses Stripe **test mode** only. Simulates webhook sync, cancellation, and failed
 
 - 7-day money-back: manual refund in Stripe Dashboard → Payments → Refund (not automated)
 - Cancel anytime: Customer Portal stops future billing; access until `current_period_end`
+
+## 10. `current_period_end` and Stripe API Basil (2025-03-31)
+
+Stripe moved `current_period_end` from the Subscription object to **subscription items** (`items.data[].current_period_end`). The webhook sync reads item-level periods first, with a fallback to the legacy top-level field.
+
+If an existing row has `current_period_end = NULL`, trigger a refresh by updating the subscription in Customer Portal or resend `customer.subscription.updated` from the Stripe Dashboard — the webhook will repopulate the field.

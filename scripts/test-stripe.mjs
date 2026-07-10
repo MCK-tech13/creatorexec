@@ -7,12 +7,34 @@ import Stripe from 'stripe'
 import { loadEnvFile, assertBillingEnv } from '../server/env.mjs'
 import { getSupabaseAdmin } from '../server/supabaseAdmin.mjs'
 import {
+  getSubscriptionPeriodEnd,
   markSubscriptionPastDue,
   syncCheckoutSessionCompleted,
   syncStripeSubscriptionEvent,
 } from '../server/subscriptionSync.mjs'
 
 loadEnvFile()
+
+function assertPeriodEndMapping() {
+  const basilShape = {
+    id: 'sub_basil',
+    status: 'active',
+    items: { data: [{ current_period_end: 1_712_678_400 }] },
+  }
+  const legacyShape = {
+    id: 'sub_legacy',
+    status: 'active',
+    current_period_end: 1_712_678_400,
+  }
+
+  if (getSubscriptionPeriodEnd(basilShape) !== 1_712_678_400) {
+    throw new Error('Basil API period-end mapping failed')
+  }
+  if (getSubscriptionPeriodEnd(legacyShape) !== 1_712_678_400) {
+    throw new Error('Legacy API period-end mapping failed')
+  }
+  console.log('PASS: current_period_end mapping (Basil + legacy shapes)')
+}
 
 function randomSuffix() {
   return Math.random().toString(36).slice(2, 10)
@@ -47,6 +69,8 @@ async function dumpSubscription(admin, userId, label) {
 }
 
 async function main() {
+  assertPeriodEndMapping()
+
   const env = assertBillingEnv()
   const stripe = new Stripe(env.stripeSecretKey)
   const admin = getSupabaseAdmin(env.supabaseUrl, env.supabaseServiceRoleKey)
@@ -98,7 +122,11 @@ async function main() {
     if (afterCheckout?.subscription_status !== 'active') {
       throw new Error(`Expected active after checkout, got ${afterCheckout?.subscription_status}`)
     }
-    console.log('[2/4] PASS: checkout.session.completed → subscription_status active')
+    if (!afterCheckout?.current_period_end) {
+      throw new Error('Expected current_period_end to be set after checkout sync')
+    }
+    console.log('[2/5] PASS: checkout.session.completed → active with current_period_end')
+    console.log(`current_period_end: ${afterCheckout.current_period_end}`)
 
     // 3) Cancellation
     const canceled = await stripe.subscriptions.update(subscription.id, {
@@ -110,7 +138,10 @@ async function main() {
     if (!afterCancel?.cancel_at_period_end) {
       throw new Error('Expected cancel_at_period_end=true')
     }
-    console.log('[3/4] PASS: subscription updated with cancel_at_period_end')
+    console.log('[3/5] PASS: subscription updated with cancel_at_period_end')
+    if (!afterCancel?.current_period_end) {
+      throw new Error('Expected current_period_end to remain set after cancel_at_period_end')
+    }
 
     // 4) Failed payment
     await markSubscriptionPastDue(admin, stripe, {
@@ -123,7 +154,7 @@ async function main() {
     if (afterFailed?.subscription_status !== 'past_due') {
       throw new Error(`Expected past_due after payment_failed, got ${afterFailed?.subscription_status}`)
     }
-    console.log('[4/4] PASS: invoice.payment_failed → subscription_status past_due')
+    console.log('[4/5] PASS: invoice.payment_failed → subscription_status past_due')
 
     const events = await stripe.events.list({ limit: 5 })
     console.log('\n--- Recent Stripe test events (dashboard → Developers → Events) ---')
@@ -134,6 +165,8 @@ async function main() {
         2,
       ),
     )
+
+    console.log('[5/5] PASS: period end persisted across subscription lifecycle')
 
     console.log('\n' + '='.repeat(60))
     console.log('All Stripe billing tests passed (test mode).')

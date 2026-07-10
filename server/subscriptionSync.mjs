@@ -15,6 +15,28 @@ export function mapStripeSubscriptionStatus(status) {
   return STRIPE_STATUSES.has(status) ? status : 'none'
 }
 
+/**
+ * Stripe API 2025-03-31 (Basil) moved billing periods to subscription items.
+ * Read from items first; fall back to top-level for older API/webhook versions.
+ */
+export function getSubscriptionPeriodEnd(subscription) {
+  if (!subscription) return null
+
+  const itemPeriodEnds = (subscription.items?.data ?? [])
+    .map((item) => item.current_period_end)
+    .filter((value) => typeof value === 'number' && value > 0)
+
+  if (itemPeriodEnds.length > 0) {
+    return Math.max(...itemPeriodEnds)
+  }
+
+  if (typeof subscription.current_period_end === 'number' && subscription.current_period_end > 0) {
+    return subscription.current_period_end
+  }
+
+  return null
+}
+
 export function subscriptionRowFromStripe({
   userId,
   customerId,
@@ -22,14 +44,16 @@ export function subscriptionRowFromStripe({
   priceId = null,
 }) {
   const status = subscription ? mapStripeSubscriptionStatus(subscription.status) : 'none'
+  const periodEndUnix = getSubscriptionPeriodEnd(subscription)
+
   return {
     user_id: userId,
     stripe_customer_id: customerId ?? null,
     stripe_subscription_id: subscription?.id ?? null,
     subscription_status: status,
     price_id: priceId ?? subscription?.items?.data?.[0]?.price?.id ?? null,
-    current_period_end: subscription?.current_period_end
-      ? new Date(subscription.current_period_end * 1000).toISOString()
+    current_period_end: periodEndUnix
+      ? new Date(periodEndUnix * 1000).toISOString()
       : null,
     cancel_at_period_end: subscription?.cancel_at_period_end ?? false,
   }
@@ -70,6 +94,19 @@ export async function syncSubscriptionForUser(admin, userId, customerId, subscri
   )
 }
 
+async function retrieveSubscription(stripe, subscriptionId) {
+  return stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ['items.data.price'],
+  })
+}
+
+async function resolveSubscription(stripe, subscription) {
+  if (!subscription) return null
+  if (getSubscriptionPeriodEnd(subscription)) return subscription
+  if (!subscription.id) return subscription
+  return retrieveSubscription(stripe, subscription.id)
+}
+
 export async function syncCheckoutSessionCompleted(admin, stripe, session) {
   const userId = session.metadata?.user_id ?? session.client_reference_id
   if (!userId) {
@@ -83,7 +120,7 @@ export async function syncCheckoutSessionCompleted(admin, stripe, session) {
   if (session.subscription) {
     const subscriptionId =
       typeof session.subscription === 'string' ? session.subscription : session.subscription.id
-    subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    subscription = await retrieveSubscription(stripe, subscriptionId)
   }
 
   return upsertUserSubscription(
@@ -120,17 +157,19 @@ export async function syncStripeSubscriptionEvent(admin, stripe, subscription, e
   }
 
   if (eventType === 'customer.subscription.deleted') {
+    const resolved = await resolveSubscription(stripe, subscription)
     return upsertUserSubscription(
       admin,
       subscriptionRowFromStripe({
         userId,
         customerId,
-        subscription: { ...subscription, status: 'canceled' },
+        subscription: { ...resolved, status: 'canceled' },
       }),
     )
   }
 
-  return syncSubscriptionForUser(admin, userId, customerId, subscription)
+  const resolved = await resolveSubscription(stripe, subscription)
+  return syncSubscriptionForUser(admin, userId, customerId, resolved)
 }
 
 export async function markSubscriptionPastDue(admin, stripe, invoice) {
@@ -148,7 +187,7 @@ export async function markSubscriptionPastDue(admin, stripe, invoice) {
 
   let subscription = null
   if (subscriptionId) {
-    subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    subscription = await retrieveSubscription(stripe, subscriptionId)
   }
 
   if (!userId) {
