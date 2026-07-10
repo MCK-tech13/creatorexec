@@ -27,7 +27,7 @@ export interface SubscriptionAccess {
   bannerMessage: string | null
 }
 
-/** Change this to switch gating behavior without touching UI code. */
+/** Production policy: grace_period — full access on past_due with billing banner. */
 export type AccessPolicyMode = 'grace_period' | 'hard_lockout' | 'read_only_on_lapse'
 
 export const ACCESS_POLICY_MODE: AccessPolicyMode = 'grace_period'

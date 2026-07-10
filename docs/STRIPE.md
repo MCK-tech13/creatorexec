@@ -98,15 +98,15 @@ Uses Stripe **test mode** only. Simulates webhook sync, cancellation, and failed
 
 ## 8. Access gating policy
 
-Configured in `src/lib/billing/subscription.ts` via `ACCESS_POLICY_MODE`:
+**Production choice: `grace_period`** (set in `src/lib/billing/subscription.ts`).
 
-| Mode | `past_due` | Canceled (period ended) |
-|------|------------|-------------------------|
-| `grace_period` (default) | Full access + billing banner | Blocked → `/subscribe` |
-| `hard_lockout` | Blocked immediately | Blocked |
-| `read_only_on_lapse` | Read-only + banner (future UI hook) | Blocked |
-
-Change the constant after deciding with the team.
+| Status | Behavior |
+|--------|----------|
+| No subscription | Blocked → `/subscribe` |
+| `active` / `trialing` | Full access |
+| `past_due` | Full access + billing banner + link to Customer Portal |
+| Canceled, still in paid period | Full access + banner until `current_period_end` |
+| Canceled / unpaid after period | Blocked → `/subscribe` |
 
 ## 9. Refund policy (checkout copy)
 
