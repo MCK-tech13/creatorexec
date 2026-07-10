@@ -133,14 +133,23 @@ Uses Stripe **test mode** only. Simulates webhook sync, cancellation, and failed
 
 ## 10. `current_period_end` and Stripe API Basil (2025-03-31)
 
-Stripe moved `current_period_end` off the Subscription object. The sync now resolves period end from, in order:
+Stripe moved `current_period_end` off the Subscription object. The sync resolves period end from, in order:
 
-1. `subscription.items.data[].current_period_end` (Basil)
-2. `subscription.current_period_end` (legacy webhooks)
-3. `subscription.latest_invoice.period_end`
-4. `invoices.list({ subscription })` → `period_end`
+1. **`checkout.session.completed`**: `session.invoice` → `invoice.period_end` (with short retries while Stripe finalizes)
+2. `subscription.items.data[].current_period_end` (Basil)
+3. `subscription.current_period_end` (legacy webhooks)
+4. `subscription.latest_invoice.period_end`
+5. `invoices.list({ subscription })` → `period_end`
 
-Webhook handlers log `period-probe:*` lines showing the payload structure. Upserts also **preserve** an existing non-null `current_period_end` if a later event cannot resolve one (prevents race overwrites).
+**Basil invoice change:** subscription id is at `invoice.parent.subscription_details.subscription`, not `invoice.subscription`. `invoice.paid` / `invoice.finalized` handlers use the new path.
+
+During live checkout, Terminal 1 logs:
+
+```
+[billing-api] checkout.session.completed:handler-start
+[billing-api] checkout.session.completed:session-invoice
+[billing-api] checkout.session.completed:row-before-upsert
+```
 
 Debug a live subscription:
 

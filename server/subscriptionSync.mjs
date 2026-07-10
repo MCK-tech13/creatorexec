@@ -27,6 +27,25 @@ function invoicePeriodEnd(invoice) {
   return null
 }
 
+/** Basil API moved subscription from invoice.subscription → parent.subscription_details.subscription */
+export function getInvoiceSubscriptionId(invoice) {
+  if (!invoice || typeof invoice !== 'object') return null
+
+  const legacy = invoice.subscription
+  if (typeof legacy === 'string') return legacy
+  if (legacy && typeof legacy === 'object' && legacy.id) return legacy.id
+
+  const parentSub = invoice.parent?.subscription_details?.subscription
+  if (typeof parentSub === 'string') return parentSub
+  if (parentSub && typeof parentSub === 'object' && parentSub.id) return parentSub.id
+
+  return null
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 /**
  * Stripe API 2025-03-31 (Basil) moved billing periods to subscription items.
  * Read from items first; fall back to top-level for older API/webhook versions.
@@ -80,6 +99,68 @@ export function logPeriodEndProbe(label, subscription, extra = {}) {
       ...extra,
     }),
   )
+}
+
+export async function resolvePeriodEndForCheckout(stripe, session, subscription) {
+  const userId = session.metadata?.user_id ?? session.client_reference_id ?? null
+  const subscriptionId =
+    typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null
+  const invoiceId = typeof session.invoice === 'string' ? session.invoice : session.invoice?.id ?? null
+
+  console.log(
+    '[billing-api] checkout.session.completed:handler-start',
+    JSON.stringify({ sessionId: session.id, userId, subscriptionId, invoiceId }),
+  )
+
+  if (invoiceId) {
+    for (const delayMs of [0, 500, 1500, 3000]) {
+      if (delayMs > 0) {
+        await sleep(delayMs)
+      }
+
+      const invoice = await stripe.invoices.retrieve(invoiceId, {
+        expand: ['lines.data'],
+      })
+      const periodEnd = invoicePeriodEnd(invoice)
+
+      console.log(
+        '[billing-api] checkout.session.completed:session-invoice',
+        JSON.stringify({
+          attemptMs: delayMs,
+          invoiceId,
+          invoiceStatus: invoice.status,
+          period_end: invoice.period_end ?? null,
+          linePeriodEnd: invoice.lines?.data?.[0]?.period?.end ?? null,
+          parentSubscriptionId: getInvoiceSubscriptionId(invoice),
+          resolvedUnix: periodEnd,
+          resolvedIso: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+        }),
+      )
+
+      if (periodEnd) {
+        console.log(
+          `[billing-api] checkout.session.completed:using-session-invoice periodEnd=${periodEnd}`,
+        )
+        return periodEnd
+      }
+    }
+  }
+
+  if (subscription) {
+    const periodEnd = await resolvePeriodEndUnix(stripe, subscription, 'checkout.session.completed')
+    console.log(
+      '[billing-api] checkout.session.completed:subscription-fallback',
+      JSON.stringify({
+        subscriptionId: subscription.id ?? null,
+        resolvedUnix: periodEnd,
+        resolvedIso: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+      }),
+    )
+    return periodEnd
+  }
+
+  console.warn('[billing-api] checkout.session.completed:period-end-unresolved')
+  return null
 }
 
 export async function resolvePeriodEndUnix(stripe, subscription, context = 'unknown') {
@@ -274,25 +355,28 @@ export async function syncCheckoutSessionCompleted(admin, stripe, session) {
     subscription = await retrieveSubscription(stripe, subscriptionId)
   }
 
-  logPeriodEndProbe('checkout.session.completed', subscription, {
-    sessionId: session.id,
+  const periodEndUnix = await resolvePeriodEndForCheckout(stripe, session, subscription)
+
+  const row = subscriptionRowFromStripe({
     userId,
+    customerId,
+    subscription,
+    priceId: session.metadata?.price_id ?? null,
+    periodEndUnix,
   })
 
-  const periodEndUnix = subscription
-    ? await resolvePeriodEndUnix(stripe, subscription, 'checkout.session.completed')
-    : null
-
-  return upsertUserSubscription(
-    admin,
-    subscriptionRowFromStripe({
-      userId,
-      customerId,
-      subscription,
-      priceId: session.metadata?.price_id ?? null,
-      periodEndUnix,
+  console.log(
+    '[billing-api] checkout.session.completed:row-before-upsert',
+    JSON.stringify({
+      user_id: row.user_id,
+      subscription_status: row.subscription_status,
+      stripe_subscription_id: row.stripe_subscription_id,
+      current_period_end: row.current_period_end,
+      periodEndUnixPassedToRow: periodEndUnix,
     }),
   )
+
+  return upsertUserSubscription(admin, row)
 }
 
 export async function syncStripeSubscriptionEvent(admin, stripe, subscription, eventType) {
@@ -321,10 +405,16 @@ export async function syncStripeSubscriptionEvent(admin, stripe, subscription, e
 }
 
 export async function syncInvoicePeriod(admin, stripe, invoice, context) {
-  const subscriptionId =
-    typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id
+  const subscriptionId = getInvoiceSubscriptionId(invoice)
   if (!subscriptionId) {
-    console.log(`[billing-api] ${context} skipped — invoice has no subscription`)
+    console.log(
+      `[billing-api] ${context} skipped — invoice has no subscription reference`,
+      JSON.stringify({
+        invoiceId: invoice.id ?? null,
+        hasLegacySubscriptionField: Boolean(invoice.subscription),
+        parentType: invoice.parent?.type ?? null,
+      }),
+    )
     return null
   }
 
@@ -346,6 +436,17 @@ export async function syncInvoicePeriod(admin, stripe, invoice, context) {
     invoicePeriodEnd(invoice) ??
     (await resolvePeriodEndUnix(stripe, subscription, context))
 
+  console.log(
+    `[billing-api] ${context}:row-before-upsert`,
+    JSON.stringify({
+      userId,
+      subscriptionId,
+      invoicePeriodEnd: invoicePeriodEnd(invoice),
+      resolvedPeriodEndUnix: periodEndUnix,
+      resolvedIso: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
+    }),
+  )
+
   return upsertUserSubscription(
     admin,
     subscriptionRowFromStripe({
@@ -358,8 +459,7 @@ export async function syncInvoicePeriod(admin, stripe, invoice, context) {
 }
 
 export async function markSubscriptionPastDue(admin, stripe, invoice) {
-  const subscriptionId =
-    typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id
+  const subscriptionId = getInvoiceSubscriptionId(invoice)
 
   let subscription = null
   if (subscriptionId) {

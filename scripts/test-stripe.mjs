@@ -6,6 +6,7 @@ import Stripe from 'stripe'
 import { loadEnvFile, assertBillingEnv } from '../server/env.mjs'
 import { getSupabaseAdmin } from '../server/supabaseAdmin.mjs'
 import {
+  getInvoiceSubscriptionId,
   getSubscriptionPeriodEnd,
   markSubscriptionPastDue,
   syncCheckoutSessionCompleted,
@@ -42,6 +43,16 @@ function assertPeriodEndMapping() {
   if (getSubscriptionPeriodEnd(invoiceShape) !== 1_712_678_400) {
     throw new Error('Invoice fallback period-end mapping failed')
   }
+
+  const basilInvoice = {
+    id: 'in_basil',
+    parent: { type: 'subscription_details', subscription_details: { subscription: 'sub_basil' } },
+    period_end: 1_712_678_400,
+  }
+  if (getInvoiceSubscriptionId(basilInvoice) !== 'sub_basil') {
+    throw new Error('Basil invoice subscription id mapping failed')
+  }
+
   console.log('PASS: current_period_end mapping (Basil + legacy + invoice shapes)')
 }
 
@@ -138,6 +149,7 @@ async function main() {
       id: checkoutSession.id,
       customer: customer.id,
       subscription: subscription.id,
+      invoice: invoice.id,
       metadata: { user_id: user.id, price_id: env.stripeBetaPriceId },
       client_reference_id: user.id,
     })

@@ -223,6 +223,7 @@ app.post(
           break
         case 'invoice.paid':
         case 'invoice.payment_succeeded':
+        case 'invoice.finalized':
           await syncInvoicePeriod(admin, stripe, event.data.object, event.type)
           break
         case 'invoice.payment_failed':
