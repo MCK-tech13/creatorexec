@@ -43,7 +43,10 @@ export function getServerEnv() {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY
   const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() || null
   const stripeBetaPriceId = process.env.STRIPE_BETA_PRICE_ID
-  const appUrl = process.env.APP_URL ?? process.env.VITE_APP_URL ?? 'http://localhost:5173'
+  const appUrl =
+    process.env.APP_URL ??
+    process.env.VITE_APP_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173')
   const port = Number(process.env.STRIPE_API_PORT ?? 4242)
 
   return {
