@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import { AuthLayout } from '../auth/AuthScreens'
@@ -7,6 +7,7 @@ import { openBillingPortal, startCheckoutSession } from '../../lib/billing/api'
 
 export function SubscribePage() {
   const { session, signOut } = useAuth()
+  const navigate = useNavigate()
   const { canAccessApp, loading, reload, subscription } = useSubscription()
   const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -59,6 +60,13 @@ export function SubscribePage() {
     }
   }
 
+  async function handleSignOut() {
+    const result = await signOut()
+    if (!result.error) {
+      navigate('/', { replace: true })
+    }
+  }
+
   return (
     <AuthLayout
       title="Subscribe to CreatorExec"
@@ -77,7 +85,7 @@ export function SubscribePage() {
           )}
           <button
             type="button"
-            onClick={() => void signOut()}
+            onClick={() => void handleSignOut()}
             className="link-elegant block w-full font-medium text-stone"
           >
             Log out
