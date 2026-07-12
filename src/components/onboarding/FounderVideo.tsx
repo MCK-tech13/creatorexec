@@ -50,7 +50,7 @@ export function FounderVideo({ videoSrc = FOUNDER_VIDEO_SRC }: FounderVideoProps
 
   return (
     <div
-      className="relative w-full border border-border-warm bg-white shadow-[0_2px_12px_rgba(26,74,58,0.06)]"
+      className="relative w-full overflow-hidden border border-border-warm bg-white shadow-[0_2px_12px_rgba(26,74,58,0.06)]"
       style={{ aspectRatio: FOUNDER_VIDEO_ASPECT }}
     >
       {videoError ? (
@@ -66,7 +66,7 @@ export function FounderVideo({ videoSrc = FOUNDER_VIDEO_SRC }: FounderVideoProps
             key={videoSrc}
             src={videoSrc}
             autoPlay
-            muted
+            muted={isMuted}
             playsInline
             preload="auto"
             disablePictureInPicture
