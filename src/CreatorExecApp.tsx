@@ -732,7 +732,7 @@ export default function CreatorExecApp() {
   const handleSignOut = useCallback(async () => {
     const result = await signOut()
     if (!result.error) {
-      navigate('/login', { replace: true })
+      navigate('/', { replace: true })
     }
   }, [navigate, signOut])
 
