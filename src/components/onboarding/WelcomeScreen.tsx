@@ -60,22 +60,39 @@ export function WelcomeScreen() {
         </PageContainer>
       </div>
       {/* Section 1 — Hero */}
-      <section className="border-b border-border-warm bg-terracotta-tint/40 py-12 sm:py-16 md:py-20 lg:py-24">
+      <section className="border-b border-border-warm bg-terracotta-tint/40 py-12 sm:py-16 md:py-20 lg:py-28">
         <PageContainer className="max-w-6xl lg:max-w-7xl">
           <div className="flex justify-center lg:justify-start">
             <CreatorExecWordmark as="p" variant="light" size="compact" />
           </div>
 
-          <h1 className="mx-auto mt-8 max-w-3xl text-center font-display text-[1.625rem] font-bold leading-snug text-ink sm:text-3xl md:text-4xl md:leading-tight lg:mx-0 lg:mt-10 lg:max-w-3xl lg:text-left lg:text-[2.375rem]">
-            You&apos;re running a business across four different tabs, a notes app, and your
-            memory. It shouldn&apos;t take that much to know what&apos;s working.
-          </h1>
+          <div className="mt-8 lg:mt-14 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:items-start lg:gap-x-16 xl:gap-x-20">
+            <div className="text-center lg:pt-2 lg:text-left">
+              <h1 className="mx-auto max-w-3xl font-display text-[1.625rem] font-bold leading-snug text-ink sm:text-3xl md:text-4xl md:leading-tight lg:mx-0 lg:max-w-none lg:text-[2.5rem] lg:leading-[1.15] xl:text-[2.75rem]">
+                You&apos;re running a business across four different tabs, a notes app, and your
+                memory. It shouldn&apos;t take that much to know what&apos;s working.
+              </h1>
 
-          <div className="mx-auto mt-8 w-full max-w-3xl sm:max-w-4xl lg:mx-0 lg:mt-10 lg:max-w-6xl">
-            <FounderVideo />
+              <div className="mt-8 hidden lg:block">
+                <button
+                  type="button"
+                  onClick={scrollToWhatsInside}
+                  className="btn-outline inline-flex items-center justify-center px-8 py-4"
+                >
+                  See how it works
+                </button>
+              </div>
+            </div>
+
+            <figure className="mx-auto mt-10 w-full max-w-lg sm:max-w-xl lg:mt-6 lg:max-w-[35rem] lg:justify-self-end lg:px-8 lg:py-6">
+              <FounderVideo />
+              <figcaption className="mt-3 text-center font-body text-xs leading-relaxed text-stone lg:text-left">
+                M&apos;Lynn Kohli, Founder
+              </figcaption>
+            </figure>
           </div>
 
-          <div className="mt-6 flex justify-center sm:mt-8 lg:justify-start">
+          <div className="mt-8 flex justify-center lg:hidden">
             <button
               type="button"
               onClick={scrollToWhatsInside}

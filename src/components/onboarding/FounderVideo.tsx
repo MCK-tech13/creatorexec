@@ -7,9 +7,10 @@ const FOUNDER_VIDEO_ASPECT = '1080/608'
 
 interface FounderVideoProps {
   videoSrc?: string
+  className?: string
 }
 
-export function FounderVideo({ videoSrc = FOUNDER_VIDEO_SRC }: FounderVideoProps) {
+export function FounderVideo({ videoSrc = FOUNDER_VIDEO_SRC, className = '' }: FounderVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isMuted, setIsMuted] = useState(true)
   const [videoError, setVideoError] = useState(false)
@@ -50,7 +51,7 @@ export function FounderVideo({ videoSrc = FOUNDER_VIDEO_SRC }: FounderVideoProps
 
   return (
     <div
-      className="relative w-full overflow-hidden border border-border-warm bg-white shadow-[0_4px_24px_rgba(26,74,58,0.1)]"
+      className={`relative w-full overflow-hidden border border-border-warm bg-white shadow-[0_2px_14px_rgba(26,74,58,0.06)] ${className}`.trim()}
       style={{ aspectRatio: FOUNDER_VIDEO_ASPECT }}
     >
       {videoError ? (
