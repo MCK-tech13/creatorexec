@@ -60,33 +60,29 @@ export function WelcomeScreen() {
         </PageContainer>
       </div>
       {/* Section 1 — Hero */}
-      <section className="border-b border-border-warm bg-terracotta-tint/40 py-12 sm:py-16 md:py-20">
-        <PageContainer className="max-w-4xl">
+      <section className="border-b border-border-warm bg-terracotta-tint/40 py-12 sm:py-16 md:py-20 lg:py-24">
+        <PageContainer className="max-w-6xl">
           <div className="flex justify-center lg:justify-start">
             <CreatorExecWordmark as="p" variant="light" size="compact" />
           </div>
 
-          <div className="mt-8 lg:mt-10 lg:grid lg:grid-cols-2 lg:items-center lg:gap-12">
-            <div className="text-center lg:text-left">
-              <h1 className="font-display text-[1.625rem] font-bold leading-snug text-ink sm:text-3xl md:text-4xl md:leading-tight lg:text-[2.375rem]">
-                You&apos;re running a business across four different tabs, a notes app, and your
-                memory. It shouldn&apos;t take that much to know what&apos;s working.
-              </h1>
-            </div>
+          <h1 className="mx-auto mt-8 max-w-3xl text-center font-display text-[1.625rem] font-bold leading-snug text-ink sm:text-3xl md:text-4xl md:leading-tight lg:mx-0 lg:mt-10 lg:max-w-2xl lg:text-left lg:text-[2.375rem]">
+            You&apos;re running a business across four different tabs, a notes app, and your
+            memory. It shouldn&apos;t take that much to know what&apos;s working.
+          </h1>
 
-            <div className="mt-8 lg:mt-0">
-              <FounderVideo />
+          <div className="mx-auto mt-8 w-full max-w-3xl sm:max-w-4xl lg:mx-0 lg:mt-10 lg:max-w-none">
+            <FounderVideo />
+          </div>
 
-              <div className="mt-6 flex justify-center lg:justify-start">
-                <button
-                  type="button"
-                  onClick={scrollToWhatsInside}
-                  className="btn-outline inline-flex w-full items-center justify-center px-8 py-4 sm:w-auto"
-                >
-                  See how it works
-                </button>
-              </div>
-            </div>
+          <div className="mt-6 flex justify-center sm:mt-8 lg:justify-start">
+            <button
+              type="button"
+              onClick={scrollToWhatsInside}
+              className="btn-outline inline-flex w-full max-w-sm items-center justify-center px-8 py-4 sm:w-auto"
+            >
+              See how it works
+            </button>
           </div>
         </PageContainer>
       </section>
@@ -143,21 +139,7 @@ export function WelcomeScreen() {
         </PageContainer>
       </section>
 
-      {/* Section 4 — Social proof placeholder */}
-      <section
-        className="border-t border-border-warm py-12 sm:py-16 md:py-20"
-        aria-label="Social proof — coming soon"
-      >
-        <PageContainer>
-          <div className="flex min-h-[12rem] items-center justify-center border border-dashed border-terracotta bg-terracotta-tint/50 px-6 py-12 sm:min-h-[14rem] sm:px-10">
-            <p className="text-center font-body text-sm text-stone sm:text-base">
-              [Testimonials / beta results — TBD]
-            </p>
-          </div>
-        </PageContainer>
-      </section>
-
-      {/* Section 5 — Final CTA */}
+      {/* Section 4 — Final CTA */}
       <section className="border-t border-border-warm bg-terracotta-tint/30 py-14 sm:py-16 md:py-20">
         <PageContainer>
           <div className="mx-auto max-w-lg text-center">
