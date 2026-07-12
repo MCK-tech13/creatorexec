@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { PageContainer } from '../layout/PageContainer'
 import { CreatorExecWordmark } from '../ui/CreatorExecWordmark'
+import { FounderVideo } from './FounderVideo'
 
 const WHATS_INSIDE = [
   {
@@ -74,16 +75,7 @@ export function WelcomeScreen() {
             </div>
 
             <div className="mt-8 lg:mt-0">
-              <div
-                className="relative aspect-video w-full border border-border-warm bg-white shadow-[0_2px_12px_rgba(26,74,58,0.06)]"
-                aria-label="Founder video placeholder"
-              >
-                <div className="absolute inset-0 flex items-center justify-center px-6">
-                  <p className="text-center font-body text-sm text-stone sm:text-base">
-                    [Founder video placeholder]
-                  </p>
-                </div>
-              </div>
+              <FounderVideo />
 
               <div className="mt-6 flex justify-center lg:justify-start">
                 <button
