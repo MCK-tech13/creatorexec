@@ -42,7 +42,7 @@ export function WelcomeScreen() {
   return (
     <div className="flex min-h-screen flex-col bg-cream-warm">
       <div className="border-b border-border-warm bg-white">
-        <PageContainer className="max-w-5xl">
+        <PageContainer className="max-w-5xl lg:max-w-7xl">
           <div className="flex items-center justify-between gap-4 py-4">
             <CreatorExecWordmark as="p" variant="light" size="compact" />
             <div className="flex items-center gap-3">
@@ -61,17 +61,17 @@ export function WelcomeScreen() {
       </div>
       {/* Section 1 — Hero */}
       <section className="border-b border-border-warm bg-terracotta-tint/40 py-12 sm:py-16 md:py-20 lg:py-24">
-        <PageContainer className="max-w-6xl">
+        <PageContainer className="max-w-6xl lg:max-w-7xl">
           <div className="flex justify-center lg:justify-start">
             <CreatorExecWordmark as="p" variant="light" size="compact" />
           </div>
 
-          <h1 className="mx-auto mt-8 max-w-3xl text-center font-display text-[1.625rem] font-bold leading-snug text-ink sm:text-3xl md:text-4xl md:leading-tight lg:mx-0 lg:mt-10 lg:max-w-2xl lg:text-left lg:text-[2.375rem]">
+          <h1 className="mx-auto mt-8 max-w-3xl text-center font-display text-[1.625rem] font-bold leading-snug text-ink sm:text-3xl md:text-4xl md:leading-tight lg:mx-0 lg:mt-10 lg:max-w-3xl lg:text-left lg:text-[2.375rem]">
             You&apos;re running a business across four different tabs, a notes app, and your
             memory. It shouldn&apos;t take that much to know what&apos;s working.
           </h1>
 
-          <div className="mx-auto mt-8 w-full max-w-3xl sm:max-w-4xl lg:mx-0 lg:mt-10 lg:max-w-none">
+          <div className="mx-auto mt-8 w-full max-w-3xl sm:max-w-4xl lg:mx-0 lg:mt-10 lg:max-w-6xl">
             <FounderVideo />
           </div>
 
@@ -89,8 +89,8 @@ export function WelcomeScreen() {
 
       {/* Section 2 — Reframe */}
       <section className="py-16 sm:py-20 md:py-24 lg:py-28">
-        <PageContainer>
-          <p className="mx-auto max-w-2xl text-center font-body text-base leading-relaxed text-ink sm:text-lg md:text-xl md:leading-relaxed">
+        <PageContainer className="lg:max-w-7xl">
+          <p className="mx-auto max-w-2xl text-center font-body text-base leading-relaxed text-ink sm:text-lg md:text-xl md:leading-relaxed lg:max-w-3xl">
             CreatorExec brings your product performance, filming schedule, new product scoring, brand
             deals, and income into one place — so you always know what to film, what&apos;s worth
             testing, and what&apos;s paying off.
@@ -105,7 +105,7 @@ export function WelcomeScreen() {
         className="scroll-mt-6 border-t border-border-warm bg-white py-12 sm:py-16 md:py-20"
         aria-labelledby="whats-inside-heading"
       >
-        <PageContainer className="max-w-3xl">
+        <PageContainer className="max-w-3xl lg:max-w-6xl">
           <h2
             id="whats-inside-heading"
             className="font-display text-center text-2xl font-bold text-ink sm:text-3xl"
@@ -141,7 +141,7 @@ export function WelcomeScreen() {
 
       {/* Section 4 — Final CTA */}
       <section className="border-t border-border-warm bg-terracotta-tint/30 py-14 sm:py-16 md:py-20">
-        <PageContainer>
+        <PageContainer className="lg:max-w-7xl">
           <div className="mx-auto max-w-lg text-center">
             <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">
               Everything your business needs, finally in one place.
