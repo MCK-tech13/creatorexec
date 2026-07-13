@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import { AuthLayout } from '../auth/AuthScreens'
 import { openBillingPortal, startCheckoutSession } from '../../lib/billing/api'
+import { isStripeTestMode } from '../../lib/billing/stripeTestMode'
 
 export function SubscribePage() {
   const { session, signOut } = useAuth()
@@ -13,6 +14,7 @@ export function SubscribePage() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const checkoutState = searchParams.get('checkout')
+  const showStripeTestHint = isStripeTestMode()
 
   useEffect(() => {
     if (checkoutState === 'success') {
@@ -100,10 +102,6 @@ export function SubscribePage() {
             <span className="font-display text-4xl font-bold text-ink">$25</span>
             <span className="pb-1 font-body text-sm text-stone">/ month</span>
           </div>
-          <p className="mt-3 font-body text-sm text-stone">
-            Standard price after beta: <span className="font-medium text-ink">$49/month</span>.
-            Beta subscribers keep $25/month for as long as their subscription stays active.
-          </p>
         </div>
 
         <ul className="space-y-2 font-body text-sm text-stone">
@@ -139,7 +137,9 @@ export function SubscribePage() {
 
         <p className="font-body text-xs leading-relaxed text-stone">
           You will be redirected to Stripe&apos;s secure checkout page to enter payment details.
-          Use test card 4242 4242 4242 4242 in Stripe test mode.
+          {showStripeTestHint && (
+            <> Use test card 4242 4242 4242 4242 in Stripe test mode.</>
+          )}
         </p>
       </div>
     </AuthLayout>
