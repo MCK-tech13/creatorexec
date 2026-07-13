@@ -54,7 +54,7 @@ const retainers = buildRetainerHomePreview([sampleDeal])
 assert(retainers.activeCount === 1, 'Should count active retainer')
 assert(retainers.pipelineCount === 1, 'Should count pipeline deal')
 
-const incomeEmpty = buildIncomeHomePreview({})
+const incomeEmpty = buildIncomeHomePreview([])
 assert(incomeEmpty.monthLabel === null, 'Empty income store has no month label')
 
 const scoutEmpty = buildProductScoutHomePreview([])

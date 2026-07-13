@@ -110,6 +110,8 @@ export type Database = {
           id: string
           user_id: string
           month_key: string
+          source: string
+          note: string | null
           gmv_total: number
           estimated_commission: number
           settled_commission: number
@@ -122,6 +124,8 @@ export type Database = {
           id?: string
           user_id: string
           month_key: string
+          source?: string
+          note?: string | null
           gmv_total?: number
           estimated_commission?: number
           settled_commission?: number
@@ -134,6 +138,8 @@ export type Database = {
           id?: string
           user_id?: string
           month_key?: string
+          source?: string
+          note?: string | null
           gmv_total?: number
           estimated_commission?: number
           settled_commission?: number

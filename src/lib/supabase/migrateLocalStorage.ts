@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { IncomeTrackerStore } from '../../types/incomeTracker'
+import type { IncomeEntry, IncomeTrackerStore } from '../../types/incomeTracker'
+import { createIncomeEntryId } from '../income/incomeUtils'
 import type { OnboardingProfile } from '../../types/onboarding'
 import type { BrandDeal } from '../../types/pipeline'
 import type { ProductScoutEntry } from '../../types/productScout'
@@ -59,9 +60,38 @@ function readLocalBrandDeals(): BrandDeal[] {
 }
 
 function readLocalIncomeTracker(): IncomeTrackerStore {
-  const parsed = readJson<IncomeTrackerStore>(LOCAL_STORAGE_KEYS.incomeTracker)
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
-  return parsed
+  const parsed = readJson<unknown>(LOCAL_STORAGE_KEYS.incomeTracker)
+  if (!parsed) return []
+
+  if (Array.isArray(parsed)) {
+    return parsed
+      .filter((entry): entry is IncomeEntry => Boolean(entry && typeof entry === 'object' && 'id' in entry))
+      .map((entry) => ({
+        id: String(entry.id),
+        monthKey: entry.monthKey,
+        source: entry.source ?? 'TikTok Shop',
+        note: entry.note ?? null,
+        gmvTotal: Number(entry.gmvTotal) || 0,
+        estimatedCommission: Number(entry.estimatedCommission) || 0,
+        settledCommission: Number(entry.settledCommission) || 0,
+        brandDealsIncome: Number(entry.brandDealsIncome) || 0,
+        bonusesRewards: Number(entry.bonusesRewards) || 0,
+      }))
+  }
+
+  if (typeof parsed !== 'object') return []
+
+  return Object.entries(parsed as Record<string, Partial<IncomeEntry>>).map(([monthKey, entry]) => ({
+    id: createIncomeEntryId(),
+    monthKey,
+    source: 'TikTok Shop' as const,
+    note: null,
+    gmvTotal: Number(entry?.gmvTotal) || 0,
+    estimatedCommission: Number(entry?.estimatedCommission) || 0,
+    settledCommission: Number(entry?.settledCommission) || 0,
+    brandDealsIncome: Number(entry?.brandDealsIncome) || 0,
+    bonusesRewards: Number(entry?.bonusesRewards) || 0,
+  }))
 }
 
 function readLocalProductScout(): ProductScoutEntry[] {
@@ -88,7 +118,7 @@ function hasLocalData(snapshot: UserDataSnapshot): boolean {
   return (
     Object.keys(snapshot.trialProgress).length > 0 ||
     snapshot.brandDeals.length > 0 ||
-    Object.keys(snapshot.incomeTracker).length > 0 ||
+    snapshot.incomeTracker.length > 0 ||
     snapshot.productScoutEntries.length > 0 ||
     snapshot.onboardingProfile !== null ||
     snapshot.sprintEntrySeen ||

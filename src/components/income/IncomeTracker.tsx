@@ -1,23 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { useIncomeTracker } from '../../hooks/useIncomeTracker'
-import type { IncomeMonthEntry } from '../../types/incomeTracker'
+import {
+  INCOME_SOURCES,
+  type IncomeEntry,
+  type IncomeSource,
+} from '../../types/incomeTracker'
 import {
   MONTH_NAMES,
+  aggregateIncomeAmounts,
   calcTotalIncome,
   formatCurrency,
   formatMonthLabel,
+  getEntriesForMonth,
   monthKey,
+  monthKeysFromStore,
   moneyInputValue,
   parseMoneyInput,
-  sortMonthKeys,
+  totalsBySource,
   yearsFromStore,
 } from '../../lib/income/incomeUtils'
 
 type ViewMode = 'month' | 'year'
 
-const MANUAL_FIELDS: {
-  key: keyof IncomeMonthEntry
+const AMOUNT_FIELDS: {
+  key: keyof Pick<
+    IncomeEntry,
+    | 'gmvTotal'
+    | 'estimatedCommission'
+    | 'settledCommission'
+    | 'brandDealsIncome'
+    | 'bonusesRewards'
+  >
   label: string
   hint?: string
 }[] = [
@@ -33,53 +47,101 @@ function currentMonthKey(): string {
   return monthKey(now.getFullYear(), now.getMonth() + 1)
 }
 
-export function IncomeTracker() {
-  const { store, createMonth, updateMonthField } = useIncomeTracker()
-  const monthKeys = useMemo(() => sortMonthKeys(Object.keys(store)), [store])
+export function IncomeTracker({
+  initialShowAddEntry = false,
+  initialDraftEntryId = null,
+  initialStore,
+}: {
+  initialShowAddEntry?: boolean
+  initialDraftEntryId?: string | null
+  initialStore?: IncomeEntry[]
+} = {}) {
+  const { store, addEntry, updateEntryField, deleteEntry } = useIncomeTracker({ initialStore })
+  const monthKeys = useMemo(() => monthKeysFromStore(store), [store])
   const availableYears = useMemo(() => yearsFromStore(monthKeys), [monthKeys])
 
   const [viewMode, setViewMode] = useState<ViewMode>('month')
-  const [selectedMonthKey, setSelectedMonthKey] = useState(currentMonthKey)
+  const [selectedMonthKey, setSelectedMonthKey] = useState(
+    initialDraftEntryId
+      ? store.find((entry) => entry.id === initialDraftEntryId)?.monthKey ?? currentMonthKey()
+      : currentMonthKey(),
+  )
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [showAddMonth, setShowAddMonth] = useState(false)
+  const [showAddEntry, setShowAddEntry] = useState(initialShowAddEntry)
   const [newMonth, setNewMonth] = useState(new Date().getMonth() + 1)
   const [newYear, setNewYear] = useState(new Date().getFullYear())
+  const [draftEntryId, setDraftEntryId] = useState<string | null>(initialDraftEntryId)
 
   useEffect(() => {
     if (monthKeys.length === 0) return
-    if (!store[selectedMonthKey]) {
+    if (!monthKeys.includes(selectedMonthKey)) {
       setSelectedMonthKey(monthKeys[monthKeys.length - 1])
     }
-  }, [monthKeys, selectedMonthKey, store])
+  }, [monthKeys, selectedMonthKey])
 
-  const selectedEntry = store[selectedMonthKey]
-  const selectedTotal = selectedEntry ? calcTotalIncome(selectedEntry) : 0
+  const monthEntries = useMemo(
+    () => getEntriesForMonth(store, selectedMonthKey),
+    [selectedMonthKey, store],
+  )
+  const monthTotals = useMemo(() => aggregateIncomeAmounts(monthEntries), [monthEntries])
+  const monthIncomeTotal = calcTotalIncome(monthTotals)
+  const sourceBreakdown = useMemo(() => totalsBySource(monthEntries), [monthEntries])
+
+  const draftEntry = draftEntryId ? store.find((entry) => entry.id === draftEntryId) : null
 
   const handleAddMonth = () => {
     const key = monthKey(newYear, newMonth)
-    createMonth(key)
     setSelectedMonthKey(key)
     setShowAddMonth(false)
     setViewMode('month')
+    setShowAddEntry(true)
+    const id = addEntry(key)
+    setDraftEntryId(id)
+  }
+
+  const handleStartAddEntry = () => {
+    const id = addEntry(selectedMonthKey)
+    setDraftEntryId(id)
+    setShowAddEntry(true)
+  }
+
+  const handleCancelAddEntry = () => {
+    if (draftEntryId) {
+      deleteEntry(draftEntryId)
+    }
+    setDraftEntryId(null)
+    setShowAddEntry(false)
+  }
+
+  const handleSaveEntry = () => {
+    setDraftEntryId(null)
+    setShowAddEntry(false)
   }
 
   const yearlyRows = useMemo(() => {
     return MONTH_NAMES.map((name, index) => {
       const key = monthKey(selectedYear, index + 1)
-      const entry = store[key]
+      const entries = getEntriesForMonth(store, key)
+      const totals = aggregateIncomeAmounts(entries)
       return {
         key,
         name,
-        entry,
-        totalIncome: entry ? calcTotalIncome(entry) : 0,
-        gmv: entry?.gmvTotal ?? 0,
-        hasEntry: Boolean(entry),
+        totalIncome: calcTotalIncome(totals),
+        gmv: totals.gmvTotal,
+        hasEntry: entries.length > 0,
       }
     })
   }, [selectedYear, store])
 
   const yearIncomeTotal = yearlyRows.reduce((sum, row) => sum + row.totalIncome, 0)
   const yearGmvTotal = yearlyRows.reduce((sum, row) => sum + row.gmv, 0)
+  const yearSourceBreakdown = useMemo(() => {
+    const yearEntries = store.filter((entry) => entry.monthKey.startsWith(`${selectedYear}-`))
+    return totalsBySource(yearEntries)
+  }, [selectedYear, store])
+
+  const hasSelectedMonth = monthKeys.includes(selectedMonthKey) || showAddEntry
 
   return (
     <div className="fade-in">
@@ -123,7 +185,11 @@ export function IncomeTracker() {
                 <select
                   id="income-month-select"
                   value={monthKeys.includes(selectedMonthKey) ? selectedMonthKey : monthKeys[0]}
-                  onChange={(e) => setSelectedMonthKey(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedMonthKey(e.target.value)
+                    setShowAddEntry(false)
+                    setDraftEntryId(null)
+                  }}
                   className="input-field w-full max-w-xs px-4 py-3 font-body text-sm"
                 >
                   {monthKeys.map((key) => (
@@ -197,46 +263,178 @@ export function IncomeTracker() {
             </div>
           )}
 
-          {selectedEntry ? (
+          {hasSelectedMonth ? (
             <>
               <div className="stat-card-primary mb-6 px-4 py-6 text-center sm:mb-8 sm:px-6 sm:py-8">
                 <p className="stat-label">Total Income</p>
                 <p className="font-display mt-2 text-[26px] leading-tight font-bold text-stat-forest sm:mt-3 sm:text-[30px] md:text-[34px] md:leading-none">
-                  {formatCurrency(selectedTotal)}
+                  {formatCurrency(monthIncomeTotal)}
                 </p>
                 <p className="form-helper-text mt-3 font-body text-sm text-stone">
                   Settled Commission + Brand Deals / Retainer + Bonuses / Rewards
                 </p>
               </div>
 
-              <div className="space-y-5 border border-border-warm p-6">
-                {MANUAL_FIELDS.map((field) => (
-                  <div key={field.key}>
-                    <label htmlFor={`income-${field.key}`} className="label-caps mb-2 block">
-                      {field.label}
-                    </label>
-                    <input
-                      id={`income-${field.key}`}
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={moneyInputValue(selectedEntry[field.key])}
-                      onChange={(e) =>
-                        updateMonthField(
-                          selectedMonthKey,
-                          field.key,
-                          parseMoneyInput(e.target.value),
-                        )
-                      }
-                      className="input-field w-full px-4 py-3 font-body text-sm"
-                      placeholder="0.00"
-                    />
-                    {field.hint && (
-                      <p className="form-helper-text mt-1.5 font-body text-xs text-stone">{field.hint}</p>
-                    )}
-                  </div>
-                ))}
+              <div className="mb-8 border border-border-warm bg-white p-6">
+                <h2 className="font-display text-lg font-bold text-ink">By source</h2>
+                <ul className="mt-4 space-y-2 font-body text-sm">
+                  {INCOME_SOURCES.map((source) => (
+                    <li key={source} className="flex items-center justify-between gap-4">
+                      <span className="text-stone">{source}</span>
+                      <span className="tabular-nums font-medium text-ink">
+                        {formatCurrency(sourceBreakdown[source])}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
+
+              {monthEntries.length > 0 && (
+                <div className="mb-8 overflow-x-auto border border-border-warm">
+                  <table className="w-full min-w-[640px] border-collapse font-body text-sm">
+                    <thead>
+                      <tr className="border-b border-border-warm bg-white">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-stone">
+                          Source
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-stone">
+                          Note
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-stone">
+                          Total Income
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-stone">
+                          GMV
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-stone">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthEntries.map((entry) => (
+                        <tr key={entry.id} className="border-b border-border-warm last:border-b-0">
+                          <td className="px-4 py-3 text-ink">{entry.source}</td>
+                          <td className="px-4 py-3 text-stone">{entry.note?.trim() || '—'}</td>
+                          <td className="px-4 py-3 text-right tabular-nums text-ink">
+                            {formatCurrency(calcTotalIncome(entry))}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums text-stone">
+                            {entry.gmvTotal > 0 ? formatCurrency(entry.gmvTotal) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => deleteEntry(entry.id)}
+                              className="inline-flex items-center gap-1 font-body text-xs text-stone transition hover:text-tier-deadline"
+                              aria-label={`Delete ${entry.source} entry`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {showAddEntry && draftEntry ? (
+                <div className="space-y-5 border border-border-warm p-6">
+                  <h2 className="font-display text-xl font-bold text-ink">Add income entry</h2>
+
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="income-source" className="label-caps mb-2 block">
+                        Source
+                      </label>
+                      <select
+                        id="income-source"
+                        value={draftEntry.source}
+                        onChange={(e) =>
+                          updateEntryField(
+                            draftEntry.id,
+                            'source',
+                            e.target.value as IncomeSource,
+                          )
+                        }
+                        className="input-field w-full px-4 py-3 font-body text-sm"
+                      >
+                        {INCOME_SOURCES.map((source) => (
+                          <option key={source} value={source}>
+                            {source}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="income-note" className="label-caps mb-2 block">
+                        Note <span className="font-normal normal-case tracking-normal text-stone">(optional)</span>
+                      </label>
+                      <input
+                        id="income-note"
+                        type="text"
+                        value={draftEntry.note ?? ''}
+                        onChange={(e) =>
+                          updateEntryField(draftEntry.id, 'note', e.target.value.trim() || null)
+                        }
+                        placeholder={
+                          draftEntry.source === 'Other'
+                            ? 'e.g. what this was for'
+                            : 'e.g. campaign or payout details'
+                        }
+                        className="input-field w-full px-4 py-3 font-body text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {AMOUNT_FIELDS.map((field) => (
+                    <div key={field.key}>
+                      <label htmlFor={`income-${field.key}`} className="label-caps mb-2 block">
+                        {field.label}
+                      </label>
+                      <input
+                        id={`income-${field.key}`}
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={moneyInputValue(draftEntry[field.key])}
+                        onChange={(e) =>
+                          updateEntryField(
+                            draftEntry.id,
+                            field.key,
+                            parseMoneyInput(e.target.value),
+                          )
+                        }
+                        className="input-field w-full px-4 py-3 font-body text-sm"
+                        placeholder="0.00"
+                      />
+                      {field.hint && (
+                        <p className="form-helper-text mt-1.5 font-body text-xs text-stone">{field.hint}</p>
+                      )}
+                    </div>
+                  ))}
+
+                  <div className="flex flex-wrap gap-3">
+                    <button type="button" onClick={handleSaveEntry} className="btn-primary px-6 py-3 text-sm">
+                      Save entry
+                    </button>
+                    <button type="button" onClick={handleCancelAddEntry} className="btn-outline px-6 py-3 text-sm">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStartAddEntry}
+                  className="btn-outline inline-flex items-center gap-2 px-6 py-3 text-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add income entry
+                </button>
+              )}
             </>
           ) : (
             !showAddMonth && (
@@ -266,6 +464,20 @@ export function IncomeTracker() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="mb-8 border border-border-warm bg-white p-6">
+            <h2 className="font-display text-lg font-bold text-ink">{selectedYear} by source</h2>
+            <ul className="mt-4 space-y-2 font-body text-sm">
+              {INCOME_SOURCES.map((source) => (
+                <li key={source} className="flex items-center justify-between gap-4">
+                  <span className="text-stone">{source}</span>
+                  <span className="tabular-nums font-medium text-ink">
+                    {formatCurrency(yearSourceBreakdown[source])}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div className="overflow-x-auto border border-border-warm">

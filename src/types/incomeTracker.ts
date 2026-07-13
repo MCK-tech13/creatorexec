@@ -1,5 +1,19 @@
-/** One month of manually tracked income — keyed by "YYYY-MM" in storage. */
-export interface IncomeMonthEntry {
+/** Allowed income sources for manual entries and imports. */
+export const INCOME_SOURCES = [
+  'TikTok Shop',
+  'Meta Commission',
+  'Trybe Commission',
+  'Other',
+] as const
+
+export type IncomeSource = (typeof INCOME_SOURCES)[number]
+
+/** One manually tracked income line item. */
+export interface IncomeEntry {
+  id: string
+  monthKey: string
+  source: IncomeSource
+  note: string | null
   gmvTotal: number
   estimatedCommission: number
   settledCommission: number
@@ -7,4 +21,4 @@ export interface IncomeMonthEntry {
   bonusesRewards: number
 }
 
-export type IncomeTrackerStore = Record<string, IncomeMonthEntry>
+export type IncomeTrackerStore = IncomeEntry[]

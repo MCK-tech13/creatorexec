@@ -3,7 +3,7 @@ import type { Database } from './database.types'
 import type { UserDataSnapshot } from './dataStore'
 import {
   brandDealToRow,
-  incomeMonthToRow,
+  incomeEntryToRow,
   onboardingProfileToRow,
   productScoutToRow,
   trialProgressToRows,
@@ -81,36 +81,28 @@ export async function persistIncomeTracker(
   userId: string,
   store: UserDataSnapshot['incomeTracker'],
 ): Promise<void> {
-  const rows = Object.entries(store).map(([monthKey, entry]) =>
-    incomeMonthToRow(userId, monthKey, entry),
-  )
-  const nextKeys = new Set(rows.map((row) => row.month_key))
+  const rows = store.map((entry) => incomeEntryToRow(userId, entry))
+  const nextIds = new Set(rows.map((row) => row.id).filter(Boolean) as string[])
 
   const { data: existing, error: selectError } = await client
     .from('income_entries')
-    .select('month_key')
+    .select('id')
     .eq('user_id', userId)
 
   if (selectError) throw selectError
 
   const toDelete = (existing ?? [])
-    .map((row) => row.month_key)
-    .filter((monthKey) => !nextKeys.has(monthKey))
+    .map((row) => row.id)
+    .filter((id) => !nextIds.has(id))
 
   if (toDelete.length > 0) {
-    const { error } = await client
-      .from('income_entries')
-      .delete()
-      .eq('user_id', userId)
-      .in('month_key', toDelete)
+    const { error } = await client.from('income_entries').delete().in('id', toDelete)
     if (error) throw error
   }
 
   if (rows.length === 0) return
 
-  const { error } = await client.from('income_entries').upsert(rows, {
-    onConflict: 'user_id,month_key',
-  })
+  const { error } = await client.from('income_entries').upsert(rows)
   if (error) throw error
 }
 

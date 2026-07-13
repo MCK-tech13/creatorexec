@@ -20,7 +20,7 @@ export interface UserDataSnapshot {
 const EMPTY_SNAPSHOT: UserDataSnapshot = {
   trialProgress: {},
   brandDeals: [],
-  incomeTracker: {},
+  incomeTracker: [],
   productScoutEntries: [],
   onboardingProfile: null,
   sprintEntrySeen: false,
