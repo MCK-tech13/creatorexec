@@ -53,7 +53,14 @@ Same Vercel project, but only used by `/api/*` serverless functions. **Never** p
 | `STRIPE_SECRET_KEY` | Stripe → Developers → API keys → **Secret key** |
 | `STRIPE_BETA_PRICE_ID` | Stripe → Product catalog → your $25/mo price → **Price ID** (`price_…`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks → your **production** endpoint → Signing secret (see Part C) |
-| `APP_URL` | Your live site URL: `https://creatorexec.app` |
+| `RESEND_API_KEY` | Resend Dashboard → API Keys (used to send the post-checkout welcome email) |
+| `APP_URL` | Your live site URL: `https://creatorexec.app` (or `https://www.creatorexec.app`) |
+
+Optional:
+
+| Variable name | Source |
+|---------------|--------|
+| `STRIPE_PRICE_DISPLAY_NAMES` | JSON map of additional Stripe price IDs → email plan labels, e.g. `{"price_xxx":"CreatorExec — Yearly"}`. `STRIPE_BETA_PRICE_ID` is auto-labeled **Beta — Monthly**. |
 
 **Do NOT add to Vercel:** `STRIPE_API_PORT` (local only).
 

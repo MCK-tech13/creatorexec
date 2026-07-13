@@ -114,6 +114,26 @@ npm run test:stripe
 
 Uses Stripe **test mode** only. Simulates webhook sync, cancellation, and failed payment; prints Supabase rows as proof.
 
+### Welcome email (Resend)
+
+After `checkout.session.completed` upserts `user_subscriptions`, the webhook sends a branded welcome email via Resend (`RESEND_API_KEY`).
+
+- Amount and billing interval are read from the Stripe subscription price object (`unit_amount`, `recurring.interval`) — never hardcoded in the template.
+- Plan display name comes from `server/planCatalog.mjs` (`STRIPE_BETA_PRICE_ID` → **Beta — Monthly**, plus optional `STRIPE_PRICE_DISPLAY_NAMES` JSON).
+
+```bash
+# HTML preview (writes /opt/cursor/artifacts/welcome-email-preview.html)
+npm run preview:welcome-email
+
+# Unit checks (no network)
+npm run test:welcome-email
+
+# Optional live send
+SEND_WELCOME_EMAIL=1 RESEND_API_KEY=re_... WELCOME_EMAIL_TO=you@example.com npm run test:welcome-email
+```
+
+Email failures are logged and never fail the webhook / subscription write.
+
 ## 8. Access gating policy
 
 **Production choice: `grace_period`** (set in `src/lib/billing/subscription.ts`).

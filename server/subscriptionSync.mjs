@@ -1,3 +1,11 @@
+import { getServerEnv } from './env.mjs'
+import {
+  buildWelcomeEmailHtml,
+  buildWelcomeEmailText,
+  extractPlanPricing,
+  sendWelcomeEmailViaResend,
+} from './emails/welcomeEmail.mjs'
+
 const STRIPE_STATUSES = new Set([
   'none',
   'incomplete',
@@ -339,6 +347,105 @@ export async function syncSubscriptionForUser(
   )
 }
 
+async function resolveCheckoutRecipient(stripe, session, customerId) {
+  const email =
+    session.customer_details?.email ||
+    session.customer_email ||
+    null
+  const name = session.customer_details?.name || null
+
+  if (email) {
+    return { email, name }
+  }
+
+  if (!customerId) {
+    return { email: null, name: null }
+  }
+
+  try {
+    const customer = await stripe.customers.retrieve(customerId)
+    if (customer?.deleted) {
+      return { email: null, name: null }
+    }
+    return {
+      email: customer.email ?? null,
+      name: customer.name ?? null,
+    }
+  } catch (error) {
+    console.warn(
+      '[billing-api] welcome-email: failed to load Stripe customer for recipient',
+      error instanceof Error ? error.message : error,
+    )
+    return { email: null, name: null }
+  }
+}
+
+/**
+ * Send welcome email after a successful checkout. Failures are logged only —
+ * never block subscription activation.
+ */
+export async function sendWelcomeEmailForCheckout({ stripe, session, subscription }) {
+  const env = getServerEnv()
+  const customerId =
+    typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null
+  const recipient = await resolveCheckoutRecipient(stripe, session, customerId)
+
+  if (!recipient.email) {
+    console.warn('[billing-api] welcome-email: skipped — no recipient email on checkout session')
+    return { ok: false, skipped: true, error: 'missing recipient email' }
+  }
+
+  let subscriptionWithPrice = subscription
+  if (subscription?.id && !subscription?.items?.data?.[0]?.price?.unit_amount) {
+    try {
+      subscriptionWithPrice = await retrieveSubscription(stripe, subscription.id)
+    } catch (error) {
+      console.warn(
+        '[billing-api] welcome-email: could not re-fetch subscription for pricing',
+        error instanceof Error ? error.message : error,
+      )
+    }
+  }
+
+  const pricing = extractPlanPricing({ subscription: subscriptionWithPrice, session })
+  const mailOptions = {
+    recipientName: recipient.name,
+    recipientEmail: recipient.email,
+    appUrl: env.appUrl,
+    planDisplayName: pricing.planDisplayName,
+    amountLabel: pricing.amountLabel,
+    intervalLabel: pricing.intervalLabel,
+  }
+
+  console.log(
+    '[billing-api] welcome-email: sending',
+    JSON.stringify({
+      to: recipient.email,
+      priceId: pricing.priceId,
+      planDisplayName: pricing.planDisplayName,
+      amountLabel: pricing.amountLabel,
+      intervalLabel: pricing.intervalLabel,
+    }),
+  )
+
+  const result = await sendWelcomeEmailViaResend({
+    apiKey: env.resendApiKey,
+    to: recipient.email,
+    html: buildWelcomeEmailHtml(mailOptions),
+    text: buildWelcomeEmailText(mailOptions),
+  })
+
+  if (result.ok) {
+    console.log(`[billing-api] welcome-email: sent id=${result.id ?? 'unknown'}`)
+  } else if (result.skipped) {
+    console.warn(`[billing-api] welcome-email: skipped — ${result.error}`)
+  } else {
+    console.error(`[billing-api] welcome-email: failed — ${result.error}`)
+  }
+
+  return result
+}
+
 export async function syncCheckoutSessionCompleted(admin, stripe, session) {
   const userId = session.metadata?.user_id ?? session.client_reference_id
   if (!userId) {
@@ -376,7 +483,21 @@ export async function syncCheckoutSessionCompleted(admin, stripe, session) {
     }),
   )
 
-  return upsertUserSubscription(admin, row)
+  const upserted = await upsertUserSubscription(admin, row)
+
+  // Welcome email is best-effort — never undo a successful upsert.
+  try {
+    if (session.mode === 'subscription' || session.subscription || subscription) {
+      await sendWelcomeEmailForCheckout({ stripe, session, subscription })
+    }
+  } catch (error) {
+    console.error(
+      '[billing-api] welcome-email: unexpected error after subscription upsert',
+      error,
+    )
+  }
+
+  return upserted
 }
 
 export async function syncStripeSubscriptionEvent(admin, stripe, subscription, eventType) {
