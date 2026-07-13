@@ -92,7 +92,7 @@ export async function handleCreateCheckoutSession(req, res) {
       custom_text: {
         submit: {
           message:
-            'Beta pricing: $25/month while beta lasts (standard price $49/month after beta). 7-day money-back guarantee — contact support within 7 days for a full refund. Cancel anytime to stop future billing.',
+            'Beta pricing: $25/month while beta lasts. 7-day money-back guarantee — contact support within 7 days for a full refund. Cancel anytime to stop future billing.',
         },
       },
     })
