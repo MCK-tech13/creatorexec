@@ -119,9 +119,9 @@ async function main() {
     client,
     'authenticated',
     userA,
-    `INSERT INTO public.income_entries (user_id, month_key, gmv_total, estimated_commission, settled_commission, brand_deals_income, bonuses_rewards)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [userA, '2026-07', 12000, 1800, 1500, 500, 100],
+    `INSERT INTO public.income_entries (user_id, month_key, source, note, gmv_total, estimated_commission, settled_commission, brand_deals_income, bonuses_rewards)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [userA, '2026-07', 'TikTok Shop', null, 12000, 1800, 1500, 500, 100],
     'insert income_entries as user A',
   )
 

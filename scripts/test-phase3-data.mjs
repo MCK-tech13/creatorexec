@@ -215,19 +215,31 @@ async function migrateLocalStorageToSupabase(client, userId, localStore) {
   }
 
   const income = JSON.parse(localStore.get('creatorexec-income-tracker') ?? '{}')
-  for (const [monthKey, entry] of Object.entries(income)) {
+  const incomeEntries = Array.isArray(income)
+    ? income
+    : Object.entries(income).map(([monthKey, entry]) => ({
+        id: crypto.randomUUID(),
+        monthKey,
+        source: 'TikTok Shop',
+        note: null,
+        ...entry,
+      }))
+
+  for (const entry of incomeEntries) {
     await assertOk(
       client.from('income_entries').upsert(
         {
+          id: entry.id,
           user_id: userId,
-          month_key: monthKey,
-          gmv_total: entry.gmvTotal ?? 0,
-          estimated_commission: entry.estimatedCommission ?? 0,
-          settled_commission: entry.settledCommission ?? 0,
-          brand_deals_income: entry.brandDealsIncome ?? 0,
-          bonuses_rewards: entry.bonusesRewards ?? 0,
+          month_key: entry.monthKey ?? entry.month_key,
+          source: entry.source ?? 'TikTok Shop',
+          note: entry.note ?? null,
+          gmv_total: entry.gmvTotal ?? entry.gmv_total ?? 0,
+          estimated_commission: entry.estimatedCommission ?? entry.estimated_commission ?? 0,
+          settled_commission: entry.settledCommission ?? entry.settled_commission ?? 0,
+          brand_deals_income: entry.brandDealsIncome ?? entry.brand_deals_income ?? 0,
+          bonuses_rewards: entry.bonusesRewards ?? entry.bonuses_rewards ?? 0,
         },
-        { onConflict: 'user_id,month_key' },
       ),
       'migrate income_entries',
     )

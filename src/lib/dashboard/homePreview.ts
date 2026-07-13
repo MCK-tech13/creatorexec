@@ -1,13 +1,15 @@
 import type { DaySchedule } from '../../types'
 import type { BrandDeal } from '../../types/pipeline'
-import type { IncomeMonthEntry, IncomeTrackerStore } from '../../types/incomeTracker'
+import type { IncomeTrackerStore } from '../../types/incomeTracker'
 import type { ProductScoutEntry } from '../../types/productScout'
 import { isActiveRetainer } from '../pipeline/retainerUtils'
 import {
+  aggregateIncomeAmounts,
   calcTotalIncome,
   formatCurrency,
   formatMonthLabel,
-  sortMonthKeys,
+  getEntriesForMonth,
+  monthKeysFromStore,
 } from '../income/incomeUtils'
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -132,7 +134,7 @@ export function buildRetainerHomePreview(deals: BrandDeal[]): RetainerHomePrevie
 }
 
 export function buildIncomeHomePreview(store: IncomeTrackerStore): IncomeHomePreview {
-  const keys = sortMonthKeys(Object.keys(store))
+  const keys = monthKeysFromStore(store)
   if (keys.length === 0) {
     return {
       monthLabel: null,
@@ -143,12 +145,13 @@ export function buildIncomeHomePreview(store: IncomeTrackerStore): IncomeHomePre
   }
 
   const latestKey = keys[keys.length - 1]
-  const entry: IncomeMonthEntry = store[latestKey]
+  const monthEntries = getEntriesForMonth(store, latestKey)
+  const totals = aggregateIncomeAmounts(monthEntries)
   return {
     monthLabel: formatMonthLabel(latestKey),
-    gmv: entry.gmvTotal,
-    totalIncome: calcTotalIncome(entry),
-    estimatedCommission: entry.estimatedCommission,
+    gmv: totals.gmvTotal,
+    totalIncome: calcTotalIncome(totals),
+    estimatedCommission: totals.estimatedCommission,
   }
 }
 

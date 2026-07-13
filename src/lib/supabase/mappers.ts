@@ -1,5 +1,5 @@
 import type { Database, Json } from './database.types'
-import type { IncomeMonthEntry, IncomeTrackerStore } from '../../types/incomeTracker'
+import type { IncomeTrackerStore } from '../../types/incomeTracker'
 import type { OnboardingProfile } from '../../types/onboarding'
 import type { BrandDeal } from '../../types/pipeline'
 import type { ProductScoutEntry, ProductScoutMetrics } from '../../types/productScout'
@@ -92,27 +92,29 @@ export function brandDealToRow(
 }
 
 export function incomeTrackerFromRows(rows: IncomeRow[]): IncomeTrackerStore {
-  const store: IncomeTrackerStore = {}
-  for (const row of rows) {
-    store[row.month_key] = {
-      gmvTotal: Number(row.gmv_total),
-      estimatedCommission: Number(row.estimated_commission),
-      settledCommission: Number(row.settled_commission),
-      brandDealsIncome: Number(row.brand_deals_income),
-      bonusesRewards: Number(row.bonuses_rewards),
-    }
-  }
-  return store
+  return rows.map((row) => ({
+    id: row.id,
+    monthKey: row.month_key,
+    source: row.source as IncomeTrackerStore[number]['source'],
+    note: row.note,
+    gmvTotal: Number(row.gmv_total),
+    estimatedCommission: Number(row.estimated_commission),
+    settledCommission: Number(row.settled_commission),
+    brandDealsIncome: Number(row.brand_deals_income),
+    bonusesRewards: Number(row.bonuses_rewards),
+  }))
 }
 
-export function incomeMonthToRow(
+export function incomeEntryToRow(
   userId: string,
-  monthKey: string,
-  entry: IncomeMonthEntry,
+  entry: IncomeTrackerStore[number],
 ): Database['public']['Tables']['income_entries']['Insert'] {
   return {
+    id: entry.id,
     user_id: userId,
-    month_key: monthKey,
+    month_key: entry.monthKey,
+    source: entry.source,
+    note: entry.note,
     gmv_total: entry.gmvTotal,
     estimated_commission: entry.estimatedCommission,
     settled_commission: entry.settledCommission,

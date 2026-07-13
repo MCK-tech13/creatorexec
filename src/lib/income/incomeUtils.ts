@@ -1,4 +1,9 @@
-import type { IncomeMonthEntry } from '../../types/incomeTracker'
+import {
+  INCOME_SOURCES,
+  type IncomeEntry,
+  type IncomeSource,
+  type IncomeTrackerStore,
+} from '../../types/incomeTracker'
 
 export const MONTH_NAMES = [
   'January',
@@ -15,12 +20,18 @@ export const MONTH_NAMES = [
   'December',
 ] as const
 
-export const EMPTY_INCOME_ENTRY: IncomeMonthEntry = {
+export const EMPTY_INCOME_ENTRY: Omit<IncomeEntry, 'id' | 'monthKey'> = {
+  source: 'TikTok Shop',
+  note: null,
   gmvTotal: 0,
   estimatedCommission: 0,
   settledCommission: 0,
   brandDealsIncome: 0,
   bonusesRewards: 0,
+}
+
+export function createIncomeEntryId(): string {
+  return crypto.randomUUID()
 }
 
 export function monthKey(year: number, month: number): string {
@@ -45,8 +56,51 @@ export function formatMonthLabel(key: string): string {
   })
 }
 
-export function calcTotalIncome(entry: IncomeMonthEntry): number {
+export function calcTotalIncome(entry: Pick<IncomeEntry, 'settledCommission' | 'brandDealsIncome' | 'bonusesRewards'>): number {
   return entry.settledCommission + entry.brandDealsIncome + entry.bonusesRewards
+}
+
+export function aggregateIncomeAmounts(entries: IncomeEntry[]): Pick<
+  IncomeEntry,
+  'gmvTotal' | 'estimatedCommission' | 'settledCommission' | 'brandDealsIncome' | 'bonusesRewards'
+> {
+  return entries.reduce(
+    (totals, entry) => ({
+      gmvTotal: totals.gmvTotal + entry.gmvTotal,
+      estimatedCommission: totals.estimatedCommission + entry.estimatedCommission,
+      settledCommission: totals.settledCommission + entry.settledCommission,
+      brandDealsIncome: totals.brandDealsIncome + entry.brandDealsIncome,
+      bonusesRewards: totals.bonusesRewards + entry.bonusesRewards,
+    }),
+    {
+      gmvTotal: 0,
+      estimatedCommission: 0,
+      settledCommission: 0,
+      brandDealsIncome: 0,
+      bonusesRewards: 0,
+    },
+  )
+}
+
+export function totalsBySource(entries: IncomeEntry[]): Record<IncomeSource, number> {
+  const totals = Object.fromEntries(INCOME_SOURCES.map((source) => [source, 0])) as Record<
+    IncomeSource,
+    number
+  >
+
+  for (const entry of entries) {
+    totals[entry.source] += calcTotalIncome(entry)
+  }
+
+  return totals
+}
+
+export function getEntriesForMonth(store: IncomeTrackerStore, monthKeyValue: string): IncomeEntry[] {
+  return store.filter((entry) => entry.monthKey === monthKeyValue)
+}
+
+export function monthKeysFromStore(store: IncomeTrackerStore): string[] {
+  return sortMonthKeys([...new Set(store.map((entry) => entry.monthKey))])
 }
 
 export function sortMonthKeys(keys: string[]): string[] {
@@ -86,4 +140,8 @@ export function parseMoneyInput(value: string): number {
 
 export function moneyInputValue(amount: number): string {
   return amount === 0 ? '' : String(amount)
+}
+
+export function isIncomeSource(value: string): value is IncomeSource {
+  return (INCOME_SOURCES as readonly string[]).includes(value)
 }

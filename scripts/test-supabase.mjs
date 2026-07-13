@@ -186,6 +186,8 @@ async function main() {
       clientA.from('income_entries').insert({
         user_id: userA.id,
         month_key: '2026-07',
+        source: 'TikTok Shop',
+        note: null,
         gmv_total: 12000,
         estimated_commission: 1800,
         settled_commission: 1500,
