@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { AuthErrorAlert } from './AuthErrorAlert'
 import { AuthLayout } from './AuthScreens'
 
 export function ForgotPasswordPage() {
@@ -54,11 +55,7 @@ export function ForgotPasswordPage() {
             className="w-full border border-border-warm bg-white px-4 py-3 font-body text-base text-ink"
           />
         </div>
-        {error && (
-          <p className="font-body text-sm text-tier-deadline" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <AuthErrorAlert message={error} />}
         {success && (
           <p className="font-body text-sm text-emerald" role="status">
             {success}

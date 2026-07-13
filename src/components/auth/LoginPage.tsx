@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { AuthErrorAlert } from './AuthErrorAlert'
 import { AuthLayout } from './AuthScreens'
 
 export function LoginPage() {
@@ -81,11 +82,7 @@ export function LoginPage() {
             className="w-full border border-border-warm bg-white px-4 py-3 font-body text-base text-ink"
           />
         </div>
-        {error && (
-          <p className="font-body text-sm text-tier-deadline" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <AuthErrorAlert message={error} />}
         <button type="submit" disabled={submitting} className="btn-primary w-full py-4">
           {submitting ? 'Logging in…' : 'Log in'}
         </button>

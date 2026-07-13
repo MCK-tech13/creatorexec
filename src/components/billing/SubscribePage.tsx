@@ -105,7 +105,7 @@ export function SubscribePage() {
         </div>
 
         <ul className="space-y-2 font-body text-sm text-stone">
-          <li>7-day money-back guarantee — contact support within 7 days for a full refund.</li>
+          <li>7-day money-back guarantee — email support@creatorexec.app within 7 days for a full refund.</li>
           <li>Cancel anytime — you keep access through the end of your paid period.</li>
           <li>No refunds after the 7-day window; future billing stops when you cancel.</li>
         </ul>

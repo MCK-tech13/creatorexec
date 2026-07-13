@@ -10,6 +10,8 @@ import { SubscribePage } from './components/billing/SubscribePage'
 import { SubscriptionGate } from './components/billing/SubscriptionGate'
 import { SubscriptionProvider } from './contexts/SubscriptionContext'
 import { UserDataProvider } from './contexts/UserDataContext'
+import { PrivacyPolicyPage } from './components/legal/PrivacyPolicyPage'
+import { TermsOfServicePage } from './components/legal/TermsOfServicePage'
 import CreatorExecApp from './CreatorExecApp'
 
 export function AppRouter() {
@@ -28,6 +30,8 @@ export function AppRouter() {
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsOfServicePage />} />
         <Route
           path="/subscribe"
           element={

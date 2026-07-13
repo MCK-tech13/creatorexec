@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { PageContainer } from '../layout/PageContainer'
+import { SiteFooter } from '../layout/SiteFooter'
 import { CreatorExecWordmark } from '../ui/CreatorExecWordmark'
 import { FounderVideo } from './FounderVideo'
 
@@ -185,6 +186,8 @@ export function WelcomeScreen() {
           </div>
         </PageContainer>
       </section>
+
+      <SiteFooter />
     </div>
   )
 }
