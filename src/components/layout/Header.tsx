@@ -63,6 +63,18 @@ export function Header({
         <div className="mx-auto flex max-w-7xl">
           <button
             type="button"
+            onClick={() => onSectionChange('retainers')}
+            className={`flex-1 border-b-2 px-1 py-2.5 font-body text-[10px] font-medium whitespace-nowrap uppercase tracking-[0.03em] transition sm:px-6 sm:py-4 sm:text-sm sm:tracking-[0.1em] ${
+              mainSection === 'retainers'
+                ? 'border-emerald text-emerald'
+                : 'border-transparent text-stone hover:text-ink'
+            }`}
+          >
+            <span className="sm:hidden">Retainers</span>
+            <span className="hidden sm:inline">Retainer Deals</span>
+          </button>
+          <button
+            type="button"
             onClick={() => onSectionChange('sprint')}
             className={`flex-1 border-b-2 px-1 py-2.5 font-body text-[10px] font-medium whitespace-nowrap uppercase tracking-[0.03em] transition sm:px-6 sm:py-4 sm:text-sm sm:tracking-[0.1em] ${
               mainSection === 'sprint'
@@ -83,18 +95,6 @@ export function Header({
           >
             <span className="sm:hidden">Scout</span>
             <span className="hidden sm:inline">Product Scout</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onSectionChange('retainers')}
-            className={`flex-1 border-b-2 px-1 py-2.5 font-body text-[10px] font-medium whitespace-nowrap uppercase tracking-[0.03em] transition sm:px-6 sm:py-4 sm:text-sm sm:tracking-[0.1em] ${
-              mainSection === 'retainers'
-                ? 'border-emerald text-emerald'
-                : 'border-transparent text-stone hover:text-ink'
-            }`}
-          >
-            <span className="sm:hidden">Retainers</span>
-            <span className="hidden sm:inline">Retainer Deals</span>
           </button>
           <button
             type="button"

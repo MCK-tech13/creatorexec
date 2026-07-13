@@ -3,6 +3,7 @@ export const INCOME_SOURCES = [
   'TikTok Shop',
   'Meta Commission',
   'Trybe Commission',
+  'Amazon Commission',
   'Other',
 ] as const
 

@@ -186,6 +186,14 @@ export function DashboardHome({
 
       <div className="grid gap-6 md:grid-cols-2">
         <FeatureCard
+          title="Retainer Deals"
+          icon={<Users className="h-5 w-5" strokeWidth={2} />}
+          onClick={() => onNavigate('retainers')}
+        >
+          <RetainerCardContent retainers={retainers} />
+        </FeatureCard>
+
+        <FeatureCard
           title="Sprint"
           icon={<Calendar className="h-5 w-5" strokeWidth={2} />}
           onClick={() => onNavigate('sprint')}
@@ -199,14 +207,6 @@ export function DashboardHome({
           onClick={() => onNavigate('product-scout')}
         >
           <ProductScoutCardContent productScout={productScout} />
-        </FeatureCard>
-
-        <FeatureCard
-          title="Retainer Deals"
-          icon={<Users className="h-5 w-5" strokeWidth={2} />}
-          onClick={() => onNavigate('retainers')}
-        >
-          <RetainerCardContent retainers={retainers} />
         </FeatureCard>
 
         <FeatureCard
