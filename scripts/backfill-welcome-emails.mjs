@@ -15,6 +15,10 @@
  *
  *   # 2) After you approve the printed list:
  *   SEND_WELCOME_EMAILS=1 npm run backfill:welcome-emails
+ *
+ * Optional:
+ *   ONLY_EMAILS=a@x.com,b@y.com   # restrict to an approved subset (comma-separated)
+ *   EXTRA_EXCLUDE_EMAILS=c@z.com  # extra exclusions beyond built-in test filters
  */
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,15 +42,25 @@ const ACTIVE_STATUSES = new Set(['active', 'trialing'])
 /** Explicit emails we never backfill (internal / operator testing). */
 const EXCLUDED_EMAILS = new Set(['mckcreativegroup@gmail.com'].map((e) => e.toLowerCase()))
 
+function parseEmailList(raw) {
+  if (!raw?.trim()) return null
+  const emails = raw
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+  return emails.length > 0 ? new Set(emails) : null
+}
+
 /**
  * Heuristics for test / synthetic accounts (plus explicit exclusions above).
  * Real beta users (including personal founder addresses) are kept for your review.
  */
-export function isExcludedTestEmail(email) {
+export function isExcludedTestEmail(email, extraExcluded = null) {
   if (!email || typeof email !== 'string') return true
   const normalized = email.trim().toLowerCase()
   if (!normalized.includes('@')) return true
   if (EXCLUDED_EMAILS.has(normalized)) return true
+  if (extraExcluded?.has(normalized)) return true
 
   const [local = '', domain = ''] = normalized.split('@')
 
@@ -171,6 +185,8 @@ function displayNameFromUser(user) {
 async function main() {
   const send = process.env.SEND_WELCOME_EMAILS === '1'
   const env = getServerEnv()
+  const onlyEmails = parseEmailList(process.env.ONLY_EMAILS)
+  const extraExcluded = parseEmailList(process.env.EXTRA_EXCLUDE_EMAILS)
 
   if (!env.supabaseUrl || !env.supabaseServiceRoleKey) {
     throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required')
@@ -188,6 +204,12 @@ async function main() {
   console.log(`Mode: ${send ? 'SEND (live)' : 'DRY RUN (list only — nothing will be emailed)'}`)
   console.log(`Audience: ALL active/trialing subscribers (no date cutoff)`)
   console.log(`Statuses: ${[...ACTIVE_STATUSES].join(', ')}`)
+  if (onlyEmails) {
+    console.log(`ONLY_EMAILS allowlist (${onlyEmails.size}): ${[...onlyEmails].join(', ')}`)
+  }
+  if (extraExcluded) {
+    console.log(`EXTRA_EXCLUDE_EMAILS (${extraExcluded.size}): ${[...extraExcluded].join(', ')}`)
+  }
   console.log('')
 
   const [subs, authUsers] = await Promise.all([
@@ -220,8 +242,12 @@ async function main() {
       excluded.push({ ...base, reason: 'missing email on auth.users' })
       continue
     }
-    if (isExcludedTestEmail(email)) {
+    if (isExcludedTestEmail(email, extraExcluded)) {
       excluded.push({ ...base, reason: 'test/internal email filter' })
+      continue
+    }
+    if (onlyEmails && !onlyEmails.has(email.trim().toLowerCase())) {
+      excluded.push({ ...base, reason: 'not in ONLY_EMAILS allowlist' })
       continue
     }
     if (!user) {
