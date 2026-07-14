@@ -102,11 +102,12 @@ export function TermsOfServicePage() {
           cancel during a trial).
         </LegalParagraph>
         <LegalParagraph>
-          <strong className="font-medium text-ink">Refunds:</strong> Except where required by law,
-          payments are non-refundable after a charge is successfully processed, including for partial
-          months or unused time. Questions about a charge can be sent to <SupportEmailLink />.
-          Subscribers who purchased under prior money-back guarantee terms (before this free-trial
-          model) may still contact us at <SupportEmailLink /> about those prior terms.
+          <strong className="font-medium text-ink">Refunds:</strong> Payments are generally
+          non-refundable after a charge is successfully processed, since the 7-day free trial gives
+          you a no-charge way to try CreatorExec before committing. That said, if you feel you need
+          or deserve a refund for any reason, please reach out to <SupportEmailLink /> — we&apos;ll
+          take a look. Subscribers who purchased under prior money-back guarantee terms (before this
+          free-trial model) may still contact us at <SupportEmailLink /> about those prior terms.
         </LegalParagraph>
         <LegalParagraph>
           <strong className="font-medium text-ink">Price changes:</strong> We may change subscription
