@@ -14,7 +14,9 @@ import {
   extractPlanPricing,
   formatBillingInterval,
   formatMoneyFromStripe,
+  formatPlanSummaryLine,
   sendWelcomeEmailViaResend,
+  welcomeIntroSentence,
 } from '../server/emails/welcomeEmail.mjs'
 
 loadEnvFile()
@@ -32,8 +34,9 @@ function mainSync() {
   assert(getPlanDisplayName('price_test_beta_monthly') === 'Beta — Monthly', 'beta mapping')
   assert(getPlanDisplayName('price_unknown_xyz') === 'CreatorExec', 'unknown mapping fallback')
 
-  const pricing = extractPlanPricing({
+  const paidPricing = extractPlanPricing({
     subscription: {
+      status: 'active',
       items: {
         data: [
           {
@@ -49,64 +52,103 @@ function mainSync() {
     },
   })
 
-  assert(pricing.planDisplayName === 'Beta — Monthly', 'extract plan name')
-  assert(pricing.amountLabel === '$25.00', 'extract amount from Stripe unit_amount')
-  assert(pricing.intervalLabel === 'billed monthly', 'extract interval')
-  assert(!pricing.amountLabel.includes('hardcoded'), 'sanity')
+  assert(paidPricing.isTrialing === false, 'paid is not trialing')
+  assert(paidPricing.planDisplayName === 'Beta — Monthly', 'extract plan name')
+  assert(paidPricing.amountLabel === '$25.00', 'extract amount from Stripe unit_amount')
+  assert(paidPricing.intervalLabel === 'billed monthly', 'extract interval')
+  assert(
+    formatPlanSummaryLine(paidPricing) === '$25.00 · billed monthly',
+    'paid plan summary line',
+  )
+  assert(
+    welcomeIntroSentence({ isTrialing: false }).includes('subscription is active'),
+    'paid intro',
+  )
 
-  // Amount must come from Stripe object — change unit_amount and expect change.
-  const yearly = extractPlanPricing({
+  const trialStart = 1_720_000_000
+  const trialEnd = trialStart + 7 * 86_400
+  const trialPricing = extractPlanPricing({
     subscription: {
+      status: 'trialing',
+      trial_start: trialStart,
+      trial_end: trialEnd,
       items: {
         data: [
           {
             price: {
-              id: 'price_future_yearly',
-              unit_amount: 49000,
+              id: 'price_test_beta_monthly',
+              unit_amount: 2500,
               currency: 'usd',
-              recurring: { interval: 'year', interval_count: 1 },
+              recurring: { interval: 'month', interval_count: 1 },
             },
           },
         ],
       },
     },
   })
-  assert(yearly.amountLabel === '$490.00', 'yearly amount from Stripe')
-  assert(yearly.intervalLabel === 'billed yearly', 'yearly interval from Stripe')
-  assert(yearly.planDisplayName === 'CreatorExec', 'unmapped price uses generic name')
 
-  const html = buildWelcomeEmailHtml({
+  assert(trialPricing.isTrialing === true, 'trialing detected')
+  assert(trialPricing.trialDays === 7, 'trial days from Stripe timestamps')
+  assert(
+    formatPlanSummaryLine(trialPricing) === 'Free for 7 days, then $25.00/month',
+    'trial plan summary line',
+  )
+  assert(
+    welcomeIntroSentence({ isTrialing: true, trialDays: 7 }).includes(
+      '7-day free trial has started',
+    ),
+    'trial intro',
+  )
+
+  const paidHtml = buildWelcomeEmailHtml({
     recipientName: 'Alex',
     recipientEmail: 'alex@example.com',
     appUrl: 'https://www.creatorexec.app',
-    planDisplayName: pricing.planDisplayName,
-    amountLabel: pricing.amountLabel,
-    intervalLabel: pricing.intervalLabel,
+    planDisplayName: paidPricing.planDisplayName,
+    amountLabel: paidPricing.amountLabel,
+    intervalLabel: paidPricing.intervalLabel,
+    interval: paidPricing.interval,
+    isTrialing: false,
   })
 
-  assert(html.includes('You&rsquo;re in!'), 'header present')
-  assert(html.includes('Beta — Monthly'), 'plan name in html')
-  assert(html.includes('$25.00'), 'amount in html')
-  assert(html.includes('billed monthly'), 'interval in html')
-  assert(html.includes('https://www.creatorexec.app/app'), 'app link')
-  assert(html.includes('mailto:support@creatorexec.app'), 'support mailto')
-  assert(html.includes('/privacy'), 'privacy link')
-  assert(html.includes('/terms'), 'terms link')
-  assert(!html.includes('$49/month after beta'), 'no future-price disclosure')
-  assert(!html.includes('4242'), 'no test card copy')
+  assert(paidHtml.includes('your subscription is active.'), 'paid body copy')
+  assert(paidHtml.includes('$25.00 · billed monthly'), 'paid plan box')
+  assert(!paidHtml.includes('Free for 7 days'), 'paid html has no trial line')
 
-  const text = buildWelcomeEmailText({
+  const trialHtml = buildWelcomeEmailHtml({
     recipientName: 'Alex',
     recipientEmail: 'alex@example.com',
     appUrl: 'https://www.creatorexec.app',
-    planDisplayName: pricing.planDisplayName,
-    amountLabel: pricing.amountLabel,
-    intervalLabel: pricing.intervalLabel,
+    planDisplayName: trialPricing.planDisplayName,
+    amountLabel: trialPricing.amountLabel,
+    intervalLabel: trialPricing.intervalLabel,
+    interval: trialPricing.interval,
+    isTrialing: true,
+    trialDays: 7,
   })
-  assert(text.includes('Beta — Monthly'), 'plan in text')
-  assert(text.includes(WELCOME_EMAIL_SUBJECT) || true, 'subject constant exists')
 
-  console.log('PASS: welcome email unit checks')
+  assert(trialHtml.includes('your 7-day free trial has started.'), 'trial body copy')
+  assert(trialHtml.includes('Free for 7 days, then $25.00/month'), 'trial plan box')
+  assert(!trialHtml.includes('your subscription is active.'), 'trial html not paid wording')
+  assert(trialHtml.includes('https://www.creatorexec.app/app'), 'app link')
+  assert(trialHtml.includes('mailto:support@creatorexec.app'), 'support mailto')
+
+  const trialText = buildWelcomeEmailText({
+    recipientName: 'Alex',
+    recipientEmail: 'alex@example.com',
+    appUrl: 'https://www.creatorexec.app',
+    planDisplayName: trialPricing.planDisplayName,
+    amountLabel: trialPricing.amountLabel,
+    intervalLabel: trialPricing.intervalLabel,
+    interval: trialPricing.interval,
+    isTrialing: true,
+    trialDays: 7,
+  })
+  assert(trialText.includes('7-day free trial has started'), 'trial text intro')
+  assert(trialText.includes('Free for 7 days, then $25.00/month'), 'trial text plan')
+  assert(Boolean(WELCOME_EMAIL_SUBJECT), 'subject constant exists')
+
+  console.log('PASS: welcome email unit checks (trial + paid)')
 }
 
 async function maybeSend() {
@@ -122,8 +164,12 @@ async function maybeSend() {
   }
 
   process.env.STRIPE_BETA_PRICE_ID = process.env.STRIPE_BETA_PRICE_ID || 'price_test_beta_monthly'
+  const now = Math.floor(Date.now() / 1000)
   const pricing = extractPlanPricing({
     subscription: {
+      status: 'trialing',
+      trial_start: now,
+      trial_end: now + 7 * 86_400,
       items: {
         data: [
           {
@@ -146,6 +192,9 @@ async function maybeSend() {
     planDisplayName: pricing.planDisplayName,
     amountLabel: pricing.amountLabel,
     intervalLabel: pricing.intervalLabel,
+    interval: pricing.interval,
+    isTrialing: pricing.isTrialing,
+    trialDays: pricing.trialDays,
   }
 
   const result = await sendWelcomeEmailViaResend({

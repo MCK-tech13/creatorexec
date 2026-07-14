@@ -415,6 +415,9 @@ export async function sendWelcomeEmailForCheckout({ stripe, session, subscriptio
     planDisplayName: pricing.planDisplayName,
     amountLabel: pricing.amountLabel,
     intervalLabel: pricing.intervalLabel,
+    interval: pricing.interval,
+    isTrialing: pricing.isTrialing,
+    trialDays: pricing.trialDays,
   }
 
   console.log(
@@ -425,6 +428,8 @@ export async function sendWelcomeEmailForCheckout({ stripe, session, subscriptio
       planDisplayName: pricing.planDisplayName,
       amountLabel: pricing.amountLabel,
       intervalLabel: pricing.intervalLabel,
+      isTrialing: pricing.isTrialing,
+      trialDays: pricing.trialDays,
     }),
   )
 

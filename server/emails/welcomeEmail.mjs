@@ -40,6 +40,31 @@ export function formatBillingInterval(interval, intervalCount = 1) {
 }
 
 /**
+ * @param {string | null | undefined} interval
+ */
+export function formatIntervalPerPeriod(interval) {
+  if (interval === 'month') return '/month'
+  if (interval === 'year') return '/year'
+  if (interval === 'week') return '/week'
+  if (interval === 'day') return '/day'
+  return interval ? `/${interval}` : ''
+}
+
+/**
+ * Derive trial length in days from Stripe subscription timestamps.
+ * @param {any} subscription
+ */
+export function getTrialDays(subscription) {
+  const start = subscription?.trial_start
+  const end = subscription?.trial_end
+  if (typeof start === 'number' && typeof end === 'number' && end > start) {
+    const days = Math.round((end - start) / 86_400)
+    if (days > 0) return days
+  }
+  return 7
+}
+
+/**
  * Pull amount/interval/price from a Stripe Subscription (preferred) or Checkout Session.
  * @param {{ subscription?: any, session?: any }} sources
  */
@@ -64,6 +89,8 @@ export function extractPlanPricing({ subscription = null, session = null } = {})
   const currency = price?.currency ?? session?.currency ?? 'usd'
   const interval = price?.recurring?.interval ?? null
   const intervalCount = price?.recurring?.interval_count ?? 1
+  const isTrialing = subscription?.status === 'trialing'
+  const trialDays = isTrialing ? getTrialDays(subscription) : null
 
   return {
     priceId: typeof priceId === 'string' ? priceId : null,
@@ -71,10 +98,45 @@ export function extractPlanPricing({ subscription = null, session = null } = {})
     currency,
     interval,
     intervalCount,
+    isTrialing,
+    trialDays,
     planDisplayName: getPlanDisplayName(typeof priceId === 'string' ? priceId : null),
     amountLabel: formatMoneyFromStripe(unitAmount, currency),
     intervalLabel: formatBillingInterval(interval, intervalCount),
   }
+}
+
+/**
+ * Plan summary line under the plan name (trial vs paid).
+ * @param {{
+ *   isTrialing?: boolean
+ *   trialDays?: number | null
+ *   amountLabel: string | null
+ *   intervalLabel: string | null
+ *   interval?: string | null
+ * }} pricing
+ */
+export function formatPlanSummaryLine(pricing) {
+  const amount = pricing.amountLabel || '—'
+  if (pricing.isTrialing) {
+    const days = pricing.trialDays && pricing.trialDays > 0 ? pricing.trialDays : 7
+    const per = formatIntervalPerPeriod(pricing.interval)
+    return `Free for ${days} days, then ${amount}${per}`
+  }
+  const interval = pricing.intervalLabel || 'recurring subscription'
+  return `${amount} · ${interval}`
+}
+
+/**
+ * Intro sentence after the greeting.
+ * @param {{ isTrialing?: boolean, trialDays?: number | null }} options
+ */
+export function welcomeIntroSentence({ isTrialing = false, trialDays = null } = {}) {
+  if (isTrialing) {
+    const days = trialDays && trialDays > 0 ? trialDays : 7
+    return `thanks for joining CreatorExec — your ${days}-day free trial has started.`
+  }
+  return 'thanks for joining CreatorExec — your subscription is active.'
 }
 
 function escapeHtml(value) {
@@ -103,14 +165,24 @@ function greetingName(recipientName, recipientEmail) {
  *   planDisplayName: string
  *   amountLabel: string | null
  *   intervalLabel: string | null
+ *   interval?: string | null
+ *   isTrialing?: boolean
+ *   trialDays?: number | null
  * }} options
  */
 export function buildWelcomeEmailHtml(options) {
   const appUrl = (options.appUrl || 'https://creatorexec.app').replace(/\/$/, '')
   const name = greetingName(options.recipientName, options.recipientEmail)
   const planName = options.planDisplayName || 'CreatorExec'
-  const amount = options.amountLabel || '—'
-  const interval = options.intervalLabel || 'recurring subscription'
+  const isTrialing = Boolean(options.isTrialing)
+  const intro = welcomeIntroSentence({ isTrialing, trialDays: options.trialDays })
+  const planSummary = formatPlanSummaryLine({
+    isTrialing,
+    trialDays: options.trialDays,
+    amountLabel: options.amountLabel,
+    intervalLabel: options.intervalLabel,
+    interval: options.interval,
+  })
   const privacyUrl = `${appUrl}/privacy`
   const termsUrl = `${appUrl}/terms`
   const appLink = `${appUrl}/app`
@@ -149,7 +221,7 @@ export function buildWelcomeEmailHtml(options) {
           <tr>
             <td style="padding:18px 28px 0 28px;">
               <p style="margin:0;font-family:'DM Sans',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;color:#5c564c;">
-                Hi ${escapeHtml(name)}, thanks for joining CreatorExec &mdash; your subscription is active.
+                Hi ${escapeHtml(name)}, ${escapeHtml(intro)}
               </p>
             </td>
           </tr>
@@ -165,7 +237,7 @@ export function buildWelcomeEmailHtml(options) {
                       ${escapeHtml(planName)}
                     </p>
                     <p style="margin:8px 0 0 0;font-family:'DM Sans',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#5c564c;">
-                      ${escapeHtml(amount)} &middot; ${escapeHtml(interval)}
+                      ${escapeHtml(planSummary)}
                     </p>
                   </td>
                 </tr>
@@ -218,23 +290,33 @@ export function buildWelcomeEmailHtml(options) {
  *   planDisplayName: string
  *   amountLabel: string | null
  *   intervalLabel: string | null
+ *   interval?: string | null
+ *   isTrialing?: boolean
+ *   trialDays?: number | null
  * }} options
  */
 export function buildWelcomeEmailText(options) {
   const appUrl = (options.appUrl || 'https://creatorexec.app').replace(/\/$/, '')
   const name = greetingName(options.recipientName, options.recipientEmail)
   const planName = options.planDisplayName || 'CreatorExec'
-  const amount = options.amountLabel || '—'
-  const interval = options.intervalLabel || 'recurring subscription'
+  const isTrialing = Boolean(options.isTrialing)
+  const intro = welcomeIntroSentence({ isTrialing, trialDays: options.trialDays })
+  const planSummary = formatPlanSummaryLine({
+    isTrialing,
+    trialDays: options.trialDays,
+    amountLabel: options.amountLabel,
+    intervalLabel: options.intervalLabel,
+    interval: options.interval,
+  })
 
   return [
     "You're in!",
     '',
-    `Hi ${name}, thanks for joining CreatorExec — your subscription is active.`,
+    `Hi ${name}, ${intro}`,
     '',
     'Your plan',
     `${planName}`,
-    `${amount} · ${interval}`,
+    planSummary,
     '',
     "What's next",
     `Open your dashboard: ${appUrl}/app`,
