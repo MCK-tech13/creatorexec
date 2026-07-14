@@ -84,6 +84,7 @@ export async function handleCreateCheckoutSession(req, res) {
         price_id: env.stripeBetaPriceId,
       },
       subscription_data: {
+        trial_period_days: 7,
         metadata: {
           user_id: user.id,
           price_id: env.stripeBetaPriceId,
@@ -92,7 +93,7 @@ export async function handleCreateCheckoutSession(req, res) {
       custom_text: {
         submit: {
           message:
-            'Beta pricing: $25/month while beta lasts. 7-day money-back guarantee — email support@creatorexec.app within 7 days for a full refund. Cancel anytime to stop future billing.',
+            "Beta pricing: $25/month while beta lasts. Start with a 7-day free trial — your card is saved at signup, but you won't be charged until the trial ends. Cancel anytime before day 8 and you won't be charged. Cancel anytime after that to stop future billing.",
         },
       },
     })

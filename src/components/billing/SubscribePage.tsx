@@ -105,14 +105,20 @@ export function SubscribePage() {
         </div>
 
         <ul className="space-y-2 font-body text-sm text-stone">
-          <li>7-day money-back guarantee — email support@creatorexec.app within 7 days for a full refund.</li>
+          <li>
+            Start with a 7-day free trial — cancel anytime before it ends and you won&apos;t be
+            charged.
+          </li>
           <li>Cancel anytime — you keep access through the end of your paid period.</li>
-          <li>No refunds after the 7-day window; future billing stops when you cancel.</li>
+          <li>
+            After your trial, billing continues monthly until you cancel. Future billing stops when
+            you cancel.
+          </li>
         </ul>
 
         {checkoutState === 'success' && (
           <p className="font-body text-sm text-emerald" role="status">
-            Payment received. Activating your subscription…
+            You&apos;re in — your 7-day free trial is starting…
           </p>
         )}
         {checkoutState === 'canceled' && (

@@ -146,10 +146,12 @@ Email failures are logged and never fail the webhook / subscription write.
 | Canceled, still in paid period | Full access + banner until `current_period_end` |
 | Canceled / unpaid after period | Blocked → `/subscribe` |
 
-## 9. Refund policy (checkout copy)
+## 9. Trial policy (checkout)
 
-- 7-day money-back: manual refund in Stripe Dashboard → Payments → Refund (not automated)
-- Cancel anytime: Customer Portal stops future billing; access until `current_period_end`
+- New Checkout sessions set `subscription_data.trial_period_days: 7` (card collected; charge after trial)
+- Cancel during trial: no charge; app access follows Stripe `trialing` / period end
+- Cancel anytime after trial: Customer Portal stops future billing; access until `current_period_end`
+- Existing subscribers who signed up under the prior refund model keep their original terms; new checkouts use trial only
 
 ## 10. `current_period_end` and Stripe API Basil (2025-03-31)
 

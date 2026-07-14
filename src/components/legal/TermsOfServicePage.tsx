@@ -9,7 +9,7 @@ import {
 
 export function TermsOfServicePage() {
   return (
-    <LegalDocumentLayout title="CreatorExec Terms of Service" lastUpdated="July 7, 2026">
+    <LegalDocumentLayout title="CreatorExec Terms of Service" lastUpdated="July 14, 2026">
       <LegalParagraph>
         These Terms of Service (&quot;Terms&quot;) govern your use of CreatorExec, operated by MCK
         Creative Group LLC (&quot;we,&quot; &quot;us,&quot; &quot;our&quot;). By creating an account
@@ -77,22 +77,36 @@ export function TermsOfServicePage() {
         </LegalParagraph>
       </LegalSection>
 
+      {/* LEGAL REVIEW FLAG: Section 6 drafted for 7-day free trial model (replacing
+          prior 7-day money-back refund window for NEW checkouts). Confirm wording
+          before treating as final legal copy. Existing subscribers who purchased
+          under prior refund terms are called out below. */}
       <LegalSection title="6. Payment, Cancellation, and Refunds">
         <LegalParagraph>
           <strong className="font-medium text-ink">Billing:</strong> CreatorExec is offered on a
-          subscription basis. By subscribing, you authorize us to charge your payment method on a
-          recurring basis until you cancel.
+          subscription basis. When you subscribe through Checkout, you provide a payment method and
+          authorize us to charge it on a recurring basis after any applicable trial ends, until you
+          cancel.
+        </LegalParagraph>
+        <LegalParagraph>
+          <strong className="font-medium text-ink">Free trial:</strong> New subscriptions started
+          through Checkout include a 7-day free trial. Your payment method is collected at signup,
+          but you will not be charged until the trial ends. If you cancel before the trial ends, you
+          will not be charged for that subscription. When the trial ends without cancellation, your
+          paid subscription begins and renews on the billing interval selected at signup.
         </LegalParagraph>
         <LegalParagraph>
           <strong className="font-medium text-ink">Cancellation:</strong> You may cancel your
           subscription at any time. Cancellation stops future billing; you&apos;ll retain access
-          through the end of your current paid period.
+          through the end of your current paid period (or through the end of your trial, if you
+          cancel during a trial).
         </LegalParagraph>
         <LegalParagraph>
-          <strong className="font-medium text-ink">Refunds:</strong> If you&apos;re not satisfied,
-          you may request a full refund within 7 days of your initial payment. After the 7-day
-          window, payments are non-refundable, including for partial months or unused time. To
-          request a refund within the window, contact us at <SupportEmailLink />.
+          <strong className="font-medium text-ink">Refunds:</strong> Except where required by law,
+          payments are non-refundable after a charge is successfully processed, including for partial
+          months or unused time. Questions about a charge can be sent to <SupportEmailLink />.
+          Subscribers who purchased under prior money-back guarantee terms (before this free-trial
+          model) may still contact us at <SupportEmailLink /> about those prior terms.
         </LegalParagraph>
         <LegalParagraph>
           <strong className="font-medium text-ink">Price changes:</strong> We may change subscription
