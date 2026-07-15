@@ -18,6 +18,7 @@
     "test:stripe": "node scripts/test-stripe.mjs",
     "verify:current-sprint": "tsx scripts/verify-current-sprint-persist.ts",
     "verify:product-flags": "tsx scripts/verify-product-flags.ts",
+    "audit:sprint-history": "node --env-file=.env scripts/audit-sprint-history.mjs",
     "test:welcome-email": "node scripts/test-welcome-email.mjs",
     "preview:welcome-email": "node scripts/preview-welcome-email.mjs",
     "debug:stripe-period": "node scripts/debug-stripe-period.mjs",
