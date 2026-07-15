@@ -24,28 +24,28 @@ const METRIC_FIELDS: {
     key: 'orders',
     label: 'Orders',
     valuePlaceholder: '24.1K',
-    deltaPlaceholder: '+3.6K',
+    deltaPlaceholder: 'e.g. +190',
     hint: '30-day orders and change from TikTok Product trends',
   },
   {
     key: 'ctr',
     label: 'CTR',
     valuePlaceholder: '3.5',
-    deltaPlaceholder: '-0.5',
+    deltaPlaceholder: 'e.g. +1.8',
     hint: 'Click-through rate and 30-day delta',
   },
   {
     key: 'creators',
     label: 'Number of creators',
     valuePlaceholder: '8.8K',
-    deltaPlaceholder: '+1.1K',
+    deltaPlaceholder: 'e.g. +16',
     hint: 'How many creators are promoting this product',
   },
   {
     key: 'atcUsers',
     label: 'Add-to-cart users',
     valuePlaceholder: '74.1K',
-    deltaPlaceholder: '+13.2K',
+    deltaPlaceholder: 'e.g. +504',
     hint: 'Users who added to cart in the last 30 days',
   },
 ]
@@ -236,8 +236,8 @@ export function ProductScoutForm({
 
             {ocrConfidence && ocrConfidence !== 'low' && !ocrReading && !ocrError && (
               <p className="font-body text-xs text-stone">
-                Pre-filled from screenshot ({ocrConfidence} confidence). Review the values —
-                especially deltas — then save when they look right.
+                Pre-filled from screenshot ({ocrConfidence} confidence), including deltas when
+                readable. Review everything, then save when it looks right.
               </p>
             )}
 

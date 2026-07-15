@@ -27,34 +27,67 @@ assert.equal(PRODUCT_SCOUT_OCR_MODEL, 'claude-sonnet-4-6')
 assert.equal(PRODUCT_SCOUT_OCR_TOOL.name, 'extract_trend_metrics')
 assert.deepEqual(PRODUCT_SCOUT_OCR_TOOL.input_schema.required, [
   'orders',
+  'delta_orders',
   'ctr',
+  'delta_ctr',
   'creators',
+  'delta_creators',
   'atc',
+  'delta_atc',
   'confidence',
 ])
 assert.ok(PRODUCT_SCOUT_OCR_SYSTEM_PROMPT.includes('Do NOT guess'))
-assert.ok(PRODUCT_SCOUT_OCR_USER_PROMPT.includes('null'))
+assert.ok(PRODUCT_SCOUT_OCR_SYSTEM_PROMPT.includes('▲'))
+assert.ok(PRODUCT_SCOUT_OCR_USER_PROMPT.includes('delta_orders'))
 
 assert.deepEqual(
   normalizeExtractedMetrics({
     orders: 24100,
+    delta_orders: 3600,
     ctr: 3.5,
+    delta_ctr: -0.5,
     creators: 8800,
+    delta_creators: 1100,
     atc: 74100,
+    delta_atc: 13200,
     confidence: 'high',
   }),
-  { orders: 24100, ctr: 3.5, creators: 8800, atc: 74100, confidence: 'high' },
+  {
+    orders: 24100,
+    delta_orders: 3600,
+    ctr: 3.5,
+    delta_ctr: -0.5,
+    creators: 8800,
+    delta_creators: 1100,
+    atc: 74100,
+    delta_atc: 13200,
+    confidence: 'high',
+  },
 )
 
 assert.deepEqual(
   normalizeExtractedMetrics({
     orders: null,
+    delta_orders: null,
     ctr: null,
+    delta_ctr: null,
     creators: 1200,
+    delta_creators: null,
     atc: null,
+    delta_atc: null,
     confidence: 'low',
   }),
-  { orders: null, ctr: null, creators: 1200, atc: null, confidence: 'low' },
+  {
+    orders: null,
+    delta_orders: null,
+    ctr: null,
+    delta_ctr: null,
+    creators: 1200,
+    delta_creators: null,
+    atc: null,
+    delta_atc: null,
+    confidence: 'low',
+  },
 )
 
 assert.throws(() => normalizeExtractedMetrics({ orders: 1, confidence: 'nope' }))
@@ -70,9 +103,13 @@ const fakeFetch = async () => ({
         name: 'extract_trend_metrics',
         input: {
           orders: 12500,
+          delta_orders: 190,
           ctr: 2.1,
+          delta_ctr: 1.8,
           creators: 3400,
+          delta_creators: 16,
           atc: 9800,
+          delta_atc: 504,
           confidence: 'medium',
         },
       },
@@ -88,9 +125,13 @@ const mockResult = await extractTrendMetricsFromImage({
 })
 assert.deepEqual(mockResult, {
   orders: 12500,
+  delta_orders: 190,
   ctr: 2.1,
+  delta_ctr: 1.8,
   creators: 3400,
+  delta_creators: 16,
   atc: 9800,
+  delta_atc: 504,
   confidence: 'medium',
 })
 
@@ -108,7 +149,7 @@ async function buildFixture({ label, lines, width = 900, height = 1400 }) {
         <rect x="72" y="${280 + index * 170}" width="${width - 144}" height="140" rx="16" fill="#27272f"/>
         <text x="100" y="${330 + index * 170}" fill="#a1a1aa" font-size="22" font-family="Arial, sans-serif">${line.title}</text>
         <text x="100" y="${390 + index * 170}" fill="#ffffff" font-size="48" font-family="Arial, sans-serif" font-weight="700">${line.value}</text>
-        <text x="${width - 200}" y="${390 + index * 170}" fill="${line.delta.startsWith('-') ? '#f87171' : '#4ade80'}" font-size="28" font-family="Arial, sans-serif">${line.delta}</text>
+        <text x="100" y="${430 + index * 170}" fill="${line.delta.startsWith('▼') || line.delta.startsWith('-') ? '#f87171' : '#4ade80'}" font-size="26" font-family="Arial, sans-serif">${line.delta}</text>
       `,
         )
         .join('')}
@@ -124,20 +165,20 @@ async function buildFixture({ label, lines, width = 900, height = 1400 }) {
 const clearFixture = await buildFixture({
   label: 'Clear metrics card',
   lines: [
-    { title: 'Orders (30 days)', value: '24.1K', delta: '+3.6K' },
-    { title: 'CTR', value: '3.5%', delta: '-0.5' },
-    { title: 'Number of creators', value: '8.8K', delta: '+1.1K' },
-    { title: 'Add-to-cart users', value: '74.1K', delta: '+13.2K' },
+    { title: 'Orders (30 days)', value: '24.1K', delta: '▲3.6K' },
+    { title: 'CTR', value: '3.5%', delta: '▼0.5' },
+    { title: 'Number of creators', value: '8.8K', delta: '▲1.1K' },
+    { title: 'Add-to-cart users', value: '74.1K', delta: '▲13.2K' },
   ],
 })
 
 const busyFixture = await buildFixture({
   label: 'Second product card',
   lines: [
-    { title: 'Orders (30 days)', value: '1.2M', delta: '+84.0K' },
-    { title: 'CTR', value: '5.2%', delta: '+0.4' },
-    { title: 'Number of creators', value: '52.4K', delta: '+2.1K' },
-    { title: 'Add-to-cart users', value: '390.5K', delta: '+22.0K' },
+    { title: 'Orders (30 days)', value: '190', delta: '▲190' },
+    { title: 'CTR', value: '1.8%', delta: '▲1.8%' },
+    { title: 'Number of creators', value: '16', delta: '▲16' },
+    { title: 'Add-to-cart users', value: '504', delta: '▲504' },
   ],
 })
 

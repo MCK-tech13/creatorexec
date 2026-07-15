@@ -1,14 +1,18 @@
 import type { ProductScoutMetrics } from '../../types/productScout'
-import { formatTrendNumber } from './metricParser'
+import { formatSignedDelta, formatTrendNumber } from './metricParser'
 import { EMPTY_PRODUCT_SCOUT_METRICS } from './formDefaults'
 
 export type ExtractConfidence = 'low' | 'medium' | 'high'
 
 export interface ExtractedTrendMetrics {
   orders: number | null
+  delta_orders: number | null
   ctr: number | null
+  delta_ctr: number | null
   creators: number | null
+  delta_creators: number | null
   atc: number | null
+  delta_atc: number | null
   confidence: ExtractConfidence
 }
 
@@ -30,15 +34,41 @@ function formatMetricValue(value: number | null, kind: 'orders' | 'ctr' | 'creat
   return formatTrendNumber(value)
 }
 
-/** Map Claude's numeric extraction into Product Scout form string fields (values only; deltas left blank). */
+function formatMetricDelta(
+  value: number | null,
+  kind: 'orders' | 'ctr' | 'creators' | 'atc',
+): string {
+  if (value === null) return ''
+  if (kind === 'ctr') {
+    if (value === 0) return '0'
+    const abs = Math.abs(value)
+    const body = Number.isInteger(abs) ? String(abs) : abs.toFixed(1).replace(/\.0$/, '')
+    return `${value > 0 ? '+' : '-'}${body}`
+  }
+  return formatSignedDelta(value, false)
+}
+
+/** Map Claude's numeric extraction into Product Scout form string fields (value + delta). */
 export function extractedMetricsToFormMetrics(
   extracted: ExtractedTrendMetrics,
 ): ProductScoutMetrics {
   return {
-    orders: { value: formatMetricValue(extracted.orders, 'orders'), delta: '' },
-    ctr: { value: formatMetricValue(extracted.ctr, 'ctr'), delta: '' },
-    creators: { value: formatMetricValue(extracted.creators, 'creators'), delta: '' },
-    atcUsers: { value: formatMetricValue(extracted.atc, 'atc'), delta: '' },
+    orders: {
+      value: formatMetricValue(extracted.orders, 'orders'),
+      delta: formatMetricDelta(extracted.delta_orders, 'orders'),
+    },
+    ctr: {
+      value: formatMetricValue(extracted.ctr, 'ctr'),
+      delta: formatMetricDelta(extracted.delta_ctr, 'ctr'),
+    },
+    creators: {
+      value: formatMetricValue(extracted.creators, 'creators'),
+      delta: formatMetricDelta(extracted.delta_creators, 'creators'),
+    },
+    atcUsers: {
+      value: formatMetricValue(extracted.atc, 'atc'),
+      delta: formatMetricDelta(extracted.delta_atc, 'atc'),
+    },
   }
 }
 
@@ -50,19 +80,20 @@ export function mergeExtractedIntoMetrics(
   return {
     orders: {
       value: mapped.orders.value || current.orders.value,
-      delta: current.orders.delta,
+      // Prefer extracted delta (including clearing to '') so placeholders aren't mistaken for data.
+      delta: mapped.orders.delta,
     },
     ctr: {
       value: mapped.ctr.value || current.ctr.value,
-      delta: current.ctr.delta,
+      delta: mapped.ctr.delta,
     },
     creators: {
       value: mapped.creators.value || current.creators.value,
-      delta: current.creators.delta,
+      delta: mapped.creators.delta,
     },
     atcUsers: {
       value: mapped.atcUsers.value || current.atcUsers.value,
-      delta: current.atcUsers.delta,
+      delta: mapped.atcUsers.delta,
     },
   }
 }
