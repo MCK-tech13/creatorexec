@@ -63,7 +63,8 @@ import {
   clearSprintSnapshots,
   saveSprintStartSnapshot,
 } from './lib/sprint/sprintSnapshotStorage'
-import { getActiveUserId } from './lib/supabase/dataStore'
+import { getActiveUserId, getUserDataSnapshot } from './lib/supabase/dataStore'
+import { buildProductFlags } from './lib/sprint/productFlags'
 import {
   appPathForSection,
   parseAppSectionPath,
@@ -815,6 +816,13 @@ export default function CreatorExecApp() {
 
   const topEarnerLine = isMomentumMode ? formatTopEarnerLine(products) : null
 
+  const productFlags = useMemo(() => {
+    const completedSprintEnds = getUserDataSnapshot().sprintHistory.map(
+      (record) => record.endSnapshot,
+    )
+    return buildProductFlags(completedSprintEnds, products)
+  }, [products])
+
   const hasProductData = products.length > 0 || sampleProducts.length > 0
   const hasActiveRetainers = brandDeals.some(isActiveRetainer)
   const showSprintEmptyState =
@@ -1112,6 +1120,8 @@ export default function CreatorExecApp() {
             activeTier={activeTier}
             beginnerMode={isBeginnerMode && !isMomentumMode}
             advancedControlsOpen={showAdvancedControls}
+            stalledKeys={productFlags.stalled}
+            slowingAnchorKeys={productFlags.slowingAnchors}
             onVideosFilmedChange={handleVideosFilmedChange}
             onInRotationChange={handleInRotationChange}
             onMarkTrialPreviouslyCompleted={handleMarkTrialPreviouslyCompleted}

@@ -4,6 +4,7 @@ import type { BrandDeal } from '../../types/pipeline'
 import type { ProductScoutEntry } from '../../types/productScout'
 import type { CurrentSprintState } from '../../types/currentSprint'
 import type { SprintSnapshot } from '../../types/sprintReview'
+import type { SprintHistoryRecord } from './sprintHistory'
 import type { TrialProgressStore } from '../schedule/trialProgressStorage'
 
 export interface UserDataSnapshot {
@@ -17,6 +18,7 @@ export interface UserDataSnapshot {
   sprintStartSnapshot: SprintSnapshot | null
   sprintPreviousSnapshot: SprintSnapshot | null
   currentSprintState: CurrentSprintState | null
+  sprintHistory: SprintHistoryRecord[]
 }
 
 const EMPTY_SNAPSHOT: UserDataSnapshot = {
@@ -30,6 +32,7 @@ const EMPTY_SNAPSHOT: UserDataSnapshot = {
   sprintStartSnapshot: null,
   sprintPreviousSnapshot: null,
   currentSprintState: null,
+  sprintHistory: [],
 }
 
 let activeUserId: string | null = null
@@ -101,4 +104,11 @@ export function updateSprintPreviousSnapshot(value: SprintSnapshot | null): void
 
 export function updateCurrentSprintState(value: CurrentSprintState | null): void {
   snapshot = { ...snapshot, currentSprintState: value }
+}
+
+export function prependSprintHistoryRecord(record: SprintHistoryRecord): void {
+  snapshot = {
+    ...snapshot,
+    sprintHistory: [record, ...snapshot.sprintHistory].slice(0, 4),
+  }
 }

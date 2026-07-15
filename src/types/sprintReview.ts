@@ -6,8 +6,16 @@ export interface SprintProductSnapshot {
   productId: string
   productName: string
   commission: number
+  gmv?: number
   tier: Tier
   videosFilmed: number
+}
+
+export interface ProductFlagEntry {
+  key: string
+  productId: string
+  productName: string
+  tier: Tier
 }
 
 export interface SprintSnapshot {
@@ -45,7 +53,12 @@ export interface SprintReview {
   commission: CommissionComparison
   topPerformer: SprintProductSnapshot | null
   trialsInProgress: number
+  stalledProducts: ProductFlagEntry[]
+  slowingAnchors: ProductFlagEntry[]
 }
+
+export const PRODUCT_FLAG_COMMISSION_NOTE =
+  'Based on commission data from your uploaded reports. Video views and engagement are not tracked yet.'
 
 export function snapshotFromProducts(
   products: MergedProduct[],
@@ -60,6 +73,7 @@ export function snapshotFromProducts(
     productId: product.productId,
     productName: product.productName,
     commission: product.commission,
+    gmv: product.gmv,
     tier: product.tier,
     videosFilmed: product.videosFilmed,
   }))

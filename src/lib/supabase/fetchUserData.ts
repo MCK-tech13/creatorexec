@@ -10,6 +10,7 @@ import {
   productScoutFromRow,
   trialProgressFromRows,
 } from './mappers'
+import { fetchSprintHistory } from './sprintHistory'
 
 type Client = SupabaseClient<Database>
 
@@ -21,6 +22,7 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
     scoutResult,
     onboardingResult,
     currentSprintResult,
+    sprintHistory,
   ] = await Promise.all([
     client.from('trial_progress').select('*').eq('user_id', userId),
     client.from('retainer_deals').select('*').eq('user_id', userId).order('created_at'),
@@ -28,6 +30,7 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
     client.from('product_scout_list').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
     client.from('onboarding_state').select('*').eq('user_id', userId).maybeSingle(),
     client.from('current_sprint_state').select('*').eq('user_id', userId).maybeSingle(),
+    fetchSprintHistory(client, userId),
   ])
 
   if (trialResult.error) throw trialResult.error
@@ -52,5 +55,6 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
     currentSprintState: currentSprintResult.data
       ? currentSprintFromRow(currentSprintResult.data)
       : null,
+    sprintHistory,
   }
 }

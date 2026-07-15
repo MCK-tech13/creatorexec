@@ -113,5 +113,7 @@ export function buildSprintReview(
     commission: buildCommissionComparison(sprintEnd, previousCompleted),
     topPerformer,
     trialsInProgress,
+    stalledProducts: [],
+    slowingAnchors: [],
   }
 }

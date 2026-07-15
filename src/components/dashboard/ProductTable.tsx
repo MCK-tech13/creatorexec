@@ -3,8 +3,10 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import type { MergedProduct, Tier } from '../../types'
 import { TIER_REVIEW_VIDEO_COUNT } from '../../types'
 import { TierBadge } from './TierBadge'
+import { ProductFlagBadge } from './ProductFlagBadge'
 import { VideoProgressBar } from './VideoProgressBar'
 import { isReadyForTierReview } from '../../lib/dashboard/videoProgress'
+import { trialStorageKey } from '../../lib/schedule/trialProgressStorage'
 
 type SortField = 'commission' | 'gmv' | 'itemsSold' | 'score'
 type SortDir = 'asc' | 'desc'
@@ -14,6 +16,8 @@ interface ProductTableProps {
   activeTier: Tier | 'All'
   beginnerMode?: boolean
   advancedControlsOpen?: boolean
+  stalledKeys?: Set<string>
+  slowingAnchorKeys?: Set<string>
   onVideosFilmedChange: (productId: string, videosFilmed: number) => void
   onInRotationChange: (productId: string, inRotation: boolean) => void
   onMarkTrialPreviouslyCompleted: (productId: string) => void
@@ -60,6 +64,8 @@ export function ProductTable({
   activeTier,
   beginnerMode = false,
   advancedControlsOpen = false,
+  stalledKeys,
+  slowingAnchorKeys,
   onVideosFilmedChange,
   onInRotationChange,
   onMarkTrialPreviouslyCompleted,
@@ -96,6 +102,26 @@ export function ProductTable({
     )
   }
 
+  const productFlags = (product: MergedProduct) => {
+    const key = trialStorageKey(product)
+    const flags: Array<'stalled' | 'slowing'> = []
+    if (stalledKeys?.has(key)) flags.push('stalled')
+    if (slowingAnchorKeys?.has(key)) flags.push('slowing')
+    return flags
+  }
+
+  const renderProductFlags = (product: MergedProduct) => {
+    const flags = productFlags(product)
+    if (flags.length === 0) return null
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {flags.map((flag) => (
+          <ProductFlagBadge key={flag} kind={flag} />
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div>
       <ul className="divide-y divide-border-warm border border-border-warm md:hidden">
@@ -125,6 +151,7 @@ export function ProductTable({
                   {formatCurrency(product.commission)}
                 </span>
               </div>
+              {renderProductFlags(product)}
               <TestTrialStatus
                 product={product}
                 onMarkTrialPreviouslyCompleted={onMarkTrialPreviouslyCompleted}
@@ -246,6 +273,9 @@ export function ProductTable({
                       {product.isManual && (
                         <span className="label-caps shrink-0">Manual</span>
                       )}
+                      {productFlags(product).map((flag) => (
+                        <ProductFlagBadge key={flag} kind={flag} />
+                      ))}
                     </div>
                   </td>
                   <td className="px-5 py-5">

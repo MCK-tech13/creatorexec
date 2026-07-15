@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react'
 import type { SprintReview } from '../../types/sprintReview'
+import { PRODUCT_FLAG_COMMISSION_NOTE } from '../../types/sprintReview'
 import { TierBadge } from '../dashboard/TierBadge'
 
 interface SprintReviewModalProps {
@@ -201,6 +202,50 @@ export function SprintReviewModal({ review, onContinue }: SprintReviewModalProps
               </ul>
             )}
           </Section>
+
+          {review.stalledProducts.length > 0 && (
+            <Section title="Consider cutting">
+              <p className="mb-4 font-body text-sm text-stone">
+                These Test and Rising products have not moved tiers for two consecutive sprints.
+              </p>
+              <ul className="divide-y divide-border-warm">
+                {review.stalledProducts.map((product) => (
+                  <li
+                    key={product.key}
+                    className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <p className="font-body text-sm font-medium text-ink sm:text-base">
+                      {product.productName}
+                    </p>
+                    <TierBadge tier={product.tier} />
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+
+          {review.slowingAnchors.length > 0 && (
+            <Section title="Trending down">
+              <p className="mb-4 font-body text-sm text-stone">
+                Worth keeping an eye on — these Anchor products have seen commission decline
+                for three consecutive sprints.
+              </p>
+              <p className="mb-4 font-body text-xs text-stone">{PRODUCT_FLAG_COMMISSION_NOTE}</p>
+              <ul className="divide-y divide-border-warm">
+                {review.slowingAnchors.map((product) => (
+                  <li
+                    key={product.key}
+                    className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <p className="font-body text-sm font-medium text-ink sm:text-base">
+                      {product.productName}
+                    </p>
+                    <TierBadge tier={product.tier} />
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
           <section className="border border-terracotta/40 bg-terracotta-tint px-5 py-4 sm:px-6 sm:py-5">
             <p className="font-body text-[11px] font-medium uppercase tracking-[0.14em] text-stone">

@@ -143,6 +143,7 @@ export function readLocalStorageSnapshot(): UserDataSnapshot {
     sprintStartSnapshot: parseSprintSnapshot(readJson(LOCAL_STORAGE_KEYS.sprintStart)),
     sprintPreviousSnapshot: parseSprintSnapshot(readJson(LOCAL_STORAGE_KEYS.sprintPrevious)),
     currentSprintState: null,
+    sprintHistory: [],
   }
 }
 
