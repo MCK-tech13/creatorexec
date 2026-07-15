@@ -359,9 +359,35 @@ export async function handleUploadReminderCron(req, res) {
     })
   } catch (error) {
     console.error('[upload-reminder] cron failed', error)
+    // Supabase/PostgREST often throws plain objects ({ message, code, details, hint }),
+    // not Error instances — surface those fields so Preview/manual curl shows the real cause.
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error?.message === 'string'
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Upload reminder cron failed'
     res.status(500).json({
       ok: false,
-      error: error instanceof Error ? error.message : 'Upload reminder cron failed',
+      error: message,
+      errorName: error instanceof Error ? error.name : typeof error,
+      errorCode: typeof error?.code === 'string' ? error.code : null,
+      errorDetails: typeof error?.details === 'string' ? error.details : null,
+      errorHint: typeof error?.hint === 'string' ? error.hint : null,
+      errorStack: error instanceof Error ? error.stack ?? null : null,
+      // Temporary debug: full JSON-ish dump when it's not a standard Error
+      errorRaw:
+        error instanceof Error
+          ? null
+          : (() => {
+              try {
+                return JSON.parse(JSON.stringify(error))
+              } catch {
+                return String(error)
+              }
+            })(),
     })
   }
 }
