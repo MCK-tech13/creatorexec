@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useAuth } from './contexts/AuthContext'
 import { AppShell } from './components/layout/AppShell'
@@ -64,6 +64,10 @@ import {
   saveSprintStartSnapshot,
 } from './lib/sprint/sprintSnapshotStorage'
 import { getActiveUserId } from './lib/supabase/dataStore'
+import {
+  appPathForSection,
+  parseAppSectionPath,
+} from './lib/navigation/appSections'
 import { snapshotFromProducts } from './types/sprintReview'
 import {
   hasPersistedSprintContent,
@@ -181,10 +185,15 @@ function buildScheduleForMode(
 
 export default function CreatorExecApp() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, signOut } = useAuth()
   const restoredRef = useRef<CurrentSprintState | null>(readRestoredSprint())
   const restored = restoredRef.current
   const clearingRef = useRef(false)
+
+  const resolveSectionForBareApp = useCallback((): MainSection => {
+    return restoredRef.current?.stage === 'schedule' ? 'sprint' : 'home'
+  }, [])
 
   const [onboardingComplete, setOnboardingComplete] = useState(
     () => loadOnboardingProfile() !== null,
@@ -221,9 +230,12 @@ export default function CreatorExecApp() {
   )
   const [pendingProducts, setPendingProducts] = useState<MergedProduct[] | null>(null)
   const [showMomentumPrompt, setShowMomentumPrompt] = useState(false)
-  const [mainSection, setMainSection] = useState<MainSection>(() =>
-    restored?.stage === 'schedule' ? 'sprint' : 'home',
-  )
+  const [mainSection, setMainSection] = useState<MainSection>(() => {
+    const fromUrl = parseAppSectionPath(window.location.pathname)
+    if (fromUrl && fromUrl !== 'invalid') return fromUrl
+    // Bare `/app` or unknown — sprint-restore fallback only when URL has no section.
+    return restored?.stage === 'schedule' ? 'sprint' : 'home'
+  })
   const [showUploadPanel, setShowUploadPanel] = useState(false)
   const [openNewRetainerDeal, setOpenNewRetainerDeal] = useState(false)
   const [showProductEntry, setShowProductEntry] = useState(false)
@@ -418,6 +430,7 @@ export default function CreatorExecApp() {
     setOnboardingComplete(false)
     setUserMode('beginner')
     setMainSection('home')
+    navigate(appPathForSection('home'))
     setStage('upload')
     setProducts([])
     setDeadlineProducts([])
@@ -439,7 +452,7 @@ export default function CreatorExecApp() {
     setShowProductEntry(false)
     clearingRef.current = false
     setPersistEnabled(true)
-  }, [resetFilmingProgress])
+  }, [navigate, resetFilmingProgress])
 
   const handleFileLoaded = useCallback(
     async (file: File, options?: { fromMomentumEntry?: boolean }) => {
@@ -832,13 +845,33 @@ export default function CreatorExecApp() {
         stage === 'schedule' ||
         showRetainerOnlySchedule))
 
-  const handleSectionChange = useCallback((section: MainSection) => {
-    setMainSection(section)
-  }, [])
+  const handleSectionChange = useCallback(
+    (section: MainSection) => {
+      setMainSection(section)
+      navigate(appPathForSection(section))
+    },
+    [navigate],
+  )
 
   const handleGoHome = useCallback(() => {
     setMainSection('home')
-  }, [])
+    navigate(appPathForSection('home'))
+  }, [navigate])
+
+  // Keep section state in sync with the URL (reload, back/forward, deep links).
+  useEffect(() => {
+    const parsed = parseAppSectionPath(location.pathname)
+    if (parsed === 'invalid') {
+      navigate(appPathForSection('home'), { replace: true })
+      return
+    }
+    if (parsed === null) {
+      const fallback = resolveSectionForBareApp()
+      navigate(appPathForSection(fallback), { replace: true })
+      return
+    }
+    setMainSection(parsed)
+  }, [location.pathname, navigate, resolveSectionForBareApp])
 
   const handleSignOut = useCallback(async () => {
     const result = await signOut()
@@ -850,7 +883,8 @@ export default function CreatorExecApp() {
   const handleAddRetainerFromEmpty = useCallback(() => {
     setOpenNewRetainerDeal(true)
     setMainSection('retainers')
-  }, [])
+    navigate(appPathForSection('retainers'))
+  }, [navigate])
 
   const dashboardPreviews = useMemo(
     () => ({

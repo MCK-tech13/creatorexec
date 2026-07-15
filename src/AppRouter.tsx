@@ -7,9 +7,8 @@ import { ResetPasswordPage } from './components/auth/ResetPasswordPage'
 import { LandingRoute, ProtectedRoute } from './components/auth/AuthRoutes'
 import { SupabaseConfigNotice } from './components/auth/SupabaseConfigNotice'
 import { SubscribePage } from './components/billing/SubscribePage'
-import { SubscriptionGate } from './components/billing/SubscriptionGate'
 import { SubscriptionProvider } from './contexts/SubscriptionContext'
-import { UserDataProvider } from './contexts/UserDataContext'
+import { AppShellProviders } from './components/app/AppShellProviders'
 import { PrivacyPolicyPage } from './components/legal/PrivacyPolicyPage'
 import { TermsOfServicePage } from './components/legal/TermsOfServicePage'
 import CreatorExecApp from './CreatorExecApp'
@@ -42,20 +41,10 @@ export function AppRouter() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/app"
-          element={
-            <ProtectedRoute>
-              <SubscriptionProvider>
-                <SubscriptionGate>
-                  <UserDataProvider>
-                    <CreatorExecApp />
-                  </UserDataProvider>
-                </SubscriptionGate>
-              </SubscriptionProvider>
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/app" element={<AppShellProviders />}>
+          <Route index element={<CreatorExecApp />} />
+          <Route path=":section" element={<CreatorExecApp />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </SupabaseConfigNotice>
