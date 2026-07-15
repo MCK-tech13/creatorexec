@@ -19,6 +19,7 @@
     "verify:current-sprint": "tsx scripts/verify-current-sprint-persist.ts",
     "test:welcome-email": "node scripts/test-welcome-email.mjs",
     "preview:welcome-email": "node scripts/preview-welcome-email.mjs",
+    "backfill:welcome-emails": "node scripts/backfill-welcome-emails.mjs",
     "debug:stripe-period": "node scripts/debug-stripe-period.mjs",
     "dev:api": "node server/index.mjs",
     "verify:phase1": "bash scripts/verify-phase1.sh",

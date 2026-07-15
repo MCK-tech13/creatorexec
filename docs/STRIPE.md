@@ -134,6 +134,21 @@ SEND_WELCOME_EMAIL=1 RESEND_API_KEY=re_... WELCOME_EMAIL_TO=you@example.com npm 
 
 Email failures are logged and never fail the webhook / subscription write.
 
+### Retroactive backfill (one-off)
+
+Send the branded welcome email to **all** currently `active` / `trialing` subscribers
+(excludes test/internal aliases). Dry-run always comes first:
+
+```bash
+# 1) Dry run — prints approval list only (nothing sent)
+npm run backfill:welcome-emails
+
+# 2) After approving the printed emails:
+SEND_WELCOME_EMAILS=1 npm run backfill:welcome-emails
+```
+
+Or review the same cohort in SQL Editor: `scripts/sql/list-welcome-email-backfill-candidates.sql`.
+
 ## 8. Access gating policy
 
 **Production choice: `grace_period`** (set in `src/lib/billing/subscription.ts`).
