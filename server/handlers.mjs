@@ -1,6 +1,8 @@
 import { getWebhookEnvStatus } from './env.mjs'
 import { getBillingContext } from './billingContext.mjs'
 import { verifySupabaseAccessToken } from './supabaseAdmin.mjs'
+import { downsizeScreenshotForVision, parseDataUrl } from './imageDownsize.mjs'
+import { extractTrendMetricsFromImage } from './productScoutOcr.mjs'
 import {
   markSubscriptionPastDue,
   syncCheckoutSessionCompleted,
@@ -231,5 +233,96 @@ export async function handleStripeWebhook(req, res, rawBody) {
         `Webhook handler failed: ${error instanceof Error ? error.message : 'unknown error'}`,
       )
     }
+  }
+}
+
+/**
+ * POST /api/product-scout/extract-screenshot
+ * Body: { imageDataUrl: "data:image/...;base64,..." }
+ */
+export async function handleProductScoutExtractScreenshot(req, res) {
+  try {
+    const token = bearerToken(req)
+    if (!token) {
+      res.status(401).json({ error: 'Missing authorization token' })
+      return
+    }
+
+    // Prefer full billing context when available; fall back to server env so OCR
+    // can be exercised without requiring Stripe keys in local tooling.
+    let supabaseUrl
+    let supabaseAnonKey
+    let anthropicApiKey
+    try {
+      const { env } = getBillingContext()
+      supabaseUrl = env.supabaseUrl
+      supabaseAnonKey = env.supabaseAnonKey
+      anthropicApiKey = env.anthropicApiKey
+    } catch {
+      const { getServerEnv, loadEnvFile } = await import('./env.mjs')
+      loadEnvFile()
+      const env = getServerEnv()
+      supabaseUrl = env.supabaseUrl
+      supabaseAnonKey = env.supabaseAnonKey
+      anthropicApiKey = env.anthropicApiKey
+    }
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      res.status(500).json({ error: 'Auth is not configured on the server.' })
+      return
+    }
+
+    await verifySupabaseAccessToken(supabaseUrl, supabaseAnonKey, token)
+
+    if (!anthropicApiKey) {
+      res.status(503).json({
+        error:
+          'Screenshot reading is not configured yet. Enter the numbers manually, or ask support to enable ANTHROPIC_API_KEY.',
+      })
+      return
+    }
+
+    const imageDataUrl = typeof req.body?.imageDataUrl === 'string' ? req.body.imageDataUrl : null
+    if (!imageDataUrl) {
+      res.status(400).json({ error: 'Missing imageDataUrl' })
+      return
+    }
+
+    // Reject absurd payloads early (client should downsize; this is a hard ceiling).
+    if (imageDataUrl.length > 8_000_000) {
+      res.status(413).json({ error: 'Screenshot is too large. Try a clearer crop of the metrics.' })
+      return
+    }
+
+    const parsed = parseDataUrl(imageDataUrl)
+    const resized = await downsizeScreenshotForVision(parsed.buffer)
+    const metrics = await extractTrendMetricsFromImage({
+      apiKey: anthropicApiKey,
+      imageBase64: resized.buffer.toString('base64'),
+      mediaType: resized.mediaType,
+    })
+
+    res.status(200).json({
+      metrics,
+      meta: {
+        width: resized.width,
+        height: resized.height,
+        originalWidth: resized.originalWidth,
+        originalHeight: resized.originalHeight,
+      },
+    })
+  } catch (error) {
+    console.error('[product-scout] extract-screenshot failed', error)
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Could not read that screenshot. Enter the numbers manually instead.'
+    const status =
+      typeof error?.status === 'number' && error.status === 429
+        ? 429
+        : typeof error?.status === 'number' && error.status >= 500
+          ? 502
+          : 400
+    res.status(status).json({ error: message })
   }
 }

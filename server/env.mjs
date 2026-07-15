@@ -44,6 +44,7 @@ export function getServerEnv() {
   const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() || null
   const stripeBetaPriceId = process.env.STRIPE_BETA_PRICE_ID
   const resendApiKey = process.env.RESEND_API_KEY?.trim() || null
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim() || null
   const appUrl =
     process.env.APP_URL ??
     process.env.VITE_APP_URL ??
@@ -58,6 +59,7 @@ export function getServerEnv() {
     stripeWebhookSecret,
     stripeBetaPriceId,
     resendApiKey,
+    anthropicApiKey,
     appUrl,
     port,
   }
@@ -102,6 +104,9 @@ export function logServerStartup(env, envFileResult) {
   console.log(`  STRIPE_SECRET_KEY: ${maskSecret(env.stripeSecretKey)}`)
   console.log(`  STRIPE_BETA_PRICE_ID: ${env.stripeBetaPriceId ?? 'MISSING'}`)
   console.log(`  RESEND_API_KEY: ${env.resendApiKey ? maskSecret(env.resendApiKey) : 'MISSING'}`)
+  console.log(
+    `  ANTHROPIC_API_KEY: ${env.anthropicApiKey ? maskSecret(env.anthropicApiKey) : 'MISSING'}`,
+  )
   console.log(`  APP_URL: ${env.appUrl}`)
   console.log(
     `  STRIPE_WEBHOOK_SECRET: ${webhook.configured ? maskSecret(env.stripeWebhookSecret) : 'MISSING'}`,

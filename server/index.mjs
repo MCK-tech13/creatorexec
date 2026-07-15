@@ -5,6 +5,7 @@ import {
   handleCreateCheckoutSession,
   handleCreatePortalSession,
   handleHealth,
+  handleProductScoutExtractScreenshot,
   handleStripeWebhook,
 } from './handlers.mjs'
 import { readRawBody } from './rawBody.mjs'
@@ -26,6 +27,14 @@ app.post('/api/stripe/create-portal-session', express.json(), (req, res) => {
   void handleCreatePortalSession(req, res)
 })
 
+app.post(
+  '/api/product-scout/extract-screenshot',
+  express.json({ limit: '6mb' }),
+  (req, res) => {
+    void handleProductScoutExtractScreenshot(req, res)
+  },
+)
+
 app.post('/api/stripe/webhook', async (req, res) => {
   const rawBody = await readRawBody(req)
   await handleStripeWebhook(req, res, rawBody)
@@ -34,6 +43,10 @@ app.post('/api/stripe/webhook', async (req, res) => {
 app.use((error, _req, res, _next) => {
   console.error('[billing-api] unhandled Express error', error)
   if (!res.headersSent) {
+    if (error?.type === 'entity.too.large') {
+      res.status(413).json({ error: 'Screenshot is too large. Try a clearer crop of the metrics.' })
+      return
+    }
     res.status(500).send('Internal server error')
   }
 })
