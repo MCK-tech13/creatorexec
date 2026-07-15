@@ -19,12 +19,11 @@ cp .env.example .env
 
 ## 2. Apply the schema
 
-Open **SQL Editor** in Supabase and run **both** migration files in order:
+Open **SQL Editor** in Supabase and run migration files in order (at minimum the initial schema + grants, then any later files you have not applied yet — including `20260715000000_current_sprint_state.sql`).
 
 1. `supabase/migrations/20260709000000_initial_schema.sql`
 2. `supabase/migrations/20260709000001_grant_authenticated.sql`
-
-If you already applied the initial schema before grants were added, you only need to run the second file.
+3. …then later migrations under `supabase/migrations/` as needed
 
 This creates:
 
@@ -36,6 +35,7 @@ This creates:
 | `sprint_history` | sprint snapshots + recap (`SprintSnapshot`, `SprintReview`) |
 | `product_scout_list` | `creatorexec-product-scout` |
 | `onboarding_state` | `creatorexec-onboarding` + welcome/sprint-entry flags |
+| `current_sprint_state` | live sprint workspace (products, schedule, filming checkmarks) |
 
 All tables have **RLS enabled** with per-user policies (`auth.uid() = user_id`).
 
@@ -84,11 +84,15 @@ This creates a temporary user, confirms it appears in Authentication → Users, 
 
 ## 5. Phase 3 — user data in Supabase
 
-Apply the sprint snapshot migration if you set up Phase 1 before Phase 3 shipped:
+Apply these migrations (in order) if you set up Phase 1 before later features shipped:
 
 3. `supabase/migrations/20260709000002_onboarding_sprint_snapshots.sql`
+4. Later income / subscription migrations as listed under `supabase/migrations/`
+5. `supabase/migrations/20260715000000_current_sprint_state.sql` — live sprint schedule + filming checkmarks
 
 On first login after updating the app, any existing browser `localStorage` data for the six domains is uploaded once to Supabase under that user's account. After migration, reads and writes go to Supabase (not localStorage).
+
+`creatorexec-filming-progress` is migrated once into `current_sprint_state.filming_progress` on the **first sprint save** in that browser (not during the Phase 3 bulk migration), then cleared from localStorage.
 
 ### Verify Phase 3 data layer
 
@@ -103,4 +107,4 @@ The script:
 - Signs in again as the same user in a new session (cross-device read)
 - Prints actual table row JSON via the service role as proof
 
-Phase 1 does **not** change unrelated localStorage modules (filming progress, angle rotation, Product Scout walkthrough flag).
+Phase 1 does **not** change unrelated localStorage modules (angle rotation, Product Scout walkthrough flag).

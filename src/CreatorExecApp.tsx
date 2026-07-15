@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useAuth } from './contexts/AuthContext'
@@ -19,6 +19,7 @@ import { IncomeTracker } from './components/income/IncomeTracker'
 import { ProductScout } from './components/productScout/ProductScout'
 import { DashboardHome } from './components/dashboard/DashboardHome'
 import { useProductScout } from './hooks/useProductScout'
+import { useFilmingProgress } from './hooks/useFilmingProgress'
 import {
   buildIncomeHomePreview,
   buildProductScoutHomePreview,
@@ -43,7 +44,6 @@ import {
   buildSampleModeSchedule,
   sampleProductsToMerged,
 } from './lib/schedule/sampleModeSchedule'
-import { clearFilmingProgress } from './hooks/useFilmingProgress'
 import {
   hydrateProductsTrialProgress,
   persistProductVideosFilmed,
@@ -54,10 +54,21 @@ import {
 } from './lib/schedule/trialProgressStorage'
 import { captureSprintEndReview } from './lib/sprint/finalizeSprint'
 import {
+  clearCurrentSprintState,
+  loadCurrentSprintState,
+  saveCurrentSprintState,
+} from './lib/sprint/currentSprintStorage'
+import { previewLegacyFilmingMerge } from './lib/sprint/filmingProgressMigration'
+import {
   clearSprintSnapshots,
   saveSprintStartSnapshot,
 } from './lib/sprint/sprintSnapshotStorage'
+import { getActiveUserId } from './lib/supabase/dataStore'
 import { snapshotFromProducts } from './types/sprintReview'
+import {
+  hasPersistedSprintContent,
+  type CurrentSprintState,
+} from './types/currentSprint'
 import { useBrandDeals } from './hooks/useBrandDeals'
 import {
   buildRetainerScheduleEntries,
@@ -111,6 +122,19 @@ function initialUploadLandingMode(): 'routed' | 'empty' {
   return resolveHomeView().uploadLandingMode
 }
 
+function readRestoredSprint(): CurrentSprintState | null {
+  const saved = loadCurrentSprintState()
+  if (!saved || !hasPersistedSprintContent(saved)) return null
+  try {
+    return {
+      ...saved,
+      filmingProgress: previewLegacyFilmingMerge(getActiveUserId(), saved.filmingProgress),
+    }
+  } catch {
+    return saved
+  }
+}
+
 function buildScheduleForMode(
   mode: ScheduleMode,
   products: MergedProduct[],
@@ -158,30 +182,48 @@ function buildScheduleForMode(
 export default function CreatorExecApp() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
+  const restoredRef = useRef<CurrentSprintState | null>(readRestoredSprint())
+  const restored = restoredRef.current
+  const clearingRef = useRef(false)
+
   const [onboardingComplete, setOnboardingComplete] = useState(
     () => loadOnboardingProfile() !== null,
   )
   const [userMode, setUserMode] = useState<UserMode>(
     () => loadOnboardingProfile()?.mode ?? 'beginner',
   )
-  const [stage, setStage] = useState<AppStage>(initialAppStage)
-  const [uploadLandingMode, setUploadLandingMode] = useState<'routed' | 'empty'>(initialUploadLandingMode)
-  const [products, setProducts] = useState<MergedProduct[]>([])
-  const [deadlineProducts, setDeadlineProducts] = useState<DeadlineProduct[]>([])
-  const [excludedFromSchedule, setExcludedFromSchedule] = useState<Set<string>>(new Set())
+  const [stage, setStage] = useState<AppStage>(() => restored?.stage ?? initialAppStage())
+  const [uploadLandingMode, setUploadLandingMode] = useState<'routed' | 'empty'>(
+    initialUploadLandingMode,
+  )
+  const [products, setProducts] = useState<MergedProduct[]>(() => restored?.products ?? [])
+  const [deadlineProducts, setDeadlineProducts] = useState<DeadlineProduct[]>(
+    () => restored?.deadlineProducts ?? [],
+  )
+  const [excludedFromSchedule, setExcludedFromSchedule] = useState<Set<string>>(
+    () => new Set(restored?.excludedProductKeys ?? []),
+  )
   const [showAdvancedControls, setShowAdvancedControls] = useState(false)
   const [activeTier, setActiveTier] = useState<Tier | 'All'>('All')
-  const [sprintConfig, setSprintConfig] = useState<SprintConfig>(initialSprintConfig)
-  const [schedule, setSchedule] = useState<DaySchedule[]>([])
+  const [sprintConfig, setSprintConfig] = useState<SprintConfig>(
+    () => restored?.sprintConfig ?? initialSprintConfig(),
+  )
+  const [schedule, setSchedule] = useState<DaySchedule[]>(() => restored?.schedule ?? [])
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [fileName, setFileName] = useState<string | null>(null)
+  const [fileName, setFileName] = useState<string | null>(() => restored?.fileName ?? null)
   const [showAddProductModal, setShowAddProductModal] = useState(false)
-  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('full')
-  const [sampleProducts, setSampleProducts] = useState<SampleProduct[]>([])
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>(
+    () => restored?.scheduleMode ?? 'full',
+  )
+  const [sampleProducts, setSampleProducts] = useState<SampleProduct[]>(
+    () => restored?.sampleProducts ?? [],
+  )
   const [pendingProducts, setPendingProducts] = useState<MergedProduct[] | null>(null)
   const [showMomentumPrompt, setShowMomentumPrompt] = useState(false)
-  const [mainSection, setMainSection] = useState<MainSection>('home')
+  const [mainSection, setMainSection] = useState<MainSection>(() =>
+    restored?.stage === 'schedule' ? 'sprint' : 'home',
+  )
   const [showUploadPanel, setShowUploadPanel] = useState(false)
   const [openNewRetainerDeal, setOpenNewRetainerDeal] = useState(false)
   const [showProductEntry, setShowProductEntry] = useState(false)
@@ -189,6 +231,65 @@ export default function CreatorExecApp() {
   const [pendingSprintReset, setPendingSprintReset] = useState<'upload' | 'start-over' | null>(
     null,
   )
+  /** Gate autosave until restore seed is in React state (avoids empty overwrite). */
+  const [persistEnabled, setPersistEnabled] = useState(false)
+
+  const {
+    progress: filmingProgress,
+    getCount: getFilmedCount,
+    increment: incrementFilmed,
+    decrement: decrementFilmed,
+    reset: resetFilmingProgress,
+    setProgress: setFilmingProgress,
+  } = useFilmingProgress(restored?.filmingProgress ?? {})
+
+  useEffect(() => {
+    // Surface legacy localStorage checkmarks in UI before the first cloud save consumes them.
+    try {
+      const merged = previewLegacyFilmingMerge(getActiveUserId(), filmingProgress)
+      const changed = Object.keys(merged).some(
+        (key) => merged[key] !== (filmingProgress[key] ?? 0),
+      )
+      if (changed) setFilmingProgress(merged)
+    } catch {
+      // data store not ready outside UserDataProvider — ignore
+    }
+    setPersistEnabled(true)
+  }, [])
+
+  useEffect(() => {
+    if (!persistEnabled || clearingRef.current) return
+
+    const next: CurrentSprintState = {
+      stage,
+      scheduleMode,
+      fileName,
+      sprintConfig,
+      products,
+      deadlineProducts,
+      excludedProductKeys: [...excludedFromSchedule],
+      sampleProducts,
+      schedule,
+      filmingProgress,
+    }
+
+    // Never delete via autosave — empty just means "nothing to upsert yet".
+    if (!hasPersistedSprintContent(next)) return
+
+    saveCurrentSprintState(next)
+  }, [
+    persistEnabled,
+    stage,
+    scheduleMode,
+    fileName,
+    sprintConfig,
+    products,
+    deadlineProducts,
+    excludedFromSchedule,
+    sampleProducts,
+    schedule,
+    filmingProgress,
+  ])
 
   const saveCurrentSprintStart = useCallback(
     (
@@ -310,6 +411,8 @@ export default function CreatorExecApp() {
   }, [])
 
   const handleResetOnboarding = useCallback(() => {
+    setPersistEnabled(false)
+    clearingRef.current = true
     clearOnboardingProfile()
     clearSprintEntrySeen()
     setOnboardingComplete(false)
@@ -324,7 +427,8 @@ export default function CreatorExecApp() {
     setFileName(null)
     setSprintConfig({ videosPerDay: 5, sprintDays: 7 })
     setActiveTier('All')
-    clearFilmingProgress()
+    resetFilmingProgress()
+    clearCurrentSprintState()
     clearTrialProgress()
     clearSprintSnapshots()
     setScheduleMode('full')
@@ -333,7 +437,9 @@ export default function CreatorExecApp() {
     setShowMomentumPrompt(false)
     setUploadLandingMode('routed')
     setShowProductEntry(false)
-  }, [])
+    clearingRef.current = false
+    setPersistEnabled(true)
+  }, [resetFilmingProgress])
 
   const handleFileLoaded = useCallback(
     async (file: File, options?: { fromMomentumEntry?: boolean }) => {
@@ -534,6 +640,8 @@ export default function CreatorExecApp() {
   )
 
   const resetSprintState = useCallback(() => {
+    setPersistEnabled(false)
+    clearingRef.current = true
     setShowProductEntry(false)
     setProducts([])
     setDeadlineProducts([])
@@ -549,8 +657,11 @@ export default function CreatorExecApp() {
       videosPerDay: loadOnboardingProfile()?.videosPerDay ?? prev.videosPerDay,
       sprintDays: 7,
     }))
-    clearFilmingProgress()
-  }, [])
+    resetFilmingProgress()
+    clearCurrentSprintState()
+    clearingRef.current = false
+    setPersistEnabled(true)
+  }, [resetFilmingProgress])
 
   const beginNextSprint = useCallback(
     (resetKind: 'upload' | 'start-over') => {
@@ -779,7 +890,17 @@ export default function CreatorExecApp() {
     }
   }, [onboardingComplete])
 
+  const skipRestoredScheduleRebuildRef = useRef(
+    Boolean(restored && restored.schedule.length > 0),
+  )
+
   useEffect(() => {
+    if (skipRestoredScheduleRebuildRef.current) {
+      // Keep the materialized schedule from Supabase; do not rebuild on first mount.
+      skipRestoredScheduleRebuildRef.current = false
+      return
+    }
+
     const retainerOnlyOnUpload =
       hasActiveRetainers && !hasProductData && stage === 'upload'
     if (
@@ -1035,6 +1156,9 @@ export default function CreatorExecApp() {
           beginnerMode={isBeginnerMode && !isMomentumMode}
           sampleMode={isSampleMode}
           momentumMode={isMomentumMode}
+          getFilmedCount={getFilmedCount}
+          onFilmedIncrement={incrementFilmed}
+          onFilmedDecrement={decrementFilmed}
           onAddDeadline={handleAddDeadline}
           onRemoveFromSchedule={handleRemoveFromSchedule}
           onBack={

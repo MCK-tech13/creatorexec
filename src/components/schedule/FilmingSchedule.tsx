@@ -9,7 +9,6 @@ import {
   Trash2,
 } from 'lucide-react'
 import type { DaySchedule, MergedProduct } from '../../types'
-import { useFilmingProgress } from '../../hooks/useFilmingProgress'
 import { collapseDayVideos, dayFilmedTotal } from '../../lib/schedule/collapseDayVideos'
 import { formatDeadlineCountdown } from '../../lib/schedule/deadlineUtils'
 import { formatScheduleText } from '../../lib/schedule/scheduleBuilder'
@@ -25,6 +24,9 @@ interface FilmingScheduleProps {
   beginnerMode?: boolean
   sampleMode?: boolean
   momentumMode?: boolean
+  getFilmedCount: (storageKey: string) => number
+  onFilmedIncrement: (storageKey: string, max: number) => void
+  onFilmedDecrement: (storageKey: string) => void
   onAddDeadline: (data: DeadlineFormData) => void
   onRemoveFromSchedule: (productKey: string) => void
   onBack: () => void
@@ -41,6 +43,9 @@ export function FilmingSchedule({
   beginnerMode = false,
   sampleMode = false,
   momentumMode = false,
+  getFilmedCount,
+  onFilmedIncrement,
+  onFilmedDecrement,
   onAddDeadline,
   onRemoveFromSchedule,
   onBack,
@@ -53,7 +58,6 @@ export function FilmingSchedule({
   )
   const [copied, setCopied] = useState(false)
   const [showDeadlineModal, setShowDeadlineModal] = useState(false)
-  const { getCount, increment, decrement } = useFilmingProgress()
 
   const filmedByProductId = useMemo(
     () => new Map(products.map((p) => [p.id, p.videosFilmed])),
@@ -170,7 +174,7 @@ export function FilmingSchedule({
         {schedule.map((day) => {
           const isExpanded = expandedDays.has(day.day)
           const dayLabel = DAY_NAMES[(day.day - 1) % 7]
-          const filmedCount = dayFilmedTotal(day.day, day.videos, getCount)
+          const filmedCount = dayFilmedTotal(day.day, day.videos, getFilmedCount)
           const totalSlots = day.videos.length
           const progress = totalSlots > 0 ? (filmedCount / totalSlots) * 100 : 0
           const collapsedRows = collapseDayVideos(day.day, day.videos)
@@ -213,7 +217,7 @@ export function FilmingSchedule({
                   ) : (
                     <ul className="divide-y divide-border-warm">
                       {collapsedRows.map((row) => {
-                        const filmed = getCount(row.storageKey)
+                        const filmed = getFilmedCount(row.storageKey)
                         const complete = filmed >= row.total
                         const productFilmed = getProductFilmedCount(
                           row.productKey,
@@ -235,7 +239,7 @@ export function FilmingSchedule({
                               <div className="flex shrink-0 items-center gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => decrement(row.storageKey)}
+                                  onClick={() => onFilmedDecrement(row.storageKey)}
                                   disabled={filmed === 0}
                                   className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
                                   aria-label="Decrement filmed count"
@@ -244,7 +248,7 @@ export function FilmingSchedule({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => increment(row.storageKey, row.total)}
+                                  onClick={() => onFilmedIncrement(row.storageKey, row.total)}
                                   disabled={complete}
                                   className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
                                   aria-label="Increment filmed count"

@@ -155,6 +155,32 @@ async function main() {
     'insert sprint_history as user A',
   )
 
+  await assertInsert(
+    client,
+    'authenticated',
+    userA,
+    `INSERT INTO public.current_sprint_state (
+       user_id, stage, schedule_mode, file_name, sprint_config, products, deadline_products,
+       excluded_product_keys, sample_products, schedule, filming_progress
+     ) VALUES (
+       $1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::text[], $9::jsonb, $10::jsonb, $11::jsonb
+     )`,
+    [
+      userA,
+      'schedule',
+      'full',
+      'live-sprint.csv',
+      JSON.stringify({ videosPerDay: 5, sprintDays: 7 }),
+      JSON.stringify([{ id: 'p1', productName: 'Serum' }]),
+      '[]',
+      [],
+      '[]',
+      JSON.stringify([{ day: 1, videos: [] }]),
+      JSON.stringify({ 'd1::Serum': 1 }),
+    ],
+    'insert current_sprint_state as user A',
+  )
+
   console.log(
     'Local Supabase foundation test passed: GRANTs allow authenticated inserts; RLS blocks cross-user reads.',
   )

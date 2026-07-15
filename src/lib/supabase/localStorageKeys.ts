@@ -9,8 +9,14 @@ export const LOCAL_STORAGE_KEYS = {
   welcomeSeen: 'creatorexec-welcome-seen',
   sprintStart: 'creatorexec-sprint-start',
   sprintPrevious: 'creatorexec-sprint-previous',
+  /** Day filming checkmarks — migrated into current_sprint_state on first sprint save. */
+  filmingProgress: 'creatorexec-filming-progress',
 } as const
 
 export function migrationFlagKey(userId: string): string {
   return `creatorexec-supabase-migrated-${userId}`
+}
+
+export function filmingProgressMigrationFlagKey(userId: string): string {
+  return `creatorexec-filming-progress-migrated-${userId}`
 }

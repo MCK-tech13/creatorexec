@@ -3,6 +3,7 @@ import type { Database } from './database.types'
 import type { UserDataSnapshot } from './dataStore'
 import {
   brandDealFromRow,
+  currentSprintFromRow,
   incomeTrackerFromRows,
   onboardingProfileFromRow,
   parseSprintSnapshot,
@@ -19,12 +20,14 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
     incomeResult,
     scoutResult,
     onboardingResult,
+    currentSprintResult,
   ] = await Promise.all([
     client.from('trial_progress').select('*').eq('user_id', userId),
     client.from('retainer_deals').select('*').eq('user_id', userId).order('created_at'),
     client.from('income_entries').select('*').eq('user_id', userId),
     client.from('product_scout_list').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
     client.from('onboarding_state').select('*').eq('user_id', userId).maybeSingle(),
+    client.from('current_sprint_state').select('*').eq('user_id', userId).maybeSingle(),
   ])
 
   if (trialResult.error) throw trialResult.error
@@ -32,6 +35,7 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
   if (incomeResult.error) throw incomeResult.error
   if (scoutResult.error) throw scoutResult.error
   if (onboardingResult.error) throw onboardingResult.error
+  if (currentSprintResult.error) throw currentSprintResult.error
 
   const onboarding = onboardingResult.data
 
@@ -45,5 +49,8 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
     welcomeSeen: onboarding?.welcome_seen ?? false,
     sprintStartSnapshot: parseSprintSnapshot(onboarding?.sprint_start_snapshot),
     sprintPreviousSnapshot: parseSprintSnapshot(onboarding?.sprint_previous_snapshot),
+    currentSprintState: currentSprintResult.data
+      ? currentSprintFromRow(currentSprintResult.data)
+      : null,
   }
 }

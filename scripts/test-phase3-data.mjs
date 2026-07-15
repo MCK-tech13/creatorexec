@@ -120,6 +120,7 @@ async function dumpUserTables(admin, userId, label) {
     'product_scout_list',
     'onboarding_state',
     'sprint_history',
+    'current_sprint_state',
   ]
 
   console.log(`\n--- Supabase rows for ${label} (${userId}) ---`)

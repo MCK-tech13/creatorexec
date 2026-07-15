@@ -297,6 +297,51 @@ export type Database = {
         }
         Relationships: []
       }
+      current_sprint_state: {
+        Row: {
+          user_id: string
+          stage: string
+          schedule_mode: Database['public']['Enums']['schedule_mode']
+          file_name: string | null
+          sprint_config: Json
+          products: Json
+          deadline_products: Json
+          excluded_product_keys: string[]
+          sample_products: Json
+          schedule: Json
+          filming_progress: Json
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          stage: string
+          schedule_mode?: Database['public']['Enums']['schedule_mode']
+          file_name?: string | null
+          sprint_config?: Json
+          products?: Json
+          deadline_products?: Json
+          excluded_product_keys?: string[]
+          sample_products?: Json
+          schedule?: Json
+          filming_progress?: Json
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          stage?: string
+          schedule_mode?: Database['public']['Enums']['schedule_mode']
+          file_name?: string | null
+          sprint_config?: Json
+          products?: Json
+          deadline_products?: Json
+          excluded_product_keys?: string[]
+          sample_products?: Json
+          schedule?: Json
+          filming_progress?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_subscriptions: {
         Row: {
           user_id: string

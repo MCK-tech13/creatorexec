@@ -293,6 +293,44 @@ async function main() {
       'user B must not read user A sprint_history',
     )
 
+    await assertOk(
+      clientA.from('current_sprint_state').upsert({
+        user_id: userA.id,
+        stage: 'schedule',
+        schedule_mode: 'full',
+        file_name: 'live-sprint.csv',
+        sprint_config: { videosPerDay: 5, sprintDays: 7 },
+        products: [
+          {
+            id: 'p1',
+            productName: 'Serum',
+            productId: 'asin-1',
+            gmv: 100,
+            commission: 20,
+            itemsSold: 2,
+            orderCount: 2,
+            videosFilmed: 1,
+            score: 1,
+            tier: 'Rising',
+            rankInTier: 1,
+            inRotation: true,
+            isManual: false,
+          },
+        ],
+        deadline_products: [],
+        excluded_product_keys: [],
+        sample_products: [],
+        schedule: [{ day: 1, videos: [] }],
+        filming_progress: { 'd1::Serum': 1 },
+      }),
+      'upsert current_sprint_state as user A',
+    )
+
+    await assertDenied(
+      clientB.from('current_sprint_state').select('*').eq('user_id', userA.id).maybeSingle(),
+      'user B must not read user A current_sprint_state',
+    )
+
     console.log('Supabase foundation test passed: inserts, own reads, and cross-user RLS denials verified.')
   } finally {
     await cleanup(admin, [userA.id, userB.id])

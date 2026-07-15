@@ -3,6 +3,7 @@ import type { Database } from './database.types'
 import type { UserDataSnapshot } from './dataStore'
 import {
   brandDealToRow,
+  currentSprintToRow,
   incomeEntryToRow,
   onboardingProfileToRow,
   productScoutToRow,
@@ -166,5 +167,20 @@ export async function clearOnboardingState(client: Client, userId: string): Prom
 
 export async function clearTrialProgress(client: Client, userId: string): Promise<void> {
   const { error } = await client.from('trial_progress').delete().eq('user_id', userId)
+  if (error) throw error
+}
+
+export async function persistCurrentSprintState(
+  client: Client,
+  userId: string,
+  state: NonNullable<UserDataSnapshot['currentSprintState']>,
+): Promise<void> {
+  const row = currentSprintToRow(userId, state)
+  const { error } = await client.from('current_sprint_state').upsert(row)
+  if (error) throw error
+}
+
+export async function clearCurrentSprintStateRow(client: Client, userId: string): Promise<void> {
+  const { error } = await client.from('current_sprint_state').delete().eq('user_id', userId)
   if (error) throw error
 }

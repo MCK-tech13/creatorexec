@@ -142,6 +142,7 @@ export function readLocalStorageSnapshot(): UserDataSnapshot {
     welcomeSeen,
     sprintStartSnapshot: parseSprintSnapshot(readJson(LOCAL_STORAGE_KEYS.sprintStart)),
     sprintPreviousSnapshot: parseSprintSnapshot(readJson(LOCAL_STORAGE_KEYS.sprintPrevious)),
+    currentSprintState: null,
   }
 }
 

@@ -15,6 +15,7 @@
     "test:auth": "node scripts/test-auth.mjs",
     "test:phase3": "node scripts/test-phase3-data.mjs",
     "test:stripe": "node scripts/test-stripe.mjs",
+    "verify:current-sprint": "tsx scripts/verify-current-sprint-persist.ts",
     "test:welcome-email": "node scripts/test-welcome-email.mjs",
     "preview:welcome-email": "node scripts/preview-welcome-email.mjs",
     "debug:stripe-period": "node scripts/debug-stripe-period.mjs",

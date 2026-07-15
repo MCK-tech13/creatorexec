@@ -1,14 +1,19 @@
 import { getSupabaseClient } from './client'
-import { getActiveUserId, getUserDataSnapshot } from './dataStore'
+import { getActiveUserId, getUserDataSnapshot, updateCurrentSprintState } from './dataStore'
 import {
+  clearCurrentSprintStateRow,
   persistBrandDeals,
+  persistCurrentSprintState,
   persistIncomeTracker,
   persistOnboardingState,
   persistProductScoutEntries,
   persistTrialProgress,
 } from './persist'
+import { mergeAndConsumeLegacyFilmingProgress } from '../sprint/filmingProgressMigration'
+import { hasPersistedSprintContent } from '../../types/currentSprint'
 
 let persistChain: Promise<void> = Promise.resolve()
+let currentSprintPersistTimer: ReturnType<typeof setTimeout> | null = null
 
 function enqueuePersist(task: () => Promise<void>): void {
   persistChain = persistChain.then(task).catch((error) => {
@@ -61,6 +66,53 @@ export function scheduleOnboardingPersist(): void {
   })
 }
 
+function enqueueCurrentSprintPersistNow(): void {
+  withClient(async (userId, client) => {
+    const state = getUserDataSnapshot().currentSprintState
+    if (!state || !hasPersistedSprintContent(state)) return
+
+    const filmingProgress = mergeAndConsumeLegacyFilmingProgress(userId, state.filmingProgress)
+    const nextState =
+      filmingProgress === state.filmingProgress
+        ? state
+        : { ...state, filmingProgress }
+
+    // Keep in-memory store aligned with what we write (merged legacy counts).
+    if (nextState !== state) {
+      updateCurrentSprintState(nextState)
+    }
+
+    await persistCurrentSprintState(client, userId, nextState)
+  })
+}
+
+/** Debounced upsert of the live sprint workspace. */
+export function scheduleCurrentSprintPersist(debounceMs = 400): void {
+  if (currentSprintPersistTimer) {
+    clearTimeout(currentSprintPersistTimer)
+  }
+  currentSprintPersistTimer = setTimeout(() => {
+    currentSprintPersistTimer = null
+    enqueueCurrentSprintPersistNow()
+  }, debounceMs)
+}
+
+/** Explicit reset / new-sprint only — deletes the cloud row. */
+export function scheduleCurrentSprintClear(): void {
+  if (currentSprintPersistTimer) {
+    clearTimeout(currentSprintPersistTimer)
+    currentSprintPersistTimer = null
+  }
+  withClient(async (userId, client) => {
+    await clearCurrentSprintStateRow(client, userId)
+  })
+}
+
 export async function flushUserDataPersist(): Promise<void> {
+  if (currentSprintPersistTimer) {
+    clearTimeout(currentSprintPersistTimer)
+    currentSprintPersistTimer = null
+    enqueueCurrentSprintPersistNow()
+  }
   await persistChain
 }

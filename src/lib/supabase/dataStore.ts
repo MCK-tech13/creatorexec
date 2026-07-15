@@ -2,6 +2,7 @@ import type { IncomeTrackerStore } from '../../types/incomeTracker'
 import type { OnboardingProfile } from '../../types/onboarding'
 import type { BrandDeal } from '../../types/pipeline'
 import type { ProductScoutEntry } from '../../types/productScout'
+import type { CurrentSprintState } from '../../types/currentSprint'
 import type { SprintSnapshot } from '../../types/sprintReview'
 import type { TrialProgressStore } from '../schedule/trialProgressStorage'
 
@@ -15,6 +16,7 @@ export interface UserDataSnapshot {
   welcomeSeen: boolean
   sprintStartSnapshot: SprintSnapshot | null
   sprintPreviousSnapshot: SprintSnapshot | null
+  currentSprintState: CurrentSprintState | null
 }
 
 const EMPTY_SNAPSHOT: UserDataSnapshot = {
@@ -27,6 +29,7 @@ const EMPTY_SNAPSHOT: UserDataSnapshot = {
   welcomeSeen: false,
   sprintStartSnapshot: null,
   sprintPreviousSnapshot: null,
+  currentSprintState: null,
 }
 
 let activeUserId: string | null = null
@@ -94,4 +97,8 @@ export function updateSprintStartSnapshot(value: SprintSnapshot | null): void {
 
 export function updateSprintPreviousSnapshot(value: SprintSnapshot | null): void {
   snapshot = { ...snapshot, sprintPreviousSnapshot: value }
+}
+
+export function updateCurrentSprintState(value: CurrentSprintState | null): void {
+  snapshot = { ...snapshot, currentSprintState: value }
 }

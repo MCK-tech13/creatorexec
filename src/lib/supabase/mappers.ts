@@ -1,4 +1,14 @@
 import type { Database, Json } from './database.types'
+import type {
+  AppStage,
+  DaySchedule,
+  DeadlineProduct,
+  MergedProduct,
+  SampleProduct,
+  ScheduleMode,
+  SprintConfig,
+} from '../../types'
+import type { CurrentSprintState, FilmingProgressStore } from '../../types/currentSprint'
 import type { IncomeTrackerStore } from '../../types/incomeTracker'
 import type { OnboardingProfile } from '../../types/onboarding'
 import type { BrandDeal } from '../../types/pipeline'
@@ -13,6 +23,7 @@ type DealRow = Database['public']['Tables']['retainer_deals']['Row']
 type IncomeRow = Database['public']['Tables']['income_entries']['Row']
 type ScoutRow = Database['public']['Tables']['product_scout_list']['Row']
 type OnboardingRow = Database['public']['Tables']['onboarding_state']['Row']
+type CurrentSprintRow = Database['public']['Tables']['current_sprint_state']['Row']
 
 function asJson<T>(value: T): Json {
   return value as unknown as Json
@@ -214,4 +225,88 @@ export function parseSprintSnapshot(value: unknown): SprintSnapshot | null {
   const snapshot = value as SprintSnapshot
   if (!snapshot.savedAt || !Array.isArray(snapshot.products)) return null
   return snapshot
+}
+
+const APP_STAGES: AppStage[] = [
+  'upload',
+  'sample',
+  'momentum',
+  'dashboard',
+  'config',
+  'schedule',
+]
+
+function parseAppStage(value: unknown): AppStage | null {
+  return typeof value === 'string' && (APP_STAGES as string[]).includes(value)
+    ? (value as AppStage)
+    : null
+}
+
+function parseScheduleMode(value: unknown): ScheduleMode {
+  if (value === 'sample' || value === 'momentum' || value === 'full') return value
+  return 'full'
+}
+
+function parseSprintConfig(value: unknown): SprintConfig {
+  const config = value && typeof value === 'object' ? (value as Partial<SprintConfig>) : {}
+  const videosPerDay = Number(config.videosPerDay)
+  const sprintDays = Number(config.sprintDays)
+  return {
+    videosPerDay: videosPerDay >= 1 ? videosPerDay : 5,
+    sprintDays: sprintDays === 3 || sprintDays === 14 ? sprintDays : 7,
+  }
+}
+
+function parseFilmingProgress(value: unknown): FilmingProgressStore {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, count]) => [
+      key,
+      Math.max(0, Number(count) || 0),
+    ]),
+  )
+}
+
+export function currentSprintFromRow(row: CurrentSprintRow): CurrentSprintState | null {
+  const stage = parseAppStage(row.stage)
+  if (!stage) return null
+
+  return {
+    stage,
+    scheduleMode: parseScheduleMode(row.schedule_mode),
+    fileName: row.file_name,
+    sprintConfig: parseSprintConfig(row.sprint_config),
+    products: Array.isArray(row.products) ? (row.products as unknown as MergedProduct[]) : [],
+    deadlineProducts: Array.isArray(row.deadline_products)
+      ? (row.deadline_products as unknown as DeadlineProduct[])
+      : [],
+    excludedProductKeys: Array.isArray(row.excluded_product_keys)
+      ? row.excluded_product_keys.map(String)
+      : [],
+    sampleProducts: Array.isArray(row.sample_products)
+      ? (row.sample_products as unknown as SampleProduct[])
+      : [],
+    schedule: Array.isArray(row.schedule) ? (row.schedule as unknown as DaySchedule[]) : [],
+    filmingProgress: parseFilmingProgress(row.filming_progress),
+    updatedAt: row.updated_at,
+  }
+}
+
+export function currentSprintToRow(
+  userId: string,
+  state: CurrentSprintState,
+): Database['public']['Tables']['current_sprint_state']['Insert'] {
+  return {
+    user_id: userId,
+    stage: state.stage,
+    schedule_mode: state.scheduleMode,
+    file_name: state.fileName,
+    sprint_config: asJson(state.sprintConfig),
+    products: asJson(state.products),
+    deadline_products: asJson(state.deadlineProducts),
+    excluded_product_keys: state.excludedProductKeys,
+    sample_products: asJson(state.sampleProducts),
+    schedule: asJson(state.schedule),
+    filming_progress: asJson(state.filmingProgress),
+  }
 }
