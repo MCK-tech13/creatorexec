@@ -8,6 +8,7 @@ import {
   onboardingProfileToRow,
   productScoutToRow,
   trialProgressToRows,
+  userEngagementToRow,
 } from './mappers'
 
 type Client = SupabaseClient<Database>
@@ -182,5 +183,15 @@ export async function persistCurrentSprintState(
 
 export async function clearCurrentSprintStateRow(client: Client, userId: string): Promise<void> {
   const { error } = await client.from('current_sprint_state').delete().eq('user_id', userId)
+  if (error) throw error
+}
+
+export async function persistUserEngagement(
+  client: Client,
+  userId: string,
+  state: UserDataSnapshot['userEngagement'],
+): Promise<void> {
+  const row = userEngagementToRow(userId, state)
+  const { error } = await client.from('user_engagement').upsert(row)
   if (error) throw error
 }

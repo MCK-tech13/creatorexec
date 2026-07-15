@@ -8,6 +8,7 @@ import {
   persistOnboardingState,
   persistProductScoutEntries,
   persistTrialProgress,
+  persistUserEngagement,
 } from './persist'
 import { mergeAndConsumeLegacyFilmingProgress } from '../sprint/filmingProgressMigration'
 import { hasPersistedSprintContent } from '../../types/currentSprint'
@@ -63,6 +64,12 @@ export function scheduleOnboardingPersist(): void {
       sprintStartSnapshot: snapshot.sprintStartSnapshot,
       sprintPreviousSnapshot: snapshot.sprintPreviousSnapshot,
     })
+  })
+}
+
+export function scheduleUserEngagementPersist(): void {
+  withClient(async (userId, client) => {
+    await persistUserEngagement(client, userId, getUserDataSnapshot().userEngagement)
   })
 }
 

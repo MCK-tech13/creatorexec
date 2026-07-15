@@ -7,6 +7,7 @@ import {
   handleHealth,
   handleProductScoutExtractScreenshot,
   handleStripeWebhook,
+  handleUploadReminderCron,
 } from './handlers.mjs'
 import { readRawBody } from './rawBody.mjs'
 
@@ -34,6 +35,14 @@ app.post(
     void handleProductScoutExtractScreenshot(req, res)
   },
 )
+
+app.get('/api/cron/upload-reminder', (req, res) => {
+  void handleUploadReminderCron(req, res)
+})
+
+app.post('/api/cron/upload-reminder', express.json(), (req, res) => {
+  void handleUploadReminderCron(req, res)
+})
 
 app.post('/api/stripe/webhook', async (req, res) => {
   const rawBody = await readRawBody(req)

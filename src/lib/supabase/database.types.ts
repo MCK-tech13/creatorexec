@@ -342,6 +342,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_engagement: {
+        Row: {
+          user_id: string
+          last_csv_upload_at: string | null
+          last_upload_reminder_sent_at: string | null
+          upload_reminder_dismissed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          last_csv_upload_at?: string | null
+          last_upload_reminder_sent_at?: string | null
+          upload_reminder_dismissed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          last_csv_upload_at?: string | null
+          last_upload_reminder_sent_at?: string | null
+          upload_reminder_dismissed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_subscriptions: {
         Row: {
           user_id: string

@@ -9,6 +9,7 @@ import type { TrialProgressStore } from '../schedule/trialProgressStorage'
 import type { UserDataSnapshot } from './dataStore'
 import { LOCAL_STORAGE_KEYS, migrationFlagKey } from './localStorageKeys'
 import { parseSprintSnapshot } from './mappers'
+import { emptyUserEngagement } from '../../types/userEngagement'
 import {
   persistBrandDeals,
   persistIncomeTracker,
@@ -144,6 +145,7 @@ export function readLocalStorageSnapshot(): UserDataSnapshot {
     sprintPreviousSnapshot: parseSprintSnapshot(readJson(LOCAL_STORAGE_KEYS.sprintPrevious)),
     currentSprintState: null,
     sprintHistory: [],
+    userEngagement: emptyUserEngagement(),
   }
 }
 

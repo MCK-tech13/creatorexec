@@ -33,6 +33,7 @@ This creates:
 | `retainer_deals` | `creatorexec-brand-deals` (`BrandDeal`) |
 | `income_entries` | `creatorexec-income-tracker` |
 | `sprint_history` | sprint snapshots + recap (`SprintSnapshot`, `SprintReview`) |
+| `user_engagement` | last CSV upload + upload-reminder dismiss/send timestamps |
 | `product_scout_list` | `creatorexec-product-scout` |
 | `onboarding_state` | `creatorexec-onboarding` + welcome/sprint-entry flags |
 | `current_sprint_state` | live sprint workspace (products, schedule, filming checkmarks) |

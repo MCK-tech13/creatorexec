@@ -9,8 +9,10 @@ import {
   parseSprintSnapshot,
   productScoutFromRow,
   trialProgressFromRows,
+  userEngagementFromRow,
 } from './mappers'
 import { fetchSprintHistory } from './sprintHistory'
+import { emptyUserEngagement } from '../../types/userEngagement'
 
 type Client = SupabaseClient<Database>
 
@@ -23,6 +25,7 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
     onboardingResult,
     currentSprintResult,
     sprintHistory,
+    engagementResult,
   ] = await Promise.all([
     client.from('trial_progress').select('*').eq('user_id', userId),
     client.from('retainer_deals').select('*').eq('user_id', userId).order('created_at'),
@@ -31,6 +34,7 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
     client.from('onboarding_state').select('*').eq('user_id', userId).maybeSingle(),
     client.from('current_sprint_state').select('*').eq('user_id', userId).maybeSingle(),
     fetchSprintHistory(client, userId),
+    client.from('user_engagement').select('*').eq('user_id', userId).maybeSingle(),
   ])
 
   if (trialResult.error) throw trialResult.error
@@ -39,6 +43,7 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
   if (scoutResult.error) throw scoutResult.error
   if (onboardingResult.error) throw onboardingResult.error
   if (currentSprintResult.error) throw currentSprintResult.error
+  if (engagementResult.error) throw engagementResult.error
 
   const onboarding = onboardingResult.data
 
@@ -56,5 +61,8 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
       ? currentSprintFromRow(currentSprintResult.data)
       : null,
     sprintHistory,
+    userEngagement: engagementResult.data
+      ? userEngagementFromRow(engagementResult.data)
+      : emptyUserEngagement(),
   }
 }

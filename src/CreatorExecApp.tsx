@@ -11,6 +11,7 @@ import { MomentumModePromptModal } from './components/momentum/MomentumModePromp
 import { StatsCards } from './components/dashboard/StatsCards'
 import { TierTabs } from './components/dashboard/TierTabs'
 import { ProductTable } from './components/dashboard/ProductTable'
+import { UploadReminderBanner } from './components/dashboard/UploadReminderBanner'
 import { AddProductModal } from './components/dashboard/AddProductModal'
 import { SprintConfigForm } from './components/config/SprintConfigForm'
 import { FilmingSchedule } from './components/schedule/FilmingSchedule'
@@ -65,6 +66,14 @@ import {
 } from './lib/sprint/sprintSnapshotStorage'
 import { getActiveUserId, getUserDataSnapshot } from './lib/supabase/dataStore'
 import { buildProductFlags } from './lib/sprint/productFlags'
+import {
+  daysBetween,
+  shouldShowUploadReminderBanner,
+} from './lib/reminders/uploadReminder'
+import {
+  dismissUploadReminderBanner,
+  markCsvUploadNow,
+} from './lib/reminders/engagementStorage'
 import {
   appPathForSection,
   parseAppSectionPath,
@@ -244,6 +253,8 @@ export default function CreatorExecApp() {
   const [pendingSprintReset, setPendingSprintReset] = useState<'upload' | 'start-over' | null>(
     null,
   )
+  /** Re-read engagement after mark/dismiss without a full reload. */
+  const [engagementTick, setEngagementTick] = useState(0)
   /** Gate autosave until restore seed is in React state (avoids empty overwrite). */
   const [persistEnabled, setPersistEnabled] = useState(false)
 
@@ -468,6 +479,9 @@ export default function CreatorExecApp() {
           setIsProcessing(false)
           return
         }
+
+        markCsvUploadNow()
+        setEngagementTick((tick) => tick + 1)
 
         const fullTiered = tierProducts(result.products)
 
@@ -823,6 +837,39 @@ export default function CreatorExecApp() {
     return buildProductFlags(completedSprintEnds, products)
   }, [products])
 
+  const uploadReminder = useMemo(() => {
+    void engagementTick
+    try {
+      const engagement = getUserDataSnapshot().userEngagement
+      const show = shouldShowUploadReminderBanner({
+        lastCsvUploadAt: engagement.lastCsvUploadAt,
+        sprintDays: sprintConfig.sprintDays,
+        dismissedAt: engagement.uploadReminderDismissedAt,
+      })
+      if (!show || !engagement.lastCsvUploadAt) return null
+      return {
+        daysSinceUpload: daysBetween(engagement.lastCsvUploadAt),
+        sprintDays: sprintConfig.sprintDays,
+      }
+    } catch {
+      return null
+    }
+  }, [engagementTick, sprintConfig.sprintDays])
+
+  const handleDismissUploadReminder = useCallback(() => {
+    dismissUploadReminderBanner()
+    setEngagementTick((tick) => tick + 1)
+  }, [])
+
+  const handleUploadReminderCta = useCallback(() => {
+    setMainSection('sprint')
+    navigate(appPathForSection('sprint'))
+    setUploadLandingMode('routed')
+    setStage('upload')
+    setShowUploadPanel(true)
+    setShowProductEntry(false)
+  }, [navigate])
+
   const hasProductData = products.length > 0 || sampleProducts.length > 0
   const hasActiveRetainers = brandDeals.some(isActiveRetainer)
   const showSprintEmptyState =
@@ -973,13 +1020,23 @@ export default function CreatorExecApp() {
       showSprintStepper={mainSection === 'sprint' && onboardingComplete}
     >
       {mainSection === 'home' ? (
-        <DashboardHome
-          sprint={dashboardPreviews.sprint}
-          retainers={dashboardPreviews.retainers}
-          income={dashboardPreviews.income}
-          productScout={dashboardPreviews.productScout}
-          onNavigate={handleSectionChange}
-        />
+        <>
+          {uploadReminder && (
+            <UploadReminderBanner
+              daysSinceUpload={uploadReminder.daysSinceUpload}
+              sprintDays={uploadReminder.sprintDays}
+              onUpload={handleUploadReminderCta}
+              onDismiss={handleDismissUploadReminder}
+            />
+          )}
+          <DashboardHome
+            sprint={dashboardPreviews.sprint}
+            retainers={dashboardPreviews.retainers}
+            income={dashboardPreviews.income}
+            productScout={dashboardPreviews.productScout}
+            onNavigate={handleSectionChange}
+          />
+        </>
       ) : mainSection === 'retainers' ? (
         <RetainerDeals
           deals={brandDeals}
@@ -1007,7 +1064,15 @@ export default function CreatorExecApp() {
         <OnboardingQuiz onComplete={handleOnboardingComplete} embedded />
       ) : (
         <>
-      {showSprintEmptyState ? (
+          {uploadReminder && (
+            <UploadReminderBanner
+              daysSinceUpload={uploadReminder.daysSinceUpload}
+              sprintDays={uploadReminder.sprintDays}
+              onUpload={handleUploadReminderCta}
+              onDismiss={handleDismissUploadReminder}
+            />
+          )}
+          {showSprintEmptyState ? (
         <SprintEmptyState
           onAddSamples={handleEnterSampleMode}
           onUploadReport={() => setShowUploadPanel(true)}

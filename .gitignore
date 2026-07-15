@@ -33,3 +33,4 @@ dist-ssr
 
 # Walkthrough source clip — commit the compressed MP4 only
 public/videos/*.mov
+tmp-*.html

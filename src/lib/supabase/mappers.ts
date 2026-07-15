@@ -14,6 +14,8 @@ import type { OnboardingProfile } from '../../types/onboarding'
 import type { BrandDeal } from '../../types/pipeline'
 import type { ProductScoutEntry, ProductScoutMetrics } from '../../types/productScout'
 import type { SprintSnapshot } from '../../types/sprintReview'
+import type { UserEngagementState } from '../../types/userEngagement'
+import { emptyUserEngagement } from '../../types/userEngagement'
 import { scoreProductScout } from '../productScout/scorer'
 import { normalizeDealVideoDeliverables } from '../pipeline/videoDeliverableUtils'
 import type { TrialProgressStore } from '../schedule/trialProgressStorage'
@@ -24,6 +26,7 @@ type IncomeRow = Database['public']['Tables']['income_entries']['Row']
 type ScoutRow = Database['public']['Tables']['product_scout_list']['Row']
 type OnboardingRow = Database['public']['Tables']['onboarding_state']['Row']
 type CurrentSprintRow = Database['public']['Tables']['current_sprint_state']['Row']
+type UserEngagementRow = Database['public']['Tables']['user_engagement']['Row']
 
 function asJson<T>(value: T): Json {
   return value as unknown as Json
@@ -308,5 +311,26 @@ export function currentSprintToRow(
     sample_products: asJson(state.sampleProducts),
     schedule: asJson(state.schedule),
     filming_progress: asJson(state.filmingProgress),
+  }
+}
+
+export function userEngagementFromRow(row: UserEngagementRow | null): UserEngagementState {
+  if (!row) return emptyUserEngagement()
+  return {
+    lastCsvUploadAt: row.last_csv_upload_at,
+    lastUploadReminderSentAt: row.last_upload_reminder_sent_at,
+    uploadReminderDismissedAt: row.upload_reminder_dismissed_at,
+  }
+}
+
+export function userEngagementToRow(
+  userId: string,
+  state: UserEngagementState,
+): Database['public']['Tables']['user_engagement']['Insert'] {
+  return {
+    user_id: userId,
+    last_csv_upload_at: state.lastCsvUploadAt,
+    last_upload_reminder_sent_at: state.lastUploadReminderSentAt,
+    upload_reminder_dismissed_at: state.uploadReminderDismissedAt,
   }
 }

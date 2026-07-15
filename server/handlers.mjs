@@ -1,4 +1,4 @@
-import { getWebhookEnvStatus } from './env.mjs'
+import { getWebhookEnvStatus, getServerEnv } from './env.mjs'
 import { getBillingContext } from './billingContext.mjs'
 import { verifySupabaseAccessToken } from './supabaseAdmin.mjs'
 import { downsizeScreenshotForVision, parseDataUrl } from './imageDownsize.mjs'
@@ -10,6 +10,8 @@ import {
   syncStripeSubscriptionEvent,
   upsertUserSubscription,
 } from './subscriptionSync.mjs'
+import { isAuthorizedCronRequest } from './uploadReminder.mjs'
+import { runUploadReminderJob } from './uploadReminderJob.mjs'
 
 function bearerToken(req) {
   const authHeader = req.headers.authorization ?? ''
@@ -324,5 +326,42 @@ export async function handleProductScoutExtractScreenshot(req, res) {
           ? 502
           : 400
     res.status(status).json({ error: message })
+  }
+}
+
+/**
+ * Vercel Cron → GET/POST /api/cron/upload-reminder
+ * Protect with Authorization: Bearer $CRON_SECRET
+ */
+export async function handleUploadReminderCron(req, res) {
+  const env = getServerEnv()
+  const cronSecret = process.env.CRON_SECRET?.trim() || null
+  const authHeader = req.headers.authorization ?? ''
+
+  if (!isAuthorizedCronRequest(authHeader, cronSecret)) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const dryRun =
+    req.method === 'GET' &&
+    (req.query?.dryRun === '1' ||
+      req.query?.dryRun === 'true' ||
+      req.url?.includes('dryRun=1') ||
+      req.url?.includes('dryRun=true'))
+
+  try {
+    const summary = await runUploadReminderJob({ dryRun })
+    const status = summary.ok ? 200 : 500
+    res.status(status).json({
+      ...summary,
+      appUrl: env.appUrl,
+    })
+  } catch (error) {
+    console.error('[upload-reminder] cron failed', error)
+    res.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : 'Upload reminder cron failed',
+    })
   }
 }
