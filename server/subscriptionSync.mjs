@@ -3,8 +3,19 @@ import {
   buildWelcomeEmailHtml,
   buildWelcomeEmailText,
   extractPlanPricing,
+  formatMoneyFromStripe,
   sendWelcomeEmailViaResend,
 } from './emails/welcomeEmail.mjs'
+import {
+  buildTrialConversionEmailHtml,
+  buildTrialConversionEmailText,
+  sendTrialConversionEmailViaResend,
+} from './emails/trialConversionEmail.mjs'
+import { getPlanDisplayName } from './planCatalog.mjs'
+import {
+  isTrialConversionInvoice,
+  shouldAttemptTrialConversionEmail,
+} from './trialConversion.mjs'
 
 const STRIPE_STATUSES = new Set([
   'none',
@@ -242,10 +253,10 @@ export function subscriptionRowFromStripe({
 }
 
 export async function upsertUserSubscription(admin, row) {
-  if (!row.current_period_end && row.user_id) {
+  if (row.user_id) {
     const { data: existing, error: existingError } = await admin
       .from('user_subscriptions')
-      .select('current_period_end')
+      .select('current_period_end, trial_conversion_email_sent_at')
       .eq('user_id', row.user_id)
       .maybeSingle()
 
@@ -253,11 +264,22 @@ export async function upsertUserSubscription(admin, row) {
       throw new Error(`Failed to read existing user_subscriptions: ${existingError.message}`)
     }
 
-    if (existing?.current_period_end) {
+    if (!row.current_period_end && existing?.current_period_end) {
       row = { ...row, current_period_end: existing.current_period_end }
       console.log(
         `[billing-api] preserved existing current_period_end for user ${row.user_id}: ${existing.current_period_end}`,
       )
+    }
+
+    // Never wipe conversion-email idempotency unless the caller sets it explicitly.
+    if (
+      row.trial_conversion_email_sent_at === undefined &&
+      existing?.trial_conversion_email_sent_at
+    ) {
+      row = {
+        ...row,
+        trial_conversion_email_sent_at: existing.trial_conversion_email_sent_at,
+      }
     }
   }
 
@@ -573,7 +595,7 @@ export async function syncInvoicePeriod(admin, stripe, invoice, context) {
     }),
   )
 
-  return upsertUserSubscription(
+  const upserted = await upsertUserSubscription(
     admin,
     subscriptionRowFromStripe({
       userId,
@@ -582,6 +604,147 @@ export async function syncInvoicePeriod(admin, stripe, invoice, context) {
       periodEndUnix,
     }),
   )
+
+  if (shouldAttemptTrialConversionEmail(context)) {
+    try {
+      await sendTrialConversionEmailForInvoice({
+        admin,
+        stripe,
+        invoice,
+        subscription,
+        userId,
+        customerId,
+        alreadySentAt: upserted?.trial_conversion_email_sent_at ?? null,
+      })
+    } catch (error) {
+      console.error(
+        '[billing-api] trial-conversion-email: unexpected error after invoice sync',
+        error,
+      )
+    }
+  }
+
+  return upserted
+}
+
+/**
+ * First paid invoice after a trial → Resend email. Failures never block billing sync.
+ */
+export async function sendTrialConversionEmailForInvoice({
+  admin,
+  stripe,
+  invoice,
+  subscription,
+  userId,
+  customerId,
+  alreadySentAt = null,
+}) {
+  if (!isTrialConversionInvoice(invoice, subscription)) {
+    console.log(
+      '[billing-api] trial-conversion-email: skipped — invoice is not a post-trial first charge',
+      JSON.stringify({
+        invoiceId: invoice?.id ?? null,
+        billingReason: invoice?.billing_reason ?? null,
+        amountPaid: invoice?.amount_paid ?? null,
+        trialEnd: subscription?.trial_end ?? null,
+      }),
+    )
+    return { ok: false, skipped: true, error: 'not a trial conversion invoice' }
+  }
+
+  if (alreadySentAt) {
+    console.log(
+      `[billing-api] trial-conversion-email: skipped — already sent at ${alreadySentAt} for user ${userId}`,
+    )
+    return { ok: false, skipped: true, error: 'already sent' }
+  }
+
+  const env = getServerEnv()
+  const recipient = await resolveCheckoutRecipient(
+    stripe,
+    {
+      customer_details: null,
+      customer_email: null,
+      customer: customerId,
+    },
+    customerId,
+  )
+
+  // Prefer invoice customer_email / customer_name when present on the paid invoice.
+  const invoiceEmail =
+    (typeof invoice?.customer_email === 'string' && invoice.customer_email) ||
+    invoice?.customer_details?.email ||
+    null
+  const invoiceName =
+    (typeof invoice?.customer_name === 'string' && invoice.customer_name) ||
+    invoice?.customer_details?.name ||
+    null
+
+  const email = invoiceEmail || recipient.email
+  const name = invoiceName || recipient.name
+
+  if (!email) {
+    console.warn(
+      '[billing-api] trial-conversion-email: skipped — no recipient email on invoice/customer',
+    )
+    return { ok: false, skipped: true, error: 'missing recipient email' }
+  }
+
+  const pricing = extractPlanPricing({ subscription })
+  const amountLabel =
+    typeof invoice?.amount_paid === 'number' && invoice.amount_paid > 0
+      ? formatMoneyFromStripe(invoice.amount_paid, invoice.currency || pricing.currency)
+      : pricing.amountLabel
+
+  const mailOptions = {
+    recipientName: name,
+    recipientEmail: email,
+    appUrl: env.appUrl,
+    planDisplayName: pricing.planDisplayName || getPlanDisplayName(pricing.priceId),
+    amountLabel,
+    intervalLabel: pricing.intervalLabel,
+    interval: pricing.interval,
+  }
+
+  console.log(
+    '[billing-api] trial-conversion-email: sending',
+    JSON.stringify({
+      to: email,
+      invoiceId: invoice?.id ?? null,
+      priceId: pricing.priceId,
+      planDisplayName: mailOptions.planDisplayName,
+      amountLabel: mailOptions.amountLabel,
+      intervalLabel: mailOptions.intervalLabel,
+    }),
+  )
+
+  const result = await sendTrialConversionEmailViaResend({
+    apiKey: env.resendApiKey,
+    to: email,
+    html: buildTrialConversionEmailHtml(mailOptions),
+    text: buildTrialConversionEmailText(mailOptions),
+  })
+
+  if (result.ok) {
+    console.log(`[billing-api] trial-conversion-email: sent id=${result.id ?? 'unknown'}`)
+    const sentAt = new Date().toISOString()
+    const { error: markError } = await admin
+      .from('user_subscriptions')
+      .update({ trial_conversion_email_sent_at: sentAt })
+      .eq('user_id', userId)
+    if (markError) {
+      console.error(
+        '[billing-api] trial-conversion-email: sent but failed to mark sent_at',
+        markError.message,
+      )
+    }
+  } else if (result.skipped) {
+    console.warn(`[billing-api] trial-conversion-email: skipped — ${result.error}`)
+  } else {
+    console.error(`[billing-api] trial-conversion-email: failed — ${result.error}`)
+  }
+
+  return result
 }
 
 export async function markSubscriptionPastDue(admin, stripe, invoice) {

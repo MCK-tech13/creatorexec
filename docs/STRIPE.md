@@ -134,6 +134,62 @@ SEND_WELCOME_EMAIL=1 RESEND_API_KEY=re_... WELCOME_EMAIL_TO=you@example.com npm 
 
 Email failures are logged and never fail the webhook / subscription write.
 
+### Trial conversion email (Resend)
+
+After a **trialing** subscription’s first real charge, `invoice.paid` / `invoice.payment_succeeded` may send a trial-conversion email.
+
+Detection (`server/trialConversion.mjs`):
+
+- `amount_paid > 0`
+- `billing_reason === 'subscription_cycle'`
+- subscription has `trial_end` (never-trialed users are skipped)
+- invoice `period_start` ≈ `trial_end` (within 48h) so later renewals don’t match
+- idempotency: `user_subscriptions.trial_conversion_email_sent_at`
+
+```bash
+# Apply migration first:
+#   supabase/migrations/20260716000001_trial_conversion_email.sql
+
+npm run preview:trial-conversion-email
+npm run test:trial-conversion-email
+
+# Optional live send
+SEND_TRIAL_CONVERSION_EMAIL=1 RESEND_API_KEY=re_... TRIAL_CONVERSION_EMAIL_TO=you@example.com \
+  npm run test:trial-conversion-email
+```
+
+**Important:** plain `stripe trigger invoice.paid` uses a generic fixture that **will not** pass the trial-conversion detector (no matching `trial_end` / period). Use a short trial + listen (see below), or a Test Clock.
+
+#### Stripe CLI — fire a real post-trial `invoice.paid` against Preview
+
+1. Install + auth Stripe CLI (test mode):
+   ```bash
+   stripe login
+   ```
+2. Forward webhooks to Preview (or local `npm run dev:api`):
+   ```bash
+   stripe listen --forward-to https://YOUR-PREVIEW.vercel.app/api/stripe/webhook
+   # copy the whsec_… into Preview STRIPE_WEBHOOK_SECRET if testing Preview,
+   # or use the printed secret only for local.
+   ```
+3. Create a test customer + attach a test card + start a subscription whose trial ends in ~1–2 minutes
+   (Dashboard → Subscriptions → create with trial end soon, **or** API):
+   ```bash
+   # Example (replace price / customer):
+   TRIAL_END=$(($(date +%s) + 90))
+   stripe subscriptions create \
+     --customer cus_xxx \
+     --items[0][price]=$STRIPE_BETA_PRICE_ID \
+     --trial-end $TRIAL_END \
+     --default-payment-method pm_card_visa
+   ```
+4. Wait for trial to end (or advance a **Test Clock** past `trial_end`). Stripe emits `invoice.paid` with `billing_reason=subscription_cycle` and `amount_paid>0`.
+5. Confirm:
+   - `stripe listen` shows `invoice.paid` → 200
+   - Vercel / local logs: `trial-conversion-email: sending` then `sent id=…`
+   - Resend dashboard shows the email
+   - Supabase `user_subscriptions.trial_conversion_email_sent_at` is set
+
 ## 8. Access gating policy
 
 **Production choice: `grace_period`** (set in `src/lib/billing/subscription.ts`).

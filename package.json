@@ -23,6 +23,8 @@
     "audit:sprint-history": "node --env-file=.env scripts/audit-sprint-history.mjs",
     "test:welcome-email": "node scripts/test-welcome-email.mjs",
     "preview:welcome-email": "node scripts/preview-welcome-email.mjs",
+    "test:trial-conversion-email": "node scripts/test-trial-conversion-email.mjs",
+    "preview:trial-conversion-email": "node scripts/preview-trial-conversion-email.mjs",
     "debug:stripe-period": "node scripts/debug-stripe-period.mjs",
     "dev:api": "node server/index.mjs",
     "verify:phase1": "bash scripts/verify-phase1.sh",
