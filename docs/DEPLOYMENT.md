@@ -54,14 +54,18 @@ Same Vercel project, but only used by `/api/*` serverless functions. **Never** p
 | `STRIPE_BETA_PRICE_ID` | Stripe → Product catalog → your $25/mo price → **Price ID** (`price_…`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks → your **production** endpoint → Signing secret (see Part C) |
 | `RESEND_API_KEY` | Resend Dashboard → API Keys (used to send the post-checkout welcome email) |
-| `CRON_SECRET` | Long random secret; required for `/api/cron/upload-reminder` (Vercel Cron sends `Authorization: Bearer $CRON_SECRET`) |
-| `APP_URL` | Your live site URL: `https://creatorexec.app` (or `https://www.creatorexec.app`) |
+| `CRON_SECRET` | Long random secret; required for `/api/cron/upload-reminder` (Vercel Cron sends `Authorization: Bearer $CRON_SECRET`). Also used as TikTok OAuth state signing secret unless `TIKTOK_OAUTH_STATE_SECRET` is set. |
+| `APP_URL` | Your live site URL: `https://www.creatorexec.app` (preferred; apex redirects to www) |
+| `TIKTOK_CLIENT_KEY` | TikTok Developer Portal → Login Kit → **Client Key** |
+| `TIKTOK_CLIENT_SECRET` | TikTok Developer Portal → Login Kit → **Client Secret** |
 
 Optional:
 
 | Variable name | Source |
 |---------------|--------|
 | `STRIPE_PRICE_DISPLAY_NAMES` | JSON map of additional Stripe price IDs → email plan labels, e.g. `{"price_xxx":"CreatorExec — Yearly"}`. `STRIPE_BETA_PRICE_ID` is auto-labeled **Beta — Monthly**. |
+| `TIKTOK_REDIRECT_URI` | Defaults to `https://www.creatorexec.app/api/tiktok/oauth/callback` — must match the Portal redirect URI exactly |
+| `TIKTOK_OAUTH_STATE_SECRET` | Optional dedicated HMAC secret for OAuth `state`; falls back to `CRON_SECRET` |
 
 **Do NOT add to Vercel:** `STRIPE_API_PORT` (local only).
 
@@ -76,6 +80,25 @@ After saving variables: **Deployments** → latest deployment → **⋯** → **
 3. Redeploy so the cron config + env are live.
 
 The job emails only **`active` / `trialing`** subscribers whose last successful CSV/XLSX upload is older than their `sprint_config.sprintDays`, at most once every 7 days.
+
+### A4. TikTok Connect (Login Kit)
+
+Minimal OAuth so creators can connect a TikTok account (App Review demo). Tokens stay server-side in `tiktok_connections`.
+
+1. Apply `supabase/migrations/20260716000002_tiktok_connections.sql` in the Supabase SQL Editor.
+2. In TikTok Developer Portal: Login Kit (Web), scope `user.info.basic`, redirect URI exactly  
+   `https://www.creatorexec.app/api/tiktok/oauth/callback` (sandbox + test user as needed).
+3. Set **`TIKTOK_CLIENT_KEY`** and **`TIKTOK_CLIENT_SECRET`** on Vercel Production (and ensure `CRON_SECRET` or `TIKTOK_OAUTH_STATE_SECRET` is set).
+4. Redeploy Production. Demo from **Retainer Deals** → **Connect TikTok** (no Preview URI required).
+
+Endpoints:
+
+| Method | Path | Notes |
+|--------|------|--------|
+| `POST`/`GET` | `/api/tiktok/oauth/start` | Bearer auth → `{ url }` |
+| `GET` | `/api/tiktok/oauth/callback` | TikTok redirect; exchanges code; redirects to `/app/retainers?tiktok=connected` |
+| `GET` | `/api/tiktok/connection` | Bearer auth → public profile (no tokens) |
+| `POST` | `/api/tiktok/disconnect` | Bearer auth → revoke + delete |
 
 ---
 

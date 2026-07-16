@@ -369,6 +369,48 @@ export type Database = {
         }
         Relationships: []
       }
+      tiktok_connections: {
+        Row: {
+          user_id: string
+          open_id: string
+          display_name: string | null
+          avatar_url: string | null
+          scope: string | null
+          access_token: string
+          refresh_token: string | null
+          access_token_expires_at: string | null
+          refresh_token_expires_at: string | null
+          connected_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          open_id: string
+          display_name?: string | null
+          avatar_url?: string | null
+          scope?: string | null
+          access_token: string
+          refresh_token?: string | null
+          access_token_expires_at?: string | null
+          refresh_token_expires_at?: string | null
+          connected_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          open_id?: string
+          display_name?: string | null
+          avatar_url?: string | null
+          scope?: string | null
+          access_token?: string
+          refresh_token?: string | null
+          access_token_expires_at?: string | null
+          refresh_token_expires_at?: string | null
+          connected_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_subscriptions: {
         Row: {
           user_id: string

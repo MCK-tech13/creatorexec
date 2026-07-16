@@ -9,6 +9,12 @@ import {
   handleStripeWebhook,
   handleUploadReminderCron,
 } from './handlers.mjs'
+import {
+  disconnectTikTok,
+  getTikTokConnection,
+  handleTikTokOAuthCallback,
+  startTikTokOAuth,
+} from './tiktok/handlers.mjs'
 import { readRawBody } from './rawBody.mjs'
 
 const envFileResult = loadEnvFile()
@@ -42,6 +48,26 @@ app.get('/api/cron/upload-reminder', (req, res) => {
 
 app.post('/api/cron/upload-reminder', express.json(), (req, res) => {
   void handleUploadReminderCron(req, res)
+})
+
+app.get('/api/tiktok/oauth/start', (req, res) => {
+  void startTikTokOAuth(req, res)
+})
+
+app.post('/api/tiktok/oauth/start', express.json(), (req, res) => {
+  void startTikTokOAuth(req, res)
+})
+
+app.get('/api/tiktok/oauth/callback', (req, res) => {
+  void handleTikTokOAuthCallback(req, res)
+})
+
+app.get('/api/tiktok/connection', (req, res) => {
+  void getTikTokConnection(req, res)
+})
+
+app.post('/api/tiktok/disconnect', express.json(), (req, res) => {
+  void disconnectTikTok(req, res)
 })
 
 app.post('/api/stripe/webhook', async (req, res) => {

@@ -45,6 +45,15 @@ export function getServerEnv() {
   const stripeBetaPriceId = process.env.STRIPE_BETA_PRICE_ID
   const resendApiKey = process.env.RESEND_API_KEY?.trim() || null
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim() || null
+  const tiktokClientKey = process.env.TIKTOK_CLIENT_KEY?.trim() || null
+  const tiktokClientSecret = process.env.TIKTOK_CLIENT_SECRET?.trim() || null
+  const tiktokRedirectUri =
+    process.env.TIKTOK_REDIRECT_URI?.trim() ||
+    'https://www.creatorexec.app/api/tiktok/oauth/callback'
+  const tiktokOAuthStateSecret =
+    process.env.TIKTOK_OAUTH_STATE_SECRET?.trim() ||
+    process.env.CRON_SECRET?.trim() ||
+    null
   const appUrl =
     process.env.APP_URL ??
     process.env.VITE_APP_URL ??
@@ -60,6 +69,10 @@ export function getServerEnv() {
     stripeBetaPriceId,
     resendApiKey,
     anthropicApiKey,
+    tiktokClientKey,
+    tiktokClientSecret,
+    tiktokRedirectUri,
+    tiktokOAuthStateSecret,
     appUrl,
     port,
   }
@@ -106,6 +119,16 @@ export function logServerStartup(env, envFileResult) {
   console.log(`  RESEND_API_KEY: ${env.resendApiKey ? maskSecret(env.resendApiKey) : 'MISSING'}`)
   console.log(
     `  ANTHROPIC_API_KEY: ${env.anthropicApiKey ? maskSecret(env.anthropicApiKey) : 'MISSING'}`,
+  )
+  console.log(
+    `  TIKTOK_CLIENT_KEY: ${env.tiktokClientKey ? maskSecret(env.tiktokClientKey, 4) : 'MISSING'}`,
+  )
+  console.log(
+    `  TIKTOK_CLIENT_SECRET: ${env.tiktokClientSecret ? maskSecret(env.tiktokClientSecret) : 'MISSING'}`,
+  )
+  console.log(`  TIKTOK_REDIRECT_URI: ${env.tiktokRedirectUri}`)
+  console.log(
+    `  TIKTOK_OAUTH_STATE_SECRET: ${env.tiktokOAuthStateSecret ? 'set' : 'MISSING (falls back to CRON_SECRET)'}`,
   )
   console.log(`  APP_URL: ${env.appUrl}`)
   console.log(

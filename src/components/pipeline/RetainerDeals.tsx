@@ -5,6 +5,7 @@ import { DEAL_STAGES } from '../../types/pipeline'
 import { DealCard } from './DealCard'
 import { DealDetailView } from './DealDetailView'
 import { NewDealModal } from './NewDealModal'
+import { TikTokConnectControl } from './TikTokConnectControl'
 
 interface RetainerDealsProps {
   deals: BrandDeal[]
@@ -121,14 +122,17 @@ export function RetainerDeals({
             schedule automatically.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowNewDeal(true)}
-          className="btn-primary inline-flex w-full items-center justify-center gap-2 px-6 py-3 text-sm sm:w-auto"
-        >
-          <Plus className="h-4 w-4" />
-          New Deal
-        </button>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
+          <TikTokConnectControl />
+          <button
+            type="button"
+            onClick={() => setShowNewDeal(true)}
+            className="btn-primary inline-flex w-full items-center justify-center gap-2 px-6 py-3 text-sm sm:w-auto"
+          >
+            <Plus className="h-4 w-4" />
+            New Deal
+          </button>
+        </div>
       </div>
 
       {deals.length === 0 && (
