@@ -163,7 +163,7 @@ function firstSprintHtml() {
     <div class="card celebration-card-enter" role="dialog" aria-modal="true">
       <div class="header">
         <p style="margin:0;font-size:12px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--emerald);">Milestone</p>
-        <h2 class="font-display" style="margin:8px 0 0;font-size:30px;line-height:1.15;">You completed your first sprint</h2>
+        <h2 class="font-display" style="margin:8px 0 0;font-size:30px;line-height:1.15;">You completed your first sprint 🎉</h2>
         <p style="margin:12px 0 0;font-size:15px;line-height:1.6;color:var(--stone);">
           That's a real start — you showed up, filmed, and gave your products a fair test.
         </p>

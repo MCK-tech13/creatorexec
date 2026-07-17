@@ -28,7 +28,7 @@ export function FirstSprintCelebration({
             id="first-sprint-celebration-title"
             className="mt-2 font-display text-2xl font-bold leading-tight text-ink sm:text-3xl"
           >
-            You completed your first sprint
+            You completed your first sprint 🎉
           </h2>
           <p className="mt-3 font-body text-sm leading-relaxed text-stone sm:text-base">
             That&apos;s a real start — you showed up, filmed, and gave your products a fair test.
