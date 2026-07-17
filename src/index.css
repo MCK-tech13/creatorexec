@@ -309,3 +309,73 @@ body {
     text-decoration-color: #c1633f;
   }
 }
+
+@keyframes celebrationToastEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes celebrationToastLeave {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes celebrationCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes celebrationConfettiBurst {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.6) rotate(0deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px) scale(1) rotate(140deg);
+  }
+}
+
+.celebration-toast-enter {
+  animation: celebrationToastEnter 0.35s ease-out both;
+}
+
+.celebration-toast-leave {
+  animation: celebrationToastLeave 0.28s ease-in both;
+}
+
+.celebration-card-enter {
+  animation: celebrationCardEnter 0.4s ease-out both;
+}
+
+.celebration-confetti {
+  position: absolute;
+  bottom: 10px;
+  width: 6px;
+  height: 10px;
+  border-radius: 1px;
+  opacity: 0;
+  animation: celebrationConfettiBurst 0.9s ease-out both;
+}
+

@@ -20,6 +20,7 @@
     "verify:product-flags": "tsx scripts/verify-product-flags.ts",
     "verify:upload-reminder": "tsx scripts/verify-upload-reminder.ts",
     "verify:tiktok-oauth": "tsx scripts/verify-tiktok-oauth.ts",
+    "verify:milestone-celebrations": "tsx scripts/verify-milestone-celebrations.ts",
     "preview:upload-reminder": "node scripts/preview-upload-reminder.mjs",
     "audit:sprint-history": "node --env-file=.env scripts/audit-sprint-history.mjs",
     "test:welcome-email": "node scripts/test-welcome-email.mjs",
