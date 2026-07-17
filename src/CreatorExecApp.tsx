@@ -30,6 +30,13 @@ import {
 import { loadIncomeTracker } from './lib/income/incomeStorage'
 import { SprintEmptyState } from './components/sprint/SprintEmptyState'
 import { SprintReviewModal } from './components/sprint/SprintReviewModal'
+import { AnchorPromotionToast } from './components/celebrations/AnchorPromotionToast'
+import { FirstSprintCelebration } from './components/celebrations/FirstSprintCelebration'
+import { findAnchorPromotions } from './lib/celebrations/anchorPromotions'
+import {
+  hasSeenFirstSprintCelebration,
+  markFirstSprintCelebrationSeen,
+} from './lib/celebrations/firstSprintStorage'
 import type { DeadlineFormData } from './components/schedule/AddDeadlineModal'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
 import { tierProducts, computeScore } from './lib/analysis/tierEngine'
@@ -253,6 +260,11 @@ export default function CreatorExecApp() {
   const [pendingSprintReset, setPendingSprintReset] = useState<'upload' | 'start-over' | null>(
     null,
   )
+  const [anchorPromotionQueue, setAnchorPromotionQueue] = useState<string[]>([])
+  const [firstSprintCelebration, setFirstSprintCelebration] = useState<{
+    videosFilmed: number
+    productsTested: number
+  } | null>(null)
   /** Re-read engagement after mark/dismiss without a full reload. */
   const [engagementTick, setEngagementTick] = useState(0)
   /** Gate autosave until restore seed is in React state (avoids empty overwrite). */
@@ -403,8 +415,21 @@ export default function CreatorExecApp() {
     [],
   )
 
+  const enqueueAnchorPromotions = useCallback((previous: MergedProduct[], next: MergedProduct[]) => {
+    const promotions = findAnchorPromotions(previous, next)
+    if (promotions.length === 0) return
+    setAnchorPromotionQueue((queue) => [...queue, ...promotions.map((p) => p.productName)])
+  }, [])
+
+  const dismissCurrentAnchorPromotion = useCallback(() => {
+    setAnchorPromotionQueue((queue) => queue.slice(1))
+  }, [])
+
   const finishUpload = useCallback(
     (tiered: MergedProduct[], mode: ScheduleMode, reportName: string | null = fileName) => {
+      if (mode === 'full') {
+        enqueueAnchorPromotions(products, tiered)
+      }
       const hydrated = hydrateProductsTrialProgress(tiered)
       setProducts(hydrated)
       setScheduleMode(mode)
@@ -416,7 +441,7 @@ export default function CreatorExecApp() {
       setStage('dashboard')
       saveCurrentSprintStart(hydrated, sprintConfig, mode, reportName)
     },
-    [fileName, saveCurrentSprintStart, sprintConfig],
+    [fileName, saveCurrentSprintStart, sprintConfig, products, enqueueAnchorPromotions],
   )
 
   const handleOnboardingComplete = useCallback((profile: OnboardingProfile) => {
@@ -530,6 +555,9 @@ export default function CreatorExecApp() {
       setScheduleMode(mode)
       setProducts((prev) => {
         const tiered = retierProductsForMode(prev, mode)
+        if (mode === 'full') {
+          enqueueAnchorPromotions(prev, tiered)
+        }
         if (stage === 'schedule') {
           rebuildSchedule(
             tiered,
@@ -549,6 +577,7 @@ export default function CreatorExecApp() {
       deadlineProducts,
       sprintConfig,
       excludedFromSchedule,
+      enqueueAnchorPromotions,
     ],
   )
 
@@ -563,6 +592,9 @@ export default function CreatorExecApp() {
           p.id === productId ? { ...p, videosFilmed } : p,
         )
         const tiered = retierPreservingManual(updated, scheduleMode)
+        if (scheduleMode === 'full') {
+          enqueueAnchorPromotions(prev, tiered)
+        }
         if (stage === 'schedule') {
           rebuildSchedule(
             tiered,
@@ -583,6 +615,7 @@ export default function CreatorExecApp() {
       sprintConfig,
       excludedFromSchedule,
       retierPreservingManual,
+      enqueueAnchorPromotions,
     ],
   )
 
@@ -644,6 +677,9 @@ export default function CreatorExecApp() {
           persistProductVideosFilmed(newProduct, data.videosFilmed)
         }
         const combined = retierPreservingManual([...prev, newProduct], scheduleMode)
+        if (scheduleMode === 'full') {
+          enqueueAnchorPromotions(prev, combined)
+        }
         if (stage === 'schedule') {
           rebuildSchedule(
             combined,
@@ -664,6 +700,7 @@ export default function CreatorExecApp() {
       sprintConfig,
       excludedFromSchedule,
       retierPreservingManual,
+      enqueueAnchorPromotions,
     ],
   )
 
@@ -700,6 +737,7 @@ export default function CreatorExecApp() {
         return
       }
 
+      const historyLength = getUserDataSnapshot().sprintHistory.length
       const review = captureSprintEndReview(
         products,
         sprintConfig,
@@ -713,11 +751,27 @@ export default function CreatorExecApp() {
         return
       }
 
+      const userId = getActiveUserId()
+      const isFirstEverSprint = historyLength === 0 && !review.hasPreviousSprint
+      if (isFirstEverSprint && !hasSeenFirstSprintCelebration(userId)) {
+        const videosFilmed = products.reduce((sum, product) => sum + (product.videosFilmed || 0), 0)
+        const productsTested = products.filter((product) => (product.videosFilmed || 0) > 0).length
+        setFirstSprintCelebration({
+          videosFilmed,
+          productsTested: productsTested > 0 ? productsTested : products.length,
+        })
+      }
+
       setSprintReview(review)
       setPendingSprintReset(resetKind)
     },
     [products, sprintConfig, scheduleMode, fileName, resetSprintState],
   )
+
+  const handleFirstSprintCelebrationContinue = useCallback(() => {
+    markFirstSprintCelebrationSeen(getActiveUserId())
+    setFirstSprintCelebration(null)
+  }, [])
 
   const handleSprintReviewContinue = useCallback(() => {
     setSprintReview(null)
@@ -1295,8 +1349,24 @@ export default function CreatorExecApp() {
         />
       )}
 
-      {sprintReview && (
+      {firstSprintCelebration && (
+        <FirstSprintCelebration
+          videosFilmed={firstSprintCelebration.videosFilmed}
+          productsTested={firstSprintCelebration.productsTested}
+          onContinue={handleFirstSprintCelebrationContinue}
+        />
+      )}
+
+      {sprintReview && !firstSprintCelebration && (
         <SprintReviewModal review={sprintReview} onContinue={handleSprintReviewContinue} />
+      )}
+
+      {anchorPromotionQueue[0] && (
+        <AnchorPromotionToast
+          key={`${anchorPromotionQueue[0]}-${anchorPromotionQueue.length}`}
+          productName={anchorPromotionQueue[0]}
+          onDismiss={dismissCurrentAnchorPromotion}
+        />
       )}
         </>
       )}
