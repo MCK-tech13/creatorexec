@@ -32,6 +32,10 @@ import { SprintEmptyState } from './components/sprint/SprintEmptyState'
 import { SprintReviewModal } from './components/sprint/SprintReviewModal'
 import { AnchorPromotionToast } from './components/celebrations/AnchorPromotionToast'
 import { FirstSprintCelebration } from './components/celebrations/FirstSprintCelebration'
+import {
+  AlreadyTestedToast,
+  type AlreadyTestedNotice,
+} from './components/dashboard/AlreadyTestedToast'
 import { findAnchorPromotions } from './lib/celebrations/anchorPromotions'
 import {
   hasSeenFirstSprintCelebration,
@@ -261,6 +265,9 @@ export default function CreatorExecApp() {
     null,
   )
   const [anchorPromotionQueue, setAnchorPromotionQueue] = useState<string[]>([])
+  const [alreadyTestedNotice, setAlreadyTestedNotice] = useState<AlreadyTestedNotice | null>(
+    null,
+  )
   const [firstSprintCelebration, setFirstSprintCelebration] = useState<{
     videosFilmed: number
     productsTested: number
@@ -435,6 +442,63 @@ export default function CreatorExecApp() {
   const dismissCurrentAnchorPromotion = useCallback(() => {
     setAnchorPromotionQueue((queue) => queue.slice(1))
   }, [])
+
+  const dismissAlreadyTestedNotice = useCallback(() => {
+    setAlreadyTestedNotice(null)
+  }, [])
+
+  const handleMarkTrialPreviouslyCompleted = useCallback(
+    (productId: string) => {
+      setProducts((prev) => {
+        const target = prev.find((p) => p.id === productId)
+        if (!target) return prev
+
+        // Explicit opt-in: skip the guaranteed 6-video trial for products the
+        // creator already tested before CreatorExec. Re-tiers from CSV sales data.
+        persistProductVideosFilmed(target, TIER_REVIEW_VIDEO_COUNT)
+        const updated = prev.map((p) =>
+          p.id === productId ? { ...p, videosFilmed: TIER_REVIEW_VIDEO_COUNT } : p,
+        )
+        const tiered = retierPreservingManual(updated, scheduleMode)
+        const nextProduct = tiered.find((p) => p.id === productId)
+        if (nextProduct) {
+          setAlreadyTestedNotice({
+            productName: nextProduct.productName,
+            previousTier: target.tier,
+            nextTier: nextProduct.tier,
+          })
+          // Follow the product if it left Test (e.g. moved to Cut).
+          if (nextProduct.tier !== 'Test' && activeTier === 'Test') {
+            setActiveTier(nextProduct.tier)
+          }
+        }
+        if (scheduleMode === 'full') {
+          enqueueAnchorPromotions(prev, tiered)
+        }
+        if (stage === 'schedule') {
+          rebuildSchedule(
+            tiered,
+            deadlineProducts,
+            sprintConfig,
+            excludedFromSchedule,
+            scheduleMode,
+          )
+        }
+        return tiered
+      })
+    },
+    [
+      stage,
+      scheduleMode,
+      rebuildSchedule,
+      deadlineProducts,
+      sprintConfig,
+      excludedFromSchedule,
+      retierPreservingManual,
+      enqueueAnchorPromotions,
+      activeTier,
+    ],
+  )
 
   const finishUpload = useCallback(
     (tiered: MergedProduct[], mode: ScheduleMode, reportName: string | null = fileName) => {
@@ -640,15 +704,6 @@ export default function CreatorExecApp() {
       retierPreservingManual,
       enqueueAnchorPromotions,
     ],
-  )
-
-  const handleMarkTrialPreviouslyCompleted = useCallback(
-    (productId: string) => {
-      // Explicit opt-in: skip the guaranteed 6-video trial for products the
-      // creator already tested before CreatorExec. Re-tiers from CSV sales data.
-      handleVideosFilmedChange(productId, TIER_REVIEW_VIDEO_COUNT)
-    },
-    [handleVideosFilmedChange],
   )
 
   const handleInRotationChange = useCallback(
@@ -1393,6 +1448,14 @@ export default function CreatorExecApp() {
           key={`${anchorPromotionQueue[0]}-${anchorPromotionQueue.length}`}
           productName={anchorPromotionQueue[0]}
           onDismiss={dismissCurrentAnchorPromotion}
+        />
+      )}
+
+      {alreadyTestedNotice && (
+        <AlreadyTestedToast
+          key={`${alreadyTestedNotice.productName}-${alreadyTestedNotice.nextTier}`}
+          notice={alreadyTestedNotice}
+          onDismiss={dismissAlreadyTestedNotice}
         />
       )}
         </>
