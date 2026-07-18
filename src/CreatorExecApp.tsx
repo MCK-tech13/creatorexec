@@ -32,6 +32,10 @@ import { SprintEmptyState } from './components/sprint/SprintEmptyState'
 import { SprintReviewModal } from './components/sprint/SprintReviewModal'
 import { AnchorPromotionToast } from './components/celebrations/AnchorPromotionToast'
 import { FirstSprintCelebration } from './components/celebrations/FirstSprintCelebration'
+import {
+  AlreadyTestedToast,
+  type AlreadyTestedNotice,
+} from './components/dashboard/AlreadyTestedToast'
 import { findAnchorPromotions } from './lib/celebrations/anchorPromotions'
 import {
   hasSeenFirstSprintCelebration,
@@ -261,6 +265,9 @@ export default function CreatorExecApp() {
     null,
   )
   const [anchorPromotionQueue, setAnchorPromotionQueue] = useState<string[]>([])
+  const [alreadyTestedNotice, setAlreadyTestedNotice] = useState<AlreadyTestedNotice | null>(
+    null,
+  )
   const [firstSprintCelebration, setFirstSprintCelebration] = useState<{
     videosFilmed: number
     productsTested: number
@@ -373,17 +380,28 @@ export default function CreatorExecApp() {
       deals = brandDeals,
     ) => {
       const hydrated = hydrateProductsTrialProgress(productList)
+      const videosChanged = hydrated.some(
+        (product, index) => product.videosFilmed !== productList[index]?.videosFilmed,
+      )
+      // If persisted "already tested" progress restored videosFilmed, re-tier so
+      // products aren't held in Test for a trial they opted out of.
+      const next =
+        videosChanged && mode !== 'sample'
+          ? retierProductsForMode(hydrated, mode)
+          : hydrated
       if (
-        hydrated.some(
-          (product, index) => product.videosFilmed !== productList[index]?.videosFilmed,
+        next.some(
+          (product, index) =>
+            product.videosFilmed !== productList[index]?.videosFilmed ||
+            product.tier !== productList[index]?.tier,
         )
       ) {
-        setProducts(hydrated)
+        setProducts(next)
       }
       setSchedule(
         buildScheduleForMode(
           mode,
-          hydrated,
+          next,
           config,
           deadlines,
           excluded,
@@ -425,13 +443,75 @@ export default function CreatorExecApp() {
     setAnchorPromotionQueue((queue) => queue.slice(1))
   }, [])
 
+  const dismissAlreadyTestedNotice = useCallback(() => {
+    setAlreadyTestedNotice(null)
+  }, [])
+
+  const handleMarkTrialPreviouslyCompleted = useCallback(
+    (productId: string) => {
+      setProducts((prev) => {
+        const target = prev.find((p) => p.id === productId)
+        if (!target) return prev
+
+        // Explicit opt-in: skip the guaranteed 6-video trial for products the
+        // creator already tested before CreatorExec. Re-tiers from CSV sales data.
+        persistProductVideosFilmed(target, TIER_REVIEW_VIDEO_COUNT)
+        const updated = prev.map((p) =>
+          p.id === productId ? { ...p, videosFilmed: TIER_REVIEW_VIDEO_COUNT } : p,
+        )
+        const tiered = retierPreservingManual(updated, scheduleMode)
+        const nextProduct = tiered.find((p) => p.id === productId)
+        if (nextProduct) {
+          setAlreadyTestedNotice({
+            productName: nextProduct.productName,
+            previousTier: target.tier,
+            nextTier: nextProduct.tier,
+          })
+          // Follow the product if it left Test (e.g. moved to Cut).
+          if (nextProduct.tier !== 'Test' && activeTier === 'Test') {
+            setActiveTier(nextProduct.tier)
+          }
+        }
+        if (scheduleMode === 'full') {
+          enqueueAnchorPromotions(prev, tiered)
+        }
+        if (stage === 'schedule') {
+          rebuildSchedule(
+            tiered,
+            deadlineProducts,
+            sprintConfig,
+            excludedFromSchedule,
+            scheduleMode,
+          )
+        }
+        return tiered
+      })
+    },
+    [
+      stage,
+      scheduleMode,
+      rebuildSchedule,
+      deadlineProducts,
+      sprintConfig,
+      excludedFromSchedule,
+      retierPreservingManual,
+      enqueueAnchorPromotions,
+      activeTier,
+    ],
+  )
+
   const finishUpload = useCallback(
     (tiered: MergedProduct[], mode: ScheduleMode, reportName: string | null = fileName) => {
-      if (mode === 'full') {
-        enqueueAnchorPromotions(products, tiered)
-      }
+      // Restore persisted trial progress (including explicit "already tested" marks),
+      // then re-tier so pre-tested low performers can move to Cut from sales data
+      // instead of staying artificially held in Test.
       const hydrated = hydrateProductsTrialProgress(tiered)
-      setProducts(hydrated)
+      const next =
+        mode === 'sample' ? hydrated : retierPreservingManual(hydrated, mode)
+      if (mode === 'full') {
+        enqueueAnchorPromotions(products, next)
+      }
+      setProducts(next)
       setScheduleMode(mode)
       setSampleProducts([])
       setDeadlineProducts([])
@@ -439,9 +519,16 @@ export default function CreatorExecApp() {
       setActiveTier('All')
       setIsProcessing(false)
       setStage('dashboard')
-      saveCurrentSprintStart(hydrated, sprintConfig, mode, reportName)
+      saveCurrentSprintStart(next, sprintConfig, mode, reportName)
     },
-    [fileName, saveCurrentSprintStart, sprintConfig, products, enqueueAnchorPromotions],
+    [
+      fileName,
+      saveCurrentSprintStart,
+      sprintConfig,
+      products,
+      enqueueAnchorPromotions,
+      retierPreservingManual,
+    ],
   )
 
   const handleOnboardingComplete = useCallback((profile: OnboardingProfile) => {
@@ -617,13 +704,6 @@ export default function CreatorExecApp() {
       retierPreservingManual,
       enqueueAnchorPromotions,
     ],
-  )
-
-  const handleMarkTrialPreviouslyCompleted = useCallback(
-    (productId: string) => {
-      handleVideosFilmedChange(productId, TIER_REVIEW_VIDEO_COUNT)
-    },
-    [handleVideosFilmedChange],
   )
 
   const handleInRotationChange = useCallback(
@@ -1247,7 +1327,9 @@ export default function CreatorExecApp() {
           />
           {!isBeginnerMode && !isMomentumMode && (
             <p className="font-body text-xs text-stone">
-              Products need 6+ videos filmed before low performers can move to Cut. Uncheck
+              New Test products get a 6-video trial before low performers can move to Cut. If you
+              already tested a product before CreatorExec, use &quot;Already tested this
+              product?&quot; to skip that trial and tier from this CSV&apos;s sales data. Uncheck
               &quot;In Rotation&quot; to exclude a product from the sprint schedule.
             </p>
           )}
@@ -1366,6 +1448,14 @@ export default function CreatorExecApp() {
           key={`${anchorPromotionQueue[0]}-${anchorPromotionQueue.length}`}
           productName={anchorPromotionQueue[0]}
           onDismiss={dismissCurrentAnchorPromotion}
+        />
+      )}
+
+      {alreadyTestedNotice && (
+        <AlreadyTestedToast
+          key={`${alreadyTestedNotice.productName}-${alreadyTestedNotice.nextTier}`}
+          notice={alreadyTestedNotice}
+          onDismiss={dismissAlreadyTestedNotice}
         />
       )}
         </>

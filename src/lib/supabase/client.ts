@@ -1,8 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const viteEnv =
+  typeof import.meta !== 'undefined' && import.meta.env
+    ? import.meta.env
+    : ({} as ImportMetaEnv)
+const supabaseUrl = viteEnv.VITE_SUPABASE_URL
+const supabaseAnonKey = viteEnv.VITE_SUPABASE_ANON_KEY
 
 let client: SupabaseClient<Database> | null = null
 

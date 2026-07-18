@@ -142,6 +142,15 @@ export function persistProductVideosFilmed(product: MergedProduct, videosFilmed:
   setTrialVideosFilmed(product, videosFilmed)
 }
 
+/**
+ * Explicit opt-in: creator already tested this product before CreatorExec.
+ * Completes the 6-video trial so the product is tiered from CSV sales data
+ * instead of being held in Test for a guaranteed trial.
+ */
+export function markProductAlreadyTested(product: MergedProduct): void {
+  setTrialVideosFilmed(product, TIER_REVIEW_VIDEO_COUNT)
+}
+
 export function totalTestSlotsNeeded(tests: MergedProduct[]): number {
   return selectActiveTrialProducts(tests).reduce(
     (sum, product) => sum + remainingTrialSlots(product.videosFilmed),
