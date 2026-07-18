@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import type { MergedProduct, Tier } from '../../types'
-import { TIER_REVIEW_VIDEO_COUNT } from '../../types'
 import { TierBadge } from './TierBadge'
 import { ProductFlagBadge } from './ProductFlagBadge'
 import { VideoProgressBar } from './VideoProgressBar'
@@ -35,7 +34,7 @@ function TestTrialStatus({
   if (isReadyForTierReview(product.videosFilmed)) {
     return (
       <span className="label-caps mt-2 inline-flex text-emerald">
-        Trial completed ({TIER_REVIEW_VIDEO_COUNT}+ videos)
+        Already tested — trial skipped
       </span>
     )
   }
@@ -45,8 +44,9 @@ function TestTrialStatus({
       type="button"
       onClick={() => onMarkTrialPreviouslyCompleted(product.id)}
       className="btn-outline mt-2 w-full px-3 py-2 text-left font-body text-xs leading-snug sm:text-sm"
+      title="Skip the 6-video trial if you already filmed and sold this product before CreatorExec. Tier will use this CSV’s sales data."
     >
-      Test Previously Completed (6+ Videos Posted)
+      Already tested this product?
     </button>
   )
 }
