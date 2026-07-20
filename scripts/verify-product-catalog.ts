@@ -308,13 +308,89 @@ function runExistingModesStillCompatible(): void {
   console.log('PASS')
 }
 
-try {
+/**
+ * Simulates the Start Over wipe bug: replace-all persist with [] deleted DB rows.
+ * New contract: empty persist is a no-op; only clearProductCatalogRows wipes.
+ */
+async function runPersistEmptyDoesNotWipeTest(): Promise<void> {
+  console.log('\n=== Persist empty must not wipe user_products ===')
+
+  const { persistProductCatalog, clearProductCatalogRows } = await import(
+    '../src/lib/supabase/persist'
+  )
+
+  type Row = { id: string; user_id: string; display_name: string }
+  const db = new Map<string, Row>()
+
+  const mockClient = {
+    from(table: string) {
+      assert(table === 'user_products', `unexpected table ${table}`)
+      return {
+        upsert(rows: Row[]) {
+          for (const row of rows) db.set(row.id, row)
+          return Promise.resolve({ error: null })
+        },
+        delete() {
+          return {
+            eq(_col: string, userId: string) {
+              for (const [id, row] of db) {
+                if (row.user_id === userId) db.delete(id)
+              }
+              return Promise.resolve({ error: null })
+            },
+            in(_col: string, ids: string[]) {
+              for (const id of ids) db.delete(id)
+              return Promise.resolve({ error: null })
+            },
+          }
+        },
+        select() {
+          return {
+            eq() {
+              return Promise.resolve({
+                data: [...db.values()].map((row) => ({ id: row.id })),
+                error: null,
+              })
+            },
+          }
+        },
+      }
+    },
+  }
+
+  const product = catalogProductFromMerged(
+    mockMerged('ffffffff-ffff-4fff-8fff-ffffffffffff', 'Must Survive', {
+      productId: 'survive-1',
+    }),
+  )
+
+  // @ts-expect-error minimal mock client
+  await persistProductCatalog(mockClient, 'user-1', [product])
+  assert(db.size === 1, 'upsert should insert catalog row')
+
+  // Simulate the Start Over race: persist with empty in-memory catalog.
+  // @ts-expect-error minimal mock client
+  await persistProductCatalog(mockClient, 'user-1', [])
+  assert(db.size === 1, 'empty persist must NOT delete user_products rows')
+
+  // Explicit onboarding clear still wipes.
+  // @ts-expect-error minimal mock client
+  await clearProductCatalogRows(mockClient, 'user-1')
+  assert(db.size === 0, 'clearProductCatalogRows must delete all rows for user')
+
+  console.log('PASS')
+}
+
+async function main(): Promise<void> {
   runCrudTest()
   runDualWriteAndBackfillTest()
   runSurvivesResetTest()
   runExistingModesStillCompatible()
+  await runPersistEmptyDoesNotWipeTest()
   console.log('\nAll product catalog Stage 1 checks passed.')
-} catch (error) {
+}
+
+main().catch((error) => {
   console.error('\nVERIFICATION FAILED:', error)
   process.exit(1)
-}
+})

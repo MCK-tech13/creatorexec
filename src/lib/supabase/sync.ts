@@ -2,6 +2,7 @@ import { getSupabaseClient } from './client'
 import { getActiveUserId, getUserDataSnapshot, updateCurrentSprintState } from './dataStore'
 import {
   clearCurrentSprintStateRow,
+  clearProductCatalogRows,
   persistBrandDeals,
   persistCurrentSprintState,
   persistIncomeTracker,
@@ -56,8 +57,18 @@ export function scheduleProductScoutPersist(): void {
 }
 
 export function scheduleProductCatalogPersist(): void {
+  // Capture at schedule time so a later clearDataStore() cannot turn this into
+  // an empty wipe when the queued task finally runs.
+  const products = getUserDataSnapshot().productCatalog
   withClient(async (userId, client) => {
-    await persistProductCatalog(client, userId, getUserDataSnapshot().productCatalog)
+    await persistProductCatalog(client, userId, products)
+  })
+}
+
+/** Onboarding reset only — deletes all durable catalog rows for the user. */
+export function scheduleProductCatalogClear(): void {
+  withClient(async (userId, client) => {
+    await clearProductCatalogRows(client, userId)
   })
 }
 

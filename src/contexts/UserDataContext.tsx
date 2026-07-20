@@ -28,6 +28,9 @@ interface UserDataContextValue {
 
 const UserDataContext = createContext<UserDataContextValue | null>(null)
 
+/** Bumps on each UserDataProvider user-scoped effect mount; gates late flush clears. */
+let userDataProviderGeneration = 0
+
 export function UserDataProvider({ children }: { children: ReactNode }) {
   const { user, session } = useAuth()
   const [ready, setReady] = useState(false)
@@ -74,11 +77,19 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return
 
+    const generation = ++userDataProviderGeneration
+
     return () => {
-      void flushUserDataPersist()
-      clearDataStore()
+      // Await flush BEFORE clearing. Previously flush was fire-and-forget then
+      // clearDataStore() ran immediately — queued catalog persists read [] and
+      // the old replace-all wipe deleted user_products on Start Over remounts.
+      void flushUserDataPersist().finally(() => {
+        if (generation === userDataProviderGeneration) {
+          clearDataStore()
+        }
+      })
     }
-  }, [user])
+  }, [user?.id])
 
   const value = useMemo<UserDataContextValue>(
     () => ({

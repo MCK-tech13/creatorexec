@@ -1,7 +1,10 @@
 import type { MergedProduct, SampleProduct } from '../../types'
 import type { CatalogProduct, CatalogProductSource } from '../../types/productCatalog'
 import { getUserDataSnapshot, updateProductCatalog } from '../supabase/dataStore'
-import { scheduleProductCatalogPersist } from '../supabase/sync'
+import {
+  scheduleProductCatalogClear,
+  scheduleProductCatalogPersist,
+} from '../supabase/sync'
 
 const SENTINEL_EXTERNAL_IDS = new Set(['sample', 'manual', ''])
 
@@ -31,8 +34,10 @@ export function saveProductCatalog(products: CatalogProduct[]): void {
   scheduleProductCatalogPersist()
 }
 
+/** Clears in-memory catalog and schedules an explicit DB wipe (onboarding only). */
 export function clearProductCatalog(): void {
-  saveProductCatalog([])
+  updateProductCatalog([])
+  scheduleProductCatalogClear()
 }
 
 function upsertById(
