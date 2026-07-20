@@ -81,6 +81,7 @@ import {
   activeCatalogProducts,
   buildSprintProductsFromCatalog,
   enrichProductsWithCatalogFavorites,
+  normalizeScheduleMode,
 } from './lib/catalog/catalogSprint'
 import { getActiveUserId, getUserDataSnapshot } from './lib/supabase/dataStore'
 import { buildProductFlags } from './lib/sprint/productFlags'
@@ -160,10 +161,15 @@ function readRestoredSprint(): CurrentSprintState | null {
   try {
     return {
       ...saved,
+      // Stage 3: legacy scheduleMode `sample` coerces to `full`.
+      scheduleMode: normalizeScheduleMode(saved.scheduleMode),
       filmingProgress: previewLegacyFilmingMerge(getActiveUserId(), saved.filmingProgress),
     }
   } catch {
-    return saved
+    return {
+      ...saved,
+      scheduleMode: normalizeScheduleMode(saved.scheduleMode),
+    }
   }
 }
 
@@ -187,6 +193,7 @@ function buildScheduleForMode(
 
   // Stage 2: sample-mode entry is a thin wrapper — schedule uses the full
   // 6-video Test trial allocator (same as CSV), not the old 1-slot path.
+  // Stage 3: `sample` schedule mode no longer exists; only momentum branches.
   if (mode === 'momentum') {
     return buildMomentumModeSchedule(
       products,
@@ -247,7 +254,7 @@ export default function CreatorExecApp() {
   const [fileName, setFileName] = useState<string | null>(() => restored?.fileName ?? null)
   const [showAddProductModal, setShowAddProductModal] = useState(false)
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>(
-    () => restored?.scheduleMode ?? 'full',
+    () => normalizeScheduleMode(restored?.scheduleMode),
   )
   const [sampleProducts, setSampleProducts] = useState<SampleProduct[]>(
     () => restored?.sampleProducts ?? [],
@@ -370,7 +377,6 @@ export default function CreatorExecApp() {
   const dailyPostingVolume = sprintConfig.videosPerDay
 
   const isBeginnerMode = userMode === 'beginner'
-  const isSampleMode = scheduleMode === 'sample'
   const isMomentumMode = scheduleMode === 'momentum'
 
   const rebuildSchedule = useCallback(
@@ -389,7 +395,7 @@ export default function CreatorExecApp() {
       // If persisted "already tested" progress restored videosFilmed, re-tier so
       // products aren't held in Test for a trial they opted out of.
       const next =
-        videosChanged && mode !== 'sample'
+        videosChanged
           ? retierProductsForMode(hydrated, mode)
           : hydrated
       if (
@@ -418,9 +424,6 @@ export default function CreatorExecApp() {
 
   const retierPreservingManual = useCallback(
     (updated: MergedProduct[], mode: ScheduleMode): MergedProduct[] => {
-      if (mode === 'sample') {
-        return updated
-      }
       const base = updated.map((p) => {
         if (p.isManual) {
           return { ...p }
@@ -505,28 +508,23 @@ export default function CreatorExecApp() {
 
   const finishUpload = useCallback(
     (tiered: MergedProduct[], mode: ScheduleMode, reportName: string | null = fileName) => {
-      const hydrated = hydrateProductsTrialProgress(tiered)
-      // Stage 2: always re-tier after hydrate (sample entry now uses full trial path).
-      const next = retierPreservingManual(hydrated, mode === 'sample' ? 'full' : mode)
-      if (mode === 'full' || mode === 'sample') {
-        enqueueAnchorPromotions(products, next)
+      const effectiveMode = normalizeScheduleMode(mode)
+      // Stage 3: upsert CSV metrics into durable catalog, then rebuild sprint FROM catalog
+      // so sample/favorite-only rows stay in rotation alongside report products.
+      upsertCatalogFromMergedProducts(tiered, 'csv')
+      const fromCatalog = buildSprintProductsFromCatalog(undefined, { mode: effectiveMode })
+      if (effectiveMode === 'full') {
+        enqueueAnchorPromotions(products, fromCatalog)
       }
-      setProducts(next)
-      // Stage 1 dual-write: keep durable catalog in sync with CSV/manual sprint products.
-      upsertCatalogFromMergedProducts(next)
-      setScheduleMode(mode === 'sample' ? 'full' : mode)
+      setProducts(fromCatalog)
+      setScheduleMode(effectiveMode)
       setSampleProducts([])
       setDeadlineProducts([])
       setExcludedFromSchedule(new Set())
       setActiveTier('All')
       setIsProcessing(false)
       setStage('dashboard')
-      saveCurrentSprintStart(
-        next,
-        sprintConfig,
-        mode === 'sample' ? 'full' : mode,
-        reportName,
-      )
+      saveCurrentSprintStart(fromCatalog, sprintConfig, effectiveMode, reportName)
     },
     [
       fileName,
@@ -534,7 +532,6 @@ export default function CreatorExecApp() {
       sprintConfig,
       products,
       enqueueAnchorPromotions,
-      retierPreservingManual,
     ],
   )
 
@@ -648,7 +645,7 @@ export default function CreatorExecApp() {
 
   const handleSwitchScheduleMode = useCallback(
     (mode: 'full' | 'momentum') => {
-      if (scheduleMode === 'sample' || scheduleMode === mode) return
+      if (scheduleMode === mode) return
       setScheduleMode(mode)
       setProducts((prev) => {
         const tiered = retierProductsForMode(prev, mode)
@@ -727,7 +724,7 @@ export default function CreatorExecApp() {
       setProducts((prev) => {
         const next = persistScheduleFilmedDelta(prev, productKey, 1)
         if (next === prev) return prev
-        const modeForTier = scheduleMode === 'sample' ? 'full' : scheduleMode
+        const modeForTier = scheduleMode
         const tiered = retierPreservingManual(next, modeForTier)
         if (modeForTier === 'full') {
           enqueueAnchorPromotions(prev, tiered)
@@ -744,7 +741,7 @@ export default function CreatorExecApp() {
       setProducts((prev) => {
         const next = persistScheduleFilmedDelta(prev, productKey, -1)
         if (next === prev) return prev
-        const modeForTier = scheduleMode === 'sample' ? 'full' : scheduleMode
+        const modeForTier = scheduleMode
         return retierPreservingManual(next, modeForTier)
       })
     },
@@ -805,7 +802,7 @@ export default function CreatorExecApp() {
         if (data.videosFilmed > 0) {
           persistProductVideosFilmed(newProduct, data.videosFilmed)
         }
-        const modeForTier = scheduleMode === 'sample' ? 'full' : scheduleMode
+        const modeForTier = scheduleMode
         const combined = retierPreservingManual([...prev, newProduct], modeForTier)
         upsertCatalogFromMergedProducts([newProduct], 'manual')
         if (modeForTier === 'full') {
@@ -1422,25 +1419,25 @@ export default function CreatorExecApp() {
               Configure Sprint →
             </button>
           </div>
-          {!isSampleMode && (
+          {!isMomentumMode ? (
             <p className="text-center">
-              {isMomentumMode ? (
-                <button
-                  type="button"
-                  onClick={() => handleSwitchScheduleMode('full')}
-                  className="link-elegant font-body text-sm text-emerald"
-                >
-                  Switch to Full Mode
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleSwitchScheduleMode('momentum')}
-                  className="link-elegant font-body text-sm text-emerald"
-                >
-                  Switch to Momentum Mode
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => handleSwitchScheduleMode('momentum')}
+                className="link-elegant font-body text-sm text-emerald"
+              >
+                Switch to Momentum Mode
+              </button>
+            </p>
+          ) : (
+            <p className="text-center">
+              <button
+                type="button"
+                onClick={() => handleSwitchScheduleMode('full')}
+                className="link-elegant font-body text-sm text-emerald"
+              >
+                Switch to Full Mode
+              </button>
             </p>
           )}
           {isBeginnerMode && !isMomentumMode && (
@@ -1462,7 +1459,7 @@ export default function CreatorExecApp() {
           config={sprintConfig}
           onChange={setSprintConfig}
           onSubmit={handleGenerateSchedule}
-          onBack={() => setStage(isSampleMode ? 'sample' : 'dashboard')}
+          onBack={() => setStage('dashboard')}
         />
       )}
 
@@ -1471,7 +1468,6 @@ export default function CreatorExecApp() {
           schedule={schedule}
           products={products}
           beginnerMode={isBeginnerMode && !isMomentumMode}
-          sampleMode={isSampleMode}
           momentumMode={isMomentumMode}
           getFilmedCount={getFilmedCount}
           onFilmedIncrement={handleScheduleFilmedIncrement}
@@ -1483,7 +1479,6 @@ export default function CreatorExecApp() {
           onStartOver={
             showRetainerOnlySchedule ? handleAddProductsFromRetainer : handleStartOver
           }
-          onUploadReport={isSampleMode ? handleUploadReport : undefined}
           retainerOnly={showRetainerOnlySchedule}
         />
       )}

@@ -74,7 +74,7 @@ export function mergePlacementReasons(reasons: string[]): string {
   return unique[0]
 }
 
-export type SchedulePlacementMode = 'full' | 'momentum' | 'sample'
+export type SchedulePlacementMode = 'full' | 'momentum'
 
 export interface PlacementReasonContext {
   mode: SchedulePlacementMode
@@ -108,11 +108,6 @@ export function createPlacementReasonBuilder(ctx: PlacementReasonContext) {
     ): string {
       if (ctx.mode === 'momentum' && tier === 'Rising') {
         return coldStartReason()
-      }
-      if (ctx.mode === 'sample') {
-        return tier === 'Test'
-          ? trialVideoReason(videosFilmed + alreadyPlacedInSprint + 1)
-          : coldStartReason()
       }
       if (ctx.topAnchorIds.has(productId) && tier === 'Anchor' && kind !== 'fill') {
         return topSellerDailyReason()
