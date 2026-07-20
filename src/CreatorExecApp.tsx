@@ -60,6 +60,7 @@ import {
   clearTrialProgress,
   trialStorageKey,
 } from './lib/schedule/trialProgressStorage'
+import { persistScheduleFilmedDelta } from './lib/schedule/scheduleFilmingTrialSync'
 import { captureSprintEndReview } from './lib/sprint/finalizeSprint'
 import {
   clearCurrentSprintState,
@@ -711,6 +712,41 @@ export default function CreatorExecApp() {
       retierPreservingManual,
       enqueueAnchorPromotions,
     ],
+  )
+
+  /**
+   * Schedule +/- checkmarks: advance durable trial_progress immediately so
+   * cumulative filmed counts survive Start Over (filmingProgress alone does not).
+   * Does not rebuild the live schedule mid-sprint.
+   */
+  const handleScheduleFilmedIncrement = useCallback(
+    (storageKey: string, max: number, productKey: string) => {
+      incrementFilmed(storageKey, max)
+      setProducts((prev) => {
+        const next = persistScheduleFilmedDelta(prev, productKey, 1)
+        if (next === prev) return prev
+        const modeForTier = scheduleMode === 'sample' ? 'full' : scheduleMode
+        const tiered = retierPreservingManual(next, modeForTier)
+        if (modeForTier === 'full') {
+          enqueueAnchorPromotions(prev, tiered)
+        }
+        return tiered
+      })
+    },
+    [incrementFilmed, scheduleMode, retierPreservingManual, enqueueAnchorPromotions],
+  )
+
+  const handleScheduleFilmedDecrement = useCallback(
+    (storageKey: string, productKey: string) => {
+      decrementFilmed(storageKey)
+      setProducts((prev) => {
+        const next = persistScheduleFilmedDelta(prev, productKey, -1)
+        if (next === prev) return prev
+        const modeForTier = scheduleMode === 'sample' ? 'full' : scheduleMode
+        return retierPreservingManual(next, modeForTier)
+      })
+    },
+    [decrementFilmed, scheduleMode, retierPreservingManual],
   )
 
   const handleInRotationChange = useCallback(
@@ -1449,8 +1485,8 @@ export default function CreatorExecApp() {
           sampleMode={isSampleMode}
           momentumMode={isMomentumMode}
           getFilmedCount={getFilmedCount}
-          onFilmedIncrement={incrementFilmed}
-          onFilmedDecrement={decrementFilmed}
+          onFilmedIncrement={handleScheduleFilmedIncrement}
+          onFilmedDecrement={handleScheduleFilmedDecrement}
           onAddDeadline={handleAddDeadline}
           onRemoveFromSchedule={handleRemoveFromSchedule}
           onBack={

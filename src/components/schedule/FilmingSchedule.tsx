@@ -25,8 +25,8 @@ interface FilmingScheduleProps {
   sampleMode?: boolean
   momentumMode?: boolean
   getFilmedCount: (storageKey: string) => number
-  onFilmedIncrement: (storageKey: string, max: number) => void
-  onFilmedDecrement: (storageKey: string) => void
+  onFilmedIncrement: (storageKey: string, max: number, productKey: string) => void
+  onFilmedDecrement: (storageKey: string, productKey: string) => void
   onAddDeadline: (data: DeadlineFormData) => void
   onRemoveFromSchedule: (productKey: string) => void
   onBack: () => void
@@ -239,7 +239,7 @@ export function FilmingSchedule({
                               <div className="flex shrink-0 items-center gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => onFilmedDecrement(row.storageKey)}
+                                  onClick={() => onFilmedDecrement(row.storageKey, row.productKey)}
                                   disabled={filmed === 0}
                                   className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
                                   aria-label="Decrement filmed count"
@@ -248,7 +248,9 @@ export function FilmingSchedule({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => onFilmedIncrement(row.storageKey, row.total)}
+                                  onClick={() =>
+                                    onFilmedIncrement(row.storageKey, row.total, row.productKey)
+                                  }
                                   disabled={complete}
                                   className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
                                   aria-label="Increment filmed count"

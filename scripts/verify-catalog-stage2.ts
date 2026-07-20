@@ -29,6 +29,7 @@ import {
   buildSprintProductsFromCatalog,
   mergedDraftFromCatalog,
 } from '../src/lib/catalog/catalogSprint'
+import { persistScheduleFilmedDelta } from '../src/lib/schedule/scheduleFilmingTrialSync'
 import {
   clearDataStore,
   getUserDataSnapshot,
@@ -282,12 +283,69 @@ function runMergedDraftThroughTierEngine(): void {
   console.log('PASS')
 }
 
+function runScheduleFilmingAdvancesDurableTrial(): void {
+  console.log('\n=== Schedule filming (+/-) advances durable trial_progress ===')
+  resetStore()
+
+  const id = 'a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1'
+  upsertCatalogFromSampleProducts([mockSample(id, 'Cumulative Serum')])
+  let sprintProducts = buildSprintProductsFromCatalog()
+  assert(sprintProducts[0].videosFilmed === 0, 'starts at 0 filmed')
+
+  const firstSchedule = buildFilmingSchedule(sprintProducts, sprintConfig, [], new Set())
+  const firstPlaced = countProductVideos(firstSchedule, id)
+  assert(firstPlaced === TIER_REVIEW_VIDEO_COUNT, 'fresh product gets 6 slots (not 1)')
+
+  // Simulate checking off 3 schedule slots → durable trial_progress.
+  for (let i = 0; i < 3; i++) {
+    sprintProducts = persistScheduleFilmedDelta(sprintProducts, id, 1)
+  }
+  assert(sprintProducts[0].videosFilmed === 3, 'in-memory filmed is 3')
+  assert(
+    getUserDataSnapshot().trialProgress[id]?.videosFilmed === 3,
+    'trial_progress persisted at 3',
+  )
+
+  // Simulate Start Over: clear sprint, keep trial_progress + catalog.
+  updateCurrentSprintState(null)
+  assert(loadProductCatalog().length === 1, 'catalog survives')
+  assert(getUserDataSnapshot().trialProgress[id]?.videosFilmed === 3, 'trial survives reset')
+
+  const nextSprint = buildSprintProductsFromCatalog()
+  assert(nextSprint[0].videosFilmed === 3, 'hydrate restores cumulative filmed')
+  assert(
+    testSlotsForProduct(nextSprint[0]) === 3,
+    'next sprint asks for remaining 3, not a fresh 6',
+  )
+
+  const nextSchedule = buildFilmingSchedule(nextSprint, sprintConfig, [], new Set())
+  const nextPlaced = countProductVideos(nextSchedule, id)
+  assert(nextPlaced === 3, `next sprint places remaining 3, got ${nextPlaced}`)
+  console.log('PASS')
+}
+
+function runStage2NeverOneSlotFreshProduct(): void {
+  console.log('\n=== Stage 2 full path: fresh product is never 1-slot on 7-day sprint ===')
+  resetStore()
+  upsertCatalogFromSampleProducts([
+    mockSample('c2c2c2c2-c2c2-4c2c-8c2c-c2c2c2c2c2c2', 'Six Slot Check'),
+  ])
+  const products = buildSprintProductsFromCatalog()
+  const schedule = buildFilmingSchedule(products, sprintConfig, [], new Set())
+  const placed = countProductVideos(schedule, products[0].id)
+  assert(placed === 6, `expected 6 trial videos, got ${placed}`)
+  assert(placed !== 1, 'must not use old sample 1-slot allocator')
+  console.log('PASS')
+}
+
 try {
   runZeroSalesFullTrial()
   runFavoriteSoftPriority()
   runReappearAfterReset()
   runAlreadyTestedCatalogId()
   runMergedDraftThroughTierEngine()
+  runScheduleFilmingAdvancesDurableTrial()
+  runStage2NeverOneSlotFreshProduct()
   console.log('\nAll Stage 2 catalog schedule checks passed.')
 } catch (error) {
   console.error('\nVERIFICATION FAILED:', error)
