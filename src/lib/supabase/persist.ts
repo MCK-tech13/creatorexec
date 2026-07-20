@@ -3,6 +3,7 @@ import type { Database } from './database.types'
 import type { UserDataSnapshot } from './dataStore'
 import {
   brandDealToRow,
+  catalogProductToRow,
   currentSprintToRow,
   incomeEntryToRow,
   onboardingProfileToRow,
@@ -135,6 +136,32 @@ export async function persistProductScoutEntries(
   if (rows.length === 0) return
 
   const { error } = await client.from('product_scout_list').upsert(rows)
+  if (error) throw error
+}
+
+/**
+ * Upsert-only durable catalog write.
+ *
+ * Intentionally does NOT delete orphans / wipe on empty. Start Over and other
+ * sprint resets can leave the in-memory catalog momentarily empty (or flush a
+ * stale empty snapshot); replace-all deletes would destroy preserved catalog
+ * rows. Explicit wipe belongs in clearProductCatalogRows (onboarding reset).
+ */
+export async function persistProductCatalog(
+  client: Client,
+  userId: string,
+  products: UserDataSnapshot['productCatalog'],
+): Promise<void> {
+  if (products.length === 0) return
+
+  const rows = products.map((product) => catalogProductToRow(userId, product))
+  const { error } = await client.from('user_products').upsert(rows)
+  if (error) throw error
+}
+
+/** Full catalog wipe — onboarding reset only, never Start Over / sprint reset. */
+export async function clearProductCatalogRows(client: Client, userId: string): Promise<void> {
+  const { error } = await client.from('user_products').delete().eq('user_id', userId)
   if (error) throw error
 }
 

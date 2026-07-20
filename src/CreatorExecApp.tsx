@@ -75,6 +75,11 @@ import {
   clearSprintSnapshots,
   saveSprintStartSnapshot,
 } from './lib/sprint/sprintSnapshotStorage'
+import {
+  clearProductCatalog,
+  upsertCatalogFromMergedProducts,
+  upsertCatalogFromSampleProducts,
+} from './lib/catalog/productCatalogStorage'
 import { getActiveUserId, getUserDataSnapshot } from './lib/supabase/dataStore'
 import { buildProductFlags } from './lib/sprint/productFlags'
 import {
@@ -512,6 +517,8 @@ export default function CreatorExecApp() {
         enqueueAnchorPromotions(products, next)
       }
       setProducts(next)
+      // Stage 1 dual-write: keep durable catalog in sync with CSV/manual sprint products.
+      upsertCatalogFromMergedProducts(next)
       setScheduleMode(mode)
       setSampleProducts([])
       setDeadlineProducts([])
@@ -567,6 +574,7 @@ export default function CreatorExecApp() {
     resetFilmingProgress()
     clearCurrentSprintState()
     clearTrialProgress()
+    clearProductCatalog()
     clearSprintSnapshots()
     setScheduleMode('full')
     setSampleProducts([])
@@ -757,6 +765,7 @@ export default function CreatorExecApp() {
           persistProductVideosFilmed(newProduct, data.videosFilmed)
         }
         const combined = retierPreservingManual([...prev, newProduct], scheduleMode)
+        upsertCatalogFromMergedProducts([newProduct], 'manual')
         if (scheduleMode === 'full') {
           enqueueAnchorPromotions(prev, combined)
         }
@@ -803,6 +812,7 @@ export default function CreatorExecApp() {
       sprintDays: 7,
     }))
     resetFilmingProgress()
+    // Clears live sprint workspace only — durable productCatalog is preserved.
     clearCurrentSprintState()
     clearingRef.current = false
     setPersistEnabled(true)
@@ -916,6 +926,9 @@ export default function CreatorExecApp() {
     setSampleProducts(items)
     const merged = hydrateProductsTrialProgress(sampleProductsToMerged(items))
     setProducts(merged)
+    // Stage 1 dual-write: sample inventory lands in durable catalog.
+    upsertCatalogFromSampleProducts(items)
+    upsertCatalogFromMergedProducts(merged, 'sample')
     setScheduleMode('sample')
     setDeadlineProducts([])
     setExcludedFromSchedule(new Set())

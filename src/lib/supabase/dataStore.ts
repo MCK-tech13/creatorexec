@@ -2,6 +2,7 @@ import type { IncomeTrackerStore } from '../../types/incomeTracker'
 import type { OnboardingProfile } from '../../types/onboarding'
 import type { BrandDeal } from '../../types/pipeline'
 import type { ProductScoutEntry } from '../../types/productScout'
+import type { CatalogProduct } from '../../types/productCatalog'
 import type { CurrentSprintState } from '../../types/currentSprint'
 import type { SprintSnapshot } from '../../types/sprintReview'
 import type { UserEngagementState } from '../../types/userEngagement'
@@ -14,6 +15,7 @@ export interface UserDataSnapshot {
   brandDeals: BrandDeal[]
   incomeTracker: IncomeTrackerStore
   productScoutEntries: ProductScoutEntry[]
+  productCatalog: CatalogProduct[]
   onboardingProfile: OnboardingProfile | null
   sprintEntrySeen: boolean
   welcomeSeen: boolean
@@ -29,6 +31,7 @@ const EMPTY_SNAPSHOT: UserDataSnapshot = {
   brandDeals: [],
   incomeTracker: [],
   productScoutEntries: [],
+  productCatalog: [],
   onboardingProfile: null,
   sprintEntrySeen: false,
   welcomeSeen: false,
@@ -84,6 +87,10 @@ export function updateIncomeTracker(store: IncomeTrackerStore): void {
 
 export function updateProductScoutEntries(entries: ProductScoutEntry[]): void {
   snapshot = { ...snapshot, productScoutEntries: entries }
+}
+
+export function updateProductCatalog(products: CatalogProduct[]): void {
+  snapshot = { ...snapshot, productCatalog: products }
 }
 
 export function updateOnboardingProfile(profile: OnboardingProfile | null): void {

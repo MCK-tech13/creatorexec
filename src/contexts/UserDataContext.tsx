@@ -18,6 +18,7 @@ import { fetchUserDataFromSupabase } from '../lib/supabase/fetchUserData'
 import { getSupabaseClient } from '../lib/supabase/client'
 import { migrateLocalStorageToSupabase } from '../lib/supabase/migrateLocalStorage'
 import { flushUserDataPersist } from '../lib/supabase/sync'
+import { backfillCatalogFromSprintState } from '../lib/catalog/productCatalogStorage'
 
 interface UserDataContextValue {
   ready: boolean
@@ -26,6 +27,9 @@ interface UserDataContextValue {
 }
 
 const UserDataContext = createContext<UserDataContextValue | null>(null)
+
+/** Bumps on each UserDataProvider user-scoped effect mount; gates late flush clears. */
+let userDataProviderGeneration = 0
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
   const { user, session } = useAuth()
@@ -48,6 +52,11 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await migrateLocalStorageToSupabase(client, user.id)
       const snapshot = await fetchUserDataFromSupabase(client, user.id)
       hydrateDataStore(user.id, snapshot)
+      // Stage 1: one-time backfill of durable catalog from live sprint workspace.
+      backfillCatalogFromSprintState({
+        products: snapshot.currentSprintState?.products,
+        sampleProducts: snapshot.currentSprintState?.sampleProducts,
+      })
       setReady(true)
     } catch (loadError) {
       console.error('Failed to load user data', loadError)
@@ -68,11 +77,19 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return
 
+    const generation = ++userDataProviderGeneration
+
     return () => {
-      void flushUserDataPersist()
-      clearDataStore()
+      // Await flush BEFORE clearing. Previously flush was fire-and-forget then
+      // clearDataStore() ran immediately — queued catalog persists read [] and
+      // the old replace-all wipe deleted user_products on Start Over remounts.
+      void flushUserDataPersist().finally(() => {
+        if (generation === userDataProviderGeneration) {
+          clearDataStore()
+        }
+      })
     }
-  }, [user])
+  }, [user?.id])
 
   const value = useMemo<UserDataContextValue>(
     () => ({

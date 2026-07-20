@@ -37,6 +37,7 @@ This creates:
 | `product_scout_list` | `creatorexec-product-scout` |
 | `onboarding_state` | `creatorexec-onboarding` + welcome/sprint-entry flags |
 | `current_sprint_state` | live sprint workspace (products, schedule, filming checkmarks) |
+| `user_products` | durable product catalog (survives sprint resets; Stage 1) |
 
 All tables have **RLS enabled** with per-user policies (`auth.uid() = user_id`).
 
