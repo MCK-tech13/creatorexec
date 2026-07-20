@@ -83,13 +83,19 @@ function resetStore(): void {
   memoryStorage.clear()
 }
 
-function mockSample(id: string, name: string, favorite = false): SampleProduct {
+function mockSample(
+  id: string,
+  name: string,
+  favorite = false,
+  firstVideoDeadline?: string,
+): SampleProduct {
   return {
     id,
     productName: name,
     brand: 'BrandCo',
     dateReceived: '2026-07-01',
     type: favorite ? 'favorite' : 'sample',
+    ...(firstVideoDeadline ? { firstVideoDeadline } : {}),
   }
 }
 
@@ -324,6 +330,41 @@ function runScheduleFilmingAdvancesDurableTrial(): void {
   console.log('PASS')
 }
 
+function runFirstVideoDeadlineOnTrial(): void {
+  console.log('\n=== Optional first-video deadline stays on 6-video Test trial ===')
+  resetStore()
+
+  const id = 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2'
+  upsertCatalogFromSampleProducts([
+    mockSample(id, 'Deadline Serum', false, '2026-07-25'),
+  ])
+  const products = buildSprintProductsFromCatalog()
+  assert(products[0].firstVideoDeadline === '2026-07-25', 'catalog carries first-video deadline')
+  assert(products[0].tier === 'Test', 'still Test tier')
+
+  const schedule = buildFilmingSchedule(products, sprintConfig, [], new Set())
+  const slots = schedule.flatMap((day) => day.videos).filter((v) => v.productKey === id)
+  assert(slots.length === TIER_REVIEW_VIDEO_COUNT, `expected 6 trial slots, got ${slots.length}`)
+
+  const withDeadline = slots.filter((v) => v.deadlineDate === '2026-07-25')
+  assert(withDeadline.length === 1, `exactly one slot carries the deadline, got ${withDeadline.length}`)
+  assert(
+    !slots.some((v) => v.productKey.startsWith('deadline:')),
+    'must use catalog product key, not deadline: prefix',
+  )
+
+  // After first video filmed, deadline priority slot goes away; remaining stay Test.
+  const afterFirst = persistScheduleFilmedDelta(products, id, 1)
+  const nextSchedule = buildFilmingSchedule(afterFirst, sprintConfig, [], new Set())
+  const nextSlots = nextSchedule.flatMap((day) => day.videos).filter((v) => v.productKey === id)
+  assert(nextSlots.length === 5, `remaining trial is 5, got ${nextSlots.length}`)
+  assert(
+    nextSlots.every((v) => v.deadlineDate == null),
+    'no deadline once first video is filmed',
+  )
+  console.log('PASS')
+}
+
 function runStage2NeverOneSlotFreshProduct(): void {
   console.log('\n=== Stage 2 full path: fresh product is never 1-slot on 7-day sprint ===')
   resetStore()
@@ -345,6 +386,7 @@ try {
   runAlreadyTestedCatalogId()
   runMergedDraftThroughTierEngine()
   runScheduleFilmingAdvancesDurableTrial()
+  runFirstVideoDeadlineOnTrial()
   runStage2NeverOneSlotFreshProduct()
   console.log('\nAll Stage 2 catalog schedule checks passed.')
 } catch (error) {

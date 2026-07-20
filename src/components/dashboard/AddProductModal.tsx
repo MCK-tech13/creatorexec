@@ -14,6 +14,7 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
   const [commission, setCommission] = useState('')
   const [tier, setTier] = useState<ManualTier>('Test')
   const [videosFilmed, setVideosFilmed] = useState('0')
+  const [firstVideoDeadline, setFirstVideoDeadline] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,6 +26,9 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
       commission: Math.max(0, parseFloat(commission) || 0),
       tier,
       videosFilmed: Math.max(0, parseInt(videosFilmed, 10) || 0),
+      ...(firstVideoDeadline.trim()
+        ? { firstVideoDeadline: firstVideoDeadline.trim() }
+        : {}),
     })
     onClose()
   }
@@ -96,6 +100,23 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
               onChange={(e) => setVideosFilmed(e.target.value)}
               className="input-field w-full px-3 py-3"
             />
+          </label>
+
+          <label className="block">
+            <span className="label-caps mb-3 block">
+              First-video deadline{' '}
+              <span className="normal-case tracking-normal text-stone">(optional)</span>
+            </span>
+            <input
+              type="date"
+              value={firstVideoDeadline}
+              onChange={(e) => setFirstVideoDeadline(e.target.value)}
+              className="input-field w-full px-3 py-3"
+            />
+            <p className="mt-2 font-body text-xs text-stone">
+              Applies only to the first trial video. Videos 2–6 stay on the normal 6-video Test
+              path. Retainers belong on the Retainers tab.
+            </p>
           </label>
 
           <div className="flex gap-px pt-4">

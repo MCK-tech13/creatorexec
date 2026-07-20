@@ -259,6 +259,69 @@ const pages = {
         <span>Tier</span>
         <select disabled><option>Test</option></select>
       </div>
+      <div class="field">
+        <span>First-video deadline (optional)</span>
+        <input value="2026-07-25" readonly />
+        <p class="hint">Applies only to the first trial video. Videos 2–6 stay on the normal 6-video Test path. Retainers belong on the Retainers tab.</p>
+      </div>
+    </div>
+  `,
+  ),
+  sampleForm: page(
+    '5 · Add a sample or favorite product',
+    `
+    <div class="mark" aria-hidden="true"></div>
+    <h1>Add products to your catalog</h1>
+    <p class="sub">No-sales products join your durable catalog as Test trials (6 videos). Optional first-video deadline applies only to video 1.</p>
+    <div class="modal" style="margin:24px auto 0;max-width:520px">
+      <div class="field">
+        <span>Product Name</span>
+        <input value="Peptide Neck Cream" readonly />
+      </div>
+      <div class="field">
+        <span>Brand</span>
+        <input value="Z:SEA" readonly />
+      </div>
+      <div class="field">
+        <span>Date Received</span>
+        <input value="2026-07-18" readonly />
+      </div>
+      <div class="field">
+        <span>First-video deadline (optional)</span>
+        <input value="2026-07-25" readonly />
+        <p class="hint">TikTok often requires one post by a date. That deadline applies only to your first trial video — we still schedule the full 6-video Test to see if it sells.</p>
+      </div>
+      <button class="btn-outline" type="button">Add Product</button>
+    </div>
+  `,
+  ),
+  schedule: page(
+    '6 · Built schedule (no Add Sample / Deadline button)',
+    `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px">
+      <div>
+        <h2 style="margin:0">Your filming schedule</h2>
+        <p class="sub" style="text-align:left;margin:8px 0 0">42 videos across 7 days · sorted by tier, then commission</p>
+      </div>
+      <button class="btn-outline" type="button" style="width:auto;padding:10px 16px">Copy Schedule</button>
+    </div>
+    <div class="modal" style="max-width:none">
+      <p style="font-family:Fraunces,serif;font-size:22px;font-weight:700;margin:0 0 12px">Day 1 — Mon</p>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #e8e0d4">
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;background:#1f4d3a;color:#fff;padding:4px 8px">Test</span>
+        <div>
+          <p style="margin:0;font-weight:600">Peptide Neck Cream (Z:SEA) <span style="color:#8a7f72;font-weight:400;font-size:12px">Due in 5 days</span></p>
+          <p class="hint" style="margin:4px 0 0;color:#1f4d3a">First trial video — post by due in 5 days</p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #e8e0d4">
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;background:#1f4d3a;color:#fff;padding:4px 8px">Test</span>
+        <div>
+          <p style="margin:0;font-weight:600">Peptide Neck Cream (Z:SEA)</p>
+          <p class="hint" style="margin:4px 0 0;color:#1f4d3a">Trial video 2 of 6</p>
+        </div>
+      </div>
+      <p class="dash-note" style="margin-top:16px">Samples/favorites → 6-video Test. Retainers → Retainers tab. No separate “Add Sample / Deadline” on schedule.</p>
     </div>
   `,
   ),
@@ -269,6 +332,8 @@ const outputs = {
   momentum: `${outDir}/entry-momentum-catalog-cta.png`,
   empty: `${outDir}/entry-empty-sprint-catalog-cta.png`,
   dashboard: `${outDir}/entry-dashboard-add-product.png`,
+  sampleForm: `${outDir}/entry-sample-form-first-deadline.png`,
+  schedule: `${outDir}/entry-schedule-no-deadline-button.png`,
 }
 
 await mkdir(outDir, { recursive: true })

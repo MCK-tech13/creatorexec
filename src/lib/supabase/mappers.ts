@@ -86,6 +86,7 @@ export function catalogProductFromRow(row: CatalogRow): CatalogProduct {
     inRotation: row.in_rotation,
     isManual: row.is_manual,
     dateReceived: row.date_received,
+    firstVideoDeadline: row.first_video_deadline ?? null,
     archivedAt: row.archived_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -111,6 +112,7 @@ export function catalogProductToRow(
     in_rotation: product.inRotation,
     is_manual: product.isManual,
     date_received: product.dateReceived,
+    first_video_deadline: product.firstVideoDeadline,
     archived_at: product.archivedAt,
   }
 }

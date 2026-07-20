@@ -10,6 +10,7 @@ import { AngleRotationSession } from './angleRotation'
 import {
   assignSlotIds,
   buildDeadlineScheduledVideos,
+  buildFirstVideoDeadlineVideos,
   placeRetainerVideos,
   placeVideosRoundRobin,
   remainingDayCapacity,
@@ -49,6 +50,7 @@ export function sampleProductsToMerged(products: SampleProduct[]): MergedProduct
     inRotation: true,
     isManual: true,
     isFavorite: p.type === 'favorite',
+    firstVideoDeadline: p.firstVideoDeadline?.trim() ? p.firstVideoDeadline.trim() : null,
   }))
 }
 
@@ -85,11 +87,18 @@ export function buildSampleModeSchedule(
 
   placeRetainerVideos(perDay, retainerVideos, cap)
   placeVideosRoundRobin(perDay, buildDeadlineScheduledVideos(deadlineProducts), cap)
+  placeVideosRoundRobin(perDay, buildFirstVideoDeadlineVideos(products), cap)
 
   const totalSlots = cap * sprintDays
   const priorityCount = perDay.reduce((sum, day) => sum + day.length, 0)
   const sampleSlots = Math.max(0, totalSlots - priorityCount)
-  const toSchedule = products.slice(0, sampleSlots)
+  // First-video deadline slots already used the catalog product key — skip duplicates.
+  const alreadyPlacedIds = new Set(
+    perDay.flat().map((video) => video.productKey),
+  )
+  const toSchedule = products
+    .filter((product) => !alreadyPlacedIds.has(product.id))
+    .slice(0, sampleSlots)
   const angleSession = new AngleRotationSession()
   const reasonBuilder = createPlacementReasonBuilder({
     mode: 'sample',

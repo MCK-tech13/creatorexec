@@ -37,6 +37,11 @@ export interface MergedProduct {
    * Never forces Rising/Anchor — sales data still owns tier.
    */
   isFavorite?: boolean
+  /**
+   * Optional TikTok sample post-by date.
+   * Only the first trial video carries this deadline; videos 2–6 stay normal Test slots.
+   */
+  firstVideoDeadline?: string | null
 }
 
 export interface DeadlineProduct {
@@ -97,6 +102,8 @@ export interface SampleProduct {
   brand: string
   dateReceived: string
   type: SampleProductType
+  /** Optional — applies only to the first posted trial video. */
+  firstVideoDeadline?: string
 }
 
 export interface ColumnMapping {
@@ -123,4 +130,6 @@ export interface ManualProductFormData {
   commission: number
   tier: ManualTier
   videosFilmed: number
+  /** Optional — applies only to the first posted trial video when still at 0 filmed. */
+  firstVideoDeadline?: string
 }

@@ -65,6 +65,7 @@ function upsertById(
           updatedAt: nowIso(),
           // Keep an existing TikTok id if the incoming row lost it.
           externalProductId: product.externalProductId ?? prev.externalProductId,
+          firstVideoDeadline: product.firstVideoDeadline ?? prev.firstVideoDeadline,
         }
       : product
     byId.set(merged.id, merged)
@@ -97,6 +98,9 @@ export function catalogProductFromMerged(
     inRotation: product.inRotation,
     isManual: product.isManual,
     dateReceived: null,
+    firstVideoDeadline: product.firstVideoDeadline?.trim()
+      ? product.firstVideoDeadline.trim()
+      : null,
     archivedAt: null,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -119,6 +123,9 @@ export function catalogProductFromSample(product: SampleProduct): CatalogProduct
     inRotation: true,
     isManual: true,
     dateReceived: product.dateReceived || null,
+    firstVideoDeadline: product.firstVideoDeadline?.trim()
+      ? product.firstVideoDeadline.trim()
+      : null,
     archivedAt: null,
     createdAt: timestamp,
     updatedAt: timestamp,

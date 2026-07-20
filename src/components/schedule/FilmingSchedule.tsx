@@ -16,7 +16,6 @@ import { getScheduleTierExplanation } from '../../lib/onboarding/beginnerCopy'
 import { ProductChoosingTips } from '../sample/ProductChoosingTips'
 import { TierBadge } from '../dashboard/TierBadge'
 import { ContentPolicyDisclaimer } from '../ui/ContentPolicyDisclaimer'
-import { AddDeadlineModal, type DeadlineFormData } from './AddDeadlineModal'
 
 interface FilmingScheduleProps {
   schedule: DaySchedule[]
@@ -27,7 +26,6 @@ interface FilmingScheduleProps {
   getFilmedCount: (storageKey: string) => number
   onFilmedIncrement: (storageKey: string, max: number, productKey: string) => void
   onFilmedDecrement: (storageKey: string, productKey: string) => void
-  onAddDeadline: (data: DeadlineFormData) => void
   onRemoveFromSchedule: (productKey: string) => void
   onBack: () => void
   onStartOver: () => void
@@ -46,7 +44,6 @@ export function FilmingSchedule({
   getFilmedCount,
   onFilmedIncrement,
   onFilmedDecrement,
-  onAddDeadline,
   onRemoveFromSchedule,
   onBack,
   onStartOver,
@@ -57,7 +54,6 @@ export function FilmingSchedule({
     () => new Set(schedule.map((d) => d.day)),
   )
   const [copied, setCopied] = useState(false)
-  const [showDeadlineModal, setShowDeadlineModal] = useState(false)
 
   const filmedByProductId = useMemo(
     () => new Map(products.map((p) => [p.id, p.videosFilmed])),
@@ -136,16 +132,6 @@ export function FilmingSchedule({
           <ContentPolicyDisclaimer className="mt-3 max-w-2xl" />
         </div>
         <div className="flex flex-wrap gap-2">
-          {!sampleMode && (
-          <button
-            type="button"
-            onClick={() => setShowDeadlineModal(true)}
-            className="btn-secondary inline-flex items-center gap-2 px-4 py-2.5 text-sm"
-          >
-            <Plus className="h-4 w-4" />
-            Add Sample / Deadline
-          </button>
-          )}
           <button
             type="button"
             onClick={copySchedule}
@@ -342,12 +328,6 @@ export function FilmingSchedule({
         </button>
       </div>
 
-      {showDeadlineModal && (
-        <AddDeadlineModal
-          onClose={() => setShowDeadlineModal(false)}
-          onSubmit={onAddDeadline}
-        />
-      )}
     </div>
   )
 }

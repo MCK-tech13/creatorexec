@@ -41,6 +41,14 @@ export function deadlineReason(deadlineDate?: string): string {
   return 'Sample / deadline — film ASAP'
 }
 
+/** First trial video only — videos 2–6 use normal trial reasons. */
+export function firstVideoDeadlineReason(deadlineDate?: string): string {
+  if (deadlineDate) {
+    return `First trial video — post by ${formatDeadlineCountdown(deadlineDate).toLowerCase()}`
+  }
+  return 'First trial video — sample deadline'
+}
+
 export function weeklySlotsFromAllocation(slotsInSprint: number, sprintDays: number): number {
   if (slotsInSprint <= 0) return 0
   if (sprintDays <= 0) return slotsInSprint

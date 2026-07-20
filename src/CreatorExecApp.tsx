@@ -41,7 +41,6 @@ import {
   hasSeenFirstSprintCelebration,
   markFirstSprintCelebrationSeen,
 } from './lib/celebrations/firstSprintStorage'
-import type { DeadlineFormData } from './components/schedule/AddDeadlineModal'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
 import { tierProducts, computeScore } from './lib/analysis/tierEngine'
 import {
@@ -794,6 +793,9 @@ export default function CreatorExecApp() {
         inRotation: true,
         isManual: true,
         isFavorite: false,
+        firstVideoDeadline: data.firstVideoDeadline?.trim()
+          ? data.firstVideoDeadline.trim()
+          : null,
       }
 
       setProducts((prev) => {
@@ -933,6 +935,9 @@ export default function CreatorExecApp() {
         brand: product.brand ?? '',
         dateReceived: product.dateReceived ?? new Date().toISOString().slice(0, 10),
         type: product.isFavorite ? 'favorite' : 'sample',
+        ...(product.firstVideoDeadline
+          ? { firstVideoDeadline: product.firstVideoDeadline }
+          : {}),
       })),
     )
     setSchedule([])
@@ -1007,25 +1012,6 @@ export default function CreatorExecApp() {
   const handleUploadReport = useCallback(() => {
     beginNextSprint('upload')
   }, [beginNextSprint])
-
-  const handleAddDeadline = useCallback(
-    (data: DeadlineFormData) => {
-      const newDeadline: DeadlineProduct = {
-        id: crypto.randomUUID(),
-        productName: data.productName,
-        brand: data.brand,
-        deadlineDate: data.deadlineDate,
-        videosRequired: data.videosRequired,
-        videosFilmed: data.videosFilmed,
-      }
-      setDeadlineProducts((prev) => {
-        const next = [...prev, newDeadline]
-        rebuildSchedule(products, next, sprintConfig, excludedFromSchedule, scheduleMode)
-        return next
-      })
-    },
-    [products, rebuildSchedule, sprintConfig, excludedFromSchedule, scheduleMode],
-  )
 
   const handleRemoveFromSchedule = useCallback(
     (productKey: string) => {
@@ -1487,7 +1473,6 @@ export default function CreatorExecApp() {
           getFilmedCount={getFilmedCount}
           onFilmedIncrement={handleScheduleFilmedIncrement}
           onFilmedDecrement={handleScheduleFilmedDecrement}
-          onAddDeadline={handleAddDeadline}
           onRemoveFromSchedule={handleRemoveFromSchedule}
           onBack={
             showRetainerOnlySchedule ? () => {} : () => setStage('config')

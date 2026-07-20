@@ -37,6 +37,7 @@ export function mergedDraftFromCatalog(
     // Force through assignTier so zero-sales land in Test (favorites included).
     isManual: false,
     isFavorite: product.isFavorite,
+    firstVideoDeadline: product.firstVideoDeadline,
   }
 }
 
@@ -65,6 +66,7 @@ export function buildSprintProductsFromCatalog(
       ...product,
       isManual: source?.isManual ?? product.isManual,
       isFavorite: source?.isFavorite ?? Boolean(product.isFavorite),
+      firstVideoDeadline: source?.firstVideoDeadline ?? product.firstVideoDeadline,
     }
   })
 
