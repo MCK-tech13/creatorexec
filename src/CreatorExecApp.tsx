@@ -1009,10 +1009,6 @@ export default function CreatorExecApp() {
     saveCurrentSprintStart(fromCatalog, sprintConfig, 'full', null)
   }, [handleEnterSampleMode, saveCurrentSprintStart, sprintConfig])
 
-  const handleUploadReport = useCallback(() => {
-    beginNextSprint('upload')
-  }, [beginNextSprint])
-
   const handleRemoveFromSchedule = useCallback(
     (productKey: string) => {
       setExcludedFromSchedule((prev) => {
