@@ -11,6 +11,7 @@
     "test:supabase": "node scripts/test-supabase.mjs",
     "test:supabase:local": "bash scripts/run-local-supabase-test.sh",
     "test:product-scout": "tsx scripts/product-scout-scenarios.mjs",
+    "verify:product-scout-scoring-tiers": "tsx scripts/verify-product-scout-scoring-tiers.ts",
     "verify:product-scout-ocr": "tsx scripts/verify-product-scout-ocr.mjs",
     "test:commission-upload": "tsx scripts/test-commission-upload.mjs",
     "test:auth": "node scripts/test-auth.mjs",
