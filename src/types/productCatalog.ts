@@ -16,6 +16,8 @@ export interface CatalogProduct {
   inRotation: boolean
   isManual: boolean
   dateReceived: string | null
+  /** Optional TikTok sample post-by date — first trial video only. */
+  firstVideoDeadline: string | null
   archivedAt: string | null
   createdAt: string
   updatedAt: string

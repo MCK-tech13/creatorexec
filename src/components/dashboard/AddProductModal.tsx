@@ -1,19 +1,16 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import type { ManualProductFormData, ManualTier } from '../../types'
+import type { ManualProductFormData } from '../../types'
 
 interface AddProductModalProps {
   onClose: () => void
   onSubmit: (data: ManualProductFormData) => void
 }
 
-const TIERS: ManualTier[] = ['Anchor', 'Rising', 'Test']
-
 export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
   const [productName, setProductName] = useState('')
-  const [commission, setCommission] = useState('')
-  const [tier, setTier] = useState<ManualTier>('Test')
   const [videosFilmed, setVideosFilmed] = useState('0')
+  const [firstVideoDeadline, setFirstVideoDeadline] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,9 +19,12 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
 
     onSubmit({
       productName: trimmed,
-      commission: Math.max(0, parseFloat(commission) || 0),
-      tier,
+      commission: 0,
+      tier: 'Test',
       videosFilmed: Math.max(0, parseInt(videosFilmed, 10) || 0),
+      ...(firstVideoDeadline.trim()
+        ? { firstVideoDeadline: firstVideoDeadline.trim() }
+        : {}),
     })
     onClose()
   }
@@ -33,7 +33,7 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 p-4">
       <div className="card-panel w-full max-w-md p-10">
         <div className="mb-8 flex items-center justify-between">
-          <h3 className="font-display text-xl font-bold text-ink">Add Product Manually</h3>
+          <h3 className="font-display text-xl font-bold text-ink">Add Product</h3>
           <button
             type="button"
             onClick={onClose}
@@ -55,37 +55,13 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
               className="input-field w-full px-3 py-3"
               placeholder="Gifted sample, new launch, etc."
             />
+            <p className="mt-2 font-body text-xs text-stone">
+              Saved to your durable catalog. Zero-sales products enter as Test (6-video trial).
+            </p>
           </label>
 
           <label className="block">
-            <span className="label-caps mb-3 block">Commission Amount ($)</span>
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              value={commission}
-              onChange={(e) => setCommission(e.target.value)}
-              className="input-field w-full px-3 py-3"
-            />
-          </label>
-
-          <label className="block">
-            <span className="label-caps mb-3 block">Tier</span>
-            <select
-              value={tier}
-              onChange={(e) => setTier(e.target.value as ManualTier)}
-              className="input-field w-full px-3 py-3"
-            >
-              {TIERS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="label-caps mb-3 block">Videos Filmed</span>
+            <span className="label-caps mb-3 block">Videos Already Filmed</span>
             <input
               type="number"
               min={0}
@@ -93,6 +69,23 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
               onChange={(e) => setVideosFilmed(e.target.value)}
               className="input-field w-full px-3 py-3"
             />
+          </label>
+
+          <label className="block">
+            <span className="label-caps mb-3 block">
+              First-video deadline{' '}
+              <span className="normal-case tracking-normal text-stone">(optional)</span>
+            </span>
+            <input
+              type="date"
+              value={firstVideoDeadline}
+              onChange={(e) => setFirstVideoDeadline(e.target.value)}
+              className="input-field w-full px-3 py-3"
+            />
+            <p className="mt-2 font-body text-xs text-stone">
+              Applies only to the first trial video. Videos 2–6 stay on the normal 6-video Test
+              path. Retainers belong on the Retainers tab.
+            </p>
           </label>
 
           <div className="flex gap-px pt-4">

@@ -14,8 +14,15 @@ import {
 
 export { isTrialComplete, remainingTrialSlots } from './trialProgressStorage'
 
-/** Max Test products that can reserve trial slots in a single sprint (by commission). */
+/** Max Test products that can reserve trial slots in a single sprint. */
 export const MAX_ACTIVE_TRIAL_PRODUCTS_PER_SPRINT = 6
+
+/** Favorites first (soft priority), then commission descending. */
+export function compareTrialPriority(a: MergedProduct, b: MergedProduct): number {
+  const favoriteDelta = Number(Boolean(b.isFavorite)) - Number(Boolean(a.isFavorite))
+  if (favoriteDelta !== 0) return favoriteDelta
+  return b.commission - a.commission
+}
 
 function applyTrialHydration(
   product: MergedProduct,
@@ -107,11 +114,14 @@ export function activeTrialTestProducts(products: MergedProduct[]): MergedProduc
   )
 }
 
-/** Top Test products by commission that may reserve trial slots this sprint. */
+/**
+ * Top Test products that may reserve trial slots this sprint.
+ * Order: favorites first, then commission (deadline placement stays separate).
+ */
 export function selectActiveTrialProducts(tests: MergedProduct[]): MergedProduct[] {
   return [...tests]
     .filter((product) => product.tier === 'Test' && !isTrialComplete(product.videosFilmed))
-    .sort((a, b) => b.commission - a.commission)
+    .sort(compareTrialPriority)
     .slice(0, MAX_ACTIVE_TRIAL_PRODUCTS_PER_SPRINT)
 }
 

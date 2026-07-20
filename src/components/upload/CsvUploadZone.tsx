@@ -109,11 +109,11 @@ export function CsvUploadZone({
             Know exactly what to film. Every sprint.
           </h2>
           <p className="mx-auto mt-4 max-w-lg font-body text-sm text-stone sm:mt-6 sm:text-base">
-            Upload your TikTok Shop commission report and get a personalized filming schedule
-            in seconds.
+            Upload your TikTok Shop commission report — or add a sample or favorite product —
+            and get a personalized filming schedule.
           </p>
-          <div className="mt-10 flex justify-center">
-            <label className="block w-full max-w-[400px] cursor-pointer">
+          <div className="mx-auto mt-10 flex w-full max-w-[400px] flex-col gap-3">
+            <label className="block w-full cursor-pointer">
               <input
                 type="file"
                 accept=".csv,.xlsx"
@@ -128,17 +128,17 @@ export function CsvUploadZone({
                 Choose File
               </span>
             </label>
+            <button
+              type="button"
+              onClick={onEnterSampleMode}
+              className="btn-outline w-full py-4 font-body"
+            >
+              Add a sample or favorite product
+            </button>
           </div>
 
           {showAlternatePaths && (
             <div className="mt-10 space-y-3 border-t border-border-warm pt-8 text-center">
-              <button
-                type="button"
-                onClick={onEnterSampleMode}
-                className="link-elegant block w-full font-body text-sm text-stone"
-              >
-                New to TikTok Shop? Start with your samples instead
-              </button>
               <button
                 type="button"
                 onClick={onEnterMomentumMode}

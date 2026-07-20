@@ -8,6 +8,8 @@ import type {
 import { AngleRotationSession } from './angleRotation'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
+  buildFirstVideoDeadlineVideos,
+  decrementRemainingForFirstVideoDeadlines,
   fillDailyCapacity,
   placeProvenProductsRoundRobin,
   placeRemainingByTier,
@@ -134,7 +136,14 @@ export function buildMomentumModeSchedule(
   const deadlineVideos = buildDeadlineVideos(deadlineProducts)
   placeDeadlineVideos(perDay, deadlineVideos, cap)
 
+  const firstVideoDeadlineVideos = buildFirstVideoDeadlineVideos(tests)
+  placeDeadlineVideos(perDay, firstVideoDeadlineVideos, cap)
+
   const rows = buildPlacementRows(allocations)
+  decrementRemainingForFirstVideoDeadlines(
+    rows,
+    new Set(firstVideoDeadlineVideos.map((video) => video.productKey)),
+  )
 
   placeTestProductsWithSpread(perDay, rows, cap, sprintDays, angleSession, reasonBuilder)
   placeProvenProductsRoundRobin(perDay, rows, cap, risingIds, angleSession, reasonBuilder)

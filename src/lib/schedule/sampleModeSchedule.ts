@@ -10,6 +10,7 @@ import { AngleRotationSession } from './angleRotation'
 import {
   assignSlotIds,
   buildDeadlineScheduledVideos,
+  buildFirstVideoDeadlineVideos,
   placeRetainerVideos,
   placeVideosRoundRobin,
   remainingDayCapacity,
@@ -29,6 +30,10 @@ export function sortSampleProductsForSchedule(products: SampleProduct[]): Sample
   return [...favorites, ...samples]
 }
 
+/**
+ * Stage 2: favorites are soft priority flags — they stay Test with zero metrics.
+ * Rising/Anchor still require real sales data via tierEngine.
+ */
 export function sampleProductsToMerged(products: SampleProduct[]): MergedProduct[] {
   return sortSampleProductsForSchedule(products).map((p) => ({
     id: p.id,
@@ -40,10 +45,12 @@ export function sampleProductsToMerged(products: SampleProduct[]): MergedProduct
     orderCount: 0,
     videosFilmed: 0,
     score: 0,
-    tier: p.type === 'favorite' ? 'Rising' : 'Test',
+    tier: 'Test' as const,
     rankInTier: 0,
     inRotation: true,
     isManual: true,
+    isFavorite: p.type === 'favorite',
+    firstVideoDeadline: p.firstVideoDeadline?.trim() ? p.firstVideoDeadline.trim() : null,
   }))
 }
 
@@ -80,11 +87,18 @@ export function buildSampleModeSchedule(
 
   placeRetainerVideos(perDay, retainerVideos, cap)
   placeVideosRoundRobin(perDay, buildDeadlineScheduledVideos(deadlineProducts), cap)
+  placeVideosRoundRobin(perDay, buildFirstVideoDeadlineVideos(products), cap)
 
   const totalSlots = cap * sprintDays
   const priorityCount = perDay.reduce((sum, day) => sum + day.length, 0)
   const sampleSlots = Math.max(0, totalSlots - priorityCount)
-  const toSchedule = products.slice(0, sampleSlots)
+  // First-video deadline slots already used the catalog product key — skip duplicates.
+  const alreadyPlacedIds = new Set(
+    perDay.flat().map((video) => video.productKey),
+  )
+  const toSchedule = products
+    .filter((product) => !alreadyPlacedIds.has(product.id))
+    .slice(0, sampleSlots)
   const angleSession = new AngleRotationSession()
   const reasonBuilder = createPlacementReasonBuilder({
     mode: 'sample',

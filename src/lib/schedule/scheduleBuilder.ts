@@ -10,6 +10,8 @@ import { AngleRotationSession } from './angleRotation'
 import { formatDeadlineCountdown } from './deadlineUtils'
 import { formatScheduleProductName } from './scheduleDisplay'
 import {
+  buildFirstVideoDeadlineVideos,
+  decrementRemainingForFirstVideoDeadlines,
   fillDailyCapacity,
   placeProvenProductsRoundRobin,
   placeRemainingByTier,
@@ -156,6 +158,7 @@ function allocateSchedule(
   provenProductIds: Set<string>,
   retainerVideos: ScheduledVideo[],
   deadlineVideos: ScheduledVideo[],
+  firstVideoDeadlineVideos: ScheduledVideo[],
   fillPool: DailyFillProduct[],
   sprintDays: number,
   cap: number,
@@ -172,8 +175,13 @@ function allocateSchedule(
 
   placeRetainerVideos(perDay, retainerVideos, cap)
   placeDeadlineVideos(perDay, deadlineVideos, cap)
+  placeDeadlineVideos(perDay, firstVideoDeadlineVideos, cap)
 
   const rows = buildPlacementRows(allocations)
+  decrementRemainingForFirstVideoDeadlines(
+    rows,
+    new Set(firstVideoDeadlineVideos.map((video) => video.productKey)),
+  )
 
   placeTopAnchorsDaily(perDay, topAnchorIds, rows, cap, sprintDays, angleSession, reasonBuilder)
   placeTestProductsWithSpread(perDay, rows, cap, sprintDays, angleSession, reasonBuilder)
@@ -275,6 +283,7 @@ export function buildFilmingSchedule(
   )
 
   const deadlineVideos = buildDeadlineVideos(deadlineProducts)
+  const firstVideoDeadlineVideos = buildFirstVideoDeadlineVideos(tests)
   const fillPool = buildDailyFillPool(anchors, rising, tests)
   const perDay = allocateSchedule(
     allocations,
@@ -282,6 +291,7 @@ export function buildFilmingSchedule(
     provenProductIds,
     retainerVideos,
     deadlineVideos,
+    firstVideoDeadlineVideos,
     fillPool,
     sprintDays,
     cap,

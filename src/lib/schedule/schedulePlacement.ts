@@ -1,7 +1,13 @@
 import type { DaySchedule, DeadlineProduct, MergedProduct, ScheduledVideo } from '../../types'
 import type { AngleRotationSession } from './angleRotation'
-import { deadlineReason, retainerReason, type PlacementReasonBuilder } from './placementReasons'
+import {
+  deadlineReason,
+  firstVideoDeadlineReason,
+  retainerReason,
+  type PlacementReasonBuilder,
+} from './placementReasons'
 import { formatScheduleProductName } from './scheduleDisplay'
+import { compareTrialPriority } from './trialProgress'
 import {
   MAX_PROVEN_VIDEOS_PER_DAY,
   MAX_RETAINER_VIDEOS_PER_DAY,
@@ -141,7 +147,7 @@ export function placeTestProductsWithSpread(
 ): void {
   const tests = rows
     .filter((row) => row.tier === 'Test' && row.remaining > 0)
-    .sort((a, b) => b.product.commission - a.product.commission)
+    .sort((a, b) => compareTrialPriority(a.product, b.product))
 
   for (const row of tests) {
     const total = row.remaining
@@ -497,6 +503,55 @@ export function fillDailyCapacity(
 }
 
 const DEADLINE_ANGLE = 'Sample / deadline content — film ASAP'
+const FIRST_VIDEO_DEADLINE_ANGLE =
+  'First post — meet the sample deadline, then continue the 6-video trial'
+
+/** True when this Test product still needs its optional first-video deadline slot. */
+export function needsFirstVideoDeadlineSlot(product: MergedProduct): boolean {
+  return (
+    product.tier === 'Test' &&
+    Boolean(product.firstVideoDeadline?.trim()) &&
+    (product.videosFilmed ?? 0) === 0
+  )
+}
+
+/**
+ * One priority slot per catalog Test product with a first-video deadline.
+ * Uses the durable product key so filming counts toward the 6-video trial.
+ */
+export function buildFirstVideoDeadlineVideos(products: MergedProduct[]): ScheduledVideo[] {
+  return products
+    .filter(needsFirstVideoDeadlineSlot)
+    .sort(
+      (a, b) =>
+        new Date(a.firstVideoDeadline as string).getTime() -
+        new Date(b.firstVideoDeadline as string).getTime(),
+    )
+    .map((product) => ({
+      slotId: '',
+      productKey: product.id,
+      productId: product.productId,
+      productName: formatScheduleProductName(product.productName),
+      tier: 'Test' as const,
+      suggestedAngle: FIRST_VIDEO_DEADLINE_ANGLE,
+      commission: product.commission,
+      videosFilmed: product.videosFilmed,
+      deadlineDate: product.firstVideoDeadline as string,
+      placementReason: firstVideoDeadlineReason(product.firstVideoDeadline as string),
+    }))
+}
+
+/** Prevent double-placing video 1 after the early deadline slot is inserted. */
+export function decrementRemainingForFirstVideoDeadlines(
+  rows: SlotPlacementRow[],
+  firstVideoDeadlineProductIds: Set<string>,
+): void {
+  for (const row of rows) {
+    if (firstVideoDeadlineProductIds.has(row.product.id) && row.remaining > 0) {
+      row.remaining -= 1
+    }
+  }
+}
 
 export function buildDeadlineScheduledVideos(
   deadlineProducts: DeadlineProduct[],

@@ -12,8 +12,8 @@ interface SampleModeScreenProps {
 }
 
 const TYPE_OPTIONS: { value: SampleProductType; label: string }[] = [
-  { value: 'sample', label: 'Sample' },
-  { value: 'favorite', label: 'Favorite' },
+  { value: 'sample', label: 'Standard' },
+  { value: 'favorite', label: 'Priority' },
 ]
 
 function formatDisplayDate(iso: string): string {
@@ -35,6 +35,7 @@ export function SampleModeScreen({
   const [productName, setProductName] = useState('')
   const [brand, setBrand] = useState('')
   const [dateReceived, setDateReceived] = useState('')
+  const [firstVideoDeadline, setFirstVideoDeadline] = useState('')
   const [type, setType] = useState<SampleProductType>('sample')
 
   const canAdd = productName.trim().length > 0 && dateReceived.length > 0
@@ -49,11 +50,15 @@ export function SampleModeScreen({
         brand: brand.trim(),
         dateReceived,
         type,
+        ...(firstVideoDeadline.trim()
+          ? { firstVideoDeadline: firstVideoDeadline.trim() }
+          : {}),
       },
     ])
     setProductName('')
     setBrand('')
     setDateReceived('')
+    setFirstVideoDeadline('')
     setType('sample')
   }
 
@@ -68,11 +73,11 @@ export function SampleModeScreen({
       </div>
 
       <h1 className="font-display text-center text-2xl font-bold text-ink sm:text-3xl md:text-4xl">
-        Add your samples and favorites
+        Add products to your catalog
       </h1>
       <p className="mx-auto mt-3 max-w-lg text-center font-body text-sm text-stone sm:mt-4 sm:text-base">
-        Add your current samples and any products you love filming — we&apos;ll build your sprint
-        schedule instantly.
+        No-sales products join your durable catalog as Test trials (6 videos). Mark Priority to
+        prefer them in trial slot ordering — it does not change their performance tier.
       </p>
 
       <div className="mt-8">
@@ -122,7 +127,24 @@ export function SampleModeScreen({
         </div>
 
         <div>
-          <span className="label-caps mb-2 block">Type</span>
+          <label htmlFor="sample-first-deadline" className="label-caps mb-2 block">
+            First-video deadline <span className="normal-case tracking-normal text-stone">(optional)</span>
+          </label>
+          <input
+            id="sample-first-deadline"
+            type="date"
+            value={firstVideoDeadline}
+            onChange={(e) => setFirstVideoDeadline(e.target.value)}
+            className="input-field w-full px-4 py-3"
+          />
+          <p className="mt-2 font-body text-xs text-stone">
+            TikTok often requires one post by a date. That deadline applies only to your first
+            trial video — we still schedule the full 6-video Test to see if it sells.
+          </p>
+        </div>
+
+        <div>
+          <span className="label-caps mb-2 block">Scheduling preference</span>
           <div className="grid grid-cols-2 gap-px bg-border-warm">
             {TYPE_OPTIONS.map((opt) => (
               <button
@@ -139,6 +161,9 @@ export function SampleModeScreen({
               </button>
             ))}
           </div>
+          <p className="mt-2 font-body text-xs text-stone">
+            Priority only affects Test trial ordering — never Rising or Anchor without sales.
+          </p>
         </div>
 
         <button
@@ -161,7 +186,13 @@ export function SampleModeScreen({
               <div className="min-w-0 flex-1">
                 <p className="truncate font-body font-medium text-ink">{product.productName}</p>
                 <p className="mt-0.5 font-body text-sm text-stone">
-                  {[product.brand, formatDisplayDate(product.dateReceived)]
+                  {[
+                    product.brand,
+                    formatDisplayDate(product.dateReceived),
+                    product.firstVideoDeadline
+                      ? `1st video by ${formatDisplayDate(product.firstVideoDeadline)}`
+                      : null,
+                  ]
                     .filter(Boolean)
                     .join(' · ')}
                 </p>
@@ -173,7 +204,7 @@ export function SampleModeScreen({
                     : 'bg-emerald text-white'
                 }`}
               >
-                {product.type === 'sample' ? 'Sample' : 'Favorite'}
+                {product.type === 'sample' ? 'Standard' : 'Priority'}
               </span>
               <button
                 type="button"

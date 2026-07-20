@@ -41,7 +41,6 @@ import {
   hasSeenFirstSprintCelebration,
   markFirstSprintCelebrationSeen,
 } from './lib/celebrations/firstSprintStorage'
-import type { DeadlineFormData } from './components/schedule/AddDeadlineModal'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
 import { tierProducts, computeScore } from './lib/analysis/tierEngine'
 import {
@@ -53,10 +52,6 @@ import {
 import { buildFilmingSchedule } from './lib/schedule/scheduleBuilder'
 import { buildMomentumModeSchedule } from './lib/schedule/momentumModeSchedule'
 import {
-  buildSampleModeSchedule,
-  sampleProductsToMerged,
-} from './lib/schedule/sampleModeSchedule'
-import {
   hydrateProductsTrialProgress,
   persistProductVideosFilmed,
 } from './lib/schedule/trialProgress'
@@ -64,6 +59,7 @@ import {
   clearTrialProgress,
   trialStorageKey,
 } from './lib/schedule/trialProgressStorage'
+import { persistScheduleFilmedDelta } from './lib/schedule/scheduleFilmingTrialSync'
 import { captureSprintEndReview } from './lib/sprint/finalizeSprint'
 import {
   clearCurrentSprintState,
@@ -80,6 +76,11 @@ import {
   upsertCatalogFromMergedProducts,
   upsertCatalogFromSampleProducts,
 } from './lib/catalog/productCatalogStorage'
+import {
+  activeCatalogProducts,
+  buildSprintProductsFromCatalog,
+  enrichProductsWithCatalogFavorites,
+} from './lib/catalog/catalogSprint'
 import { getActiveUserId, getUserDataSnapshot } from './lib/supabase/dataStore'
 import { buildProductFlags } from './lib/sprint/productFlags'
 import {
@@ -183,14 +184,8 @@ function buildScheduleForMode(
   )
   const retainerVideos = buildRetainerVideos(retainerEntries, config.sprintDays)
 
-  if (mode === 'sample') {
-    return buildSampleModeSchedule(
-      products,
-      config,
-      mergedDeadlines,
-      retainerVideos,
-    )
-  }
+  // Stage 2: sample-mode entry is a thin wrapper — schedule uses the full
+  // 6-video Test trial allocator (same as CSV), not the old 1-slot path.
   if (mode === 'momentum') {
     return buildMomentumModeSchedule(
       products,
@@ -231,7 +226,9 @@ export default function CreatorExecApp() {
   const [uploadLandingMode, setUploadLandingMode] = useState<'routed' | 'empty'>(
     initialUploadLandingMode,
   )
-  const [products, setProducts] = useState<MergedProduct[]>(() => restored?.products ?? [])
+  const [products, setProducts] = useState<MergedProduct[]>(() =>
+    enrichProductsWithCatalogFavorites(restored?.products ?? []),
+  )
   const [deadlineProducts, setDeadlineProducts] = useState<DeadlineProduct[]>(
     () => restored?.deadlineProducts ?? [],
   )
@@ -507,26 +504,28 @@ export default function CreatorExecApp() {
 
   const finishUpload = useCallback(
     (tiered: MergedProduct[], mode: ScheduleMode, reportName: string | null = fileName) => {
-      // Restore persisted trial progress (including explicit "already tested" marks),
-      // then re-tier so pre-tested low performers can move to Cut from sales data
-      // instead of staying artificially held in Test.
       const hydrated = hydrateProductsTrialProgress(tiered)
-      const next =
-        mode === 'sample' ? hydrated : retierPreservingManual(hydrated, mode)
-      if (mode === 'full') {
+      // Stage 2: always re-tier after hydrate (sample entry now uses full trial path).
+      const next = retierPreservingManual(hydrated, mode === 'sample' ? 'full' : mode)
+      if (mode === 'full' || mode === 'sample') {
         enqueueAnchorPromotions(products, next)
       }
       setProducts(next)
       // Stage 1 dual-write: keep durable catalog in sync with CSV/manual sprint products.
       upsertCatalogFromMergedProducts(next)
-      setScheduleMode(mode)
+      setScheduleMode(mode === 'sample' ? 'full' : mode)
       setSampleProducts([])
       setDeadlineProducts([])
       setExcludedFromSchedule(new Set())
       setActiveTier('All')
       setIsProcessing(false)
       setStage('dashboard')
-      saveCurrentSprintStart(next, sprintConfig, mode, reportName)
+      saveCurrentSprintStart(
+        next,
+        sprintConfig,
+        mode === 'sample' ? 'full' : mode,
+        reportName,
+      )
     },
     [
       fileName,
@@ -714,6 +713,41 @@ export default function CreatorExecApp() {
     ],
   )
 
+  /**
+   * Schedule +/- checkmarks: advance durable trial_progress immediately so
+   * cumulative filmed counts survive Start Over (filmingProgress alone does not).
+   * Does not rebuild the live schedule mid-sprint.
+   */
+  const handleScheduleFilmedIncrement = useCallback(
+    (storageKey: string, max: number, productKey: string) => {
+      incrementFilmed(storageKey, max)
+      setProducts((prev) => {
+        const next = persistScheduleFilmedDelta(prev, productKey, 1)
+        if (next === prev) return prev
+        const modeForTier = scheduleMode === 'sample' ? 'full' : scheduleMode
+        const tiered = retierPreservingManual(next, modeForTier)
+        if (modeForTier === 'full') {
+          enqueueAnchorPromotions(prev, tiered)
+        }
+        return tiered
+      })
+    },
+    [incrementFilmed, scheduleMode, retierPreservingManual, enqueueAnchorPromotions],
+  )
+
+  const handleScheduleFilmedDecrement = useCallback(
+    (storageKey: string, productKey: string) => {
+      decrementFilmed(storageKey)
+      setProducts((prev) => {
+        const next = persistScheduleFilmedDelta(prev, productKey, -1)
+        if (next === prev) return prev
+        const modeForTier = scheduleMode === 'sample' ? 'full' : scheduleMode
+        return retierPreservingManual(next, modeForTier)
+      })
+    },
+    [decrementFilmed, scheduleMode, retierPreservingManual],
+  )
+
   const handleInRotationChange = useCallback(
     (productId: string, inRotation: boolean) => {
       setProducts((prev) => {
@@ -758,15 +792,20 @@ export default function CreatorExecApp() {
         rankInTier: 0,
         inRotation: true,
         isManual: true,
+        isFavorite: false,
+        firstVideoDeadline: data.firstVideoDeadline?.trim()
+          ? data.firstVideoDeadline.trim()
+          : null,
       }
 
       setProducts((prev) => {
         if (data.videosFilmed > 0) {
           persistProductVideosFilmed(newProduct, data.videosFilmed)
         }
-        const combined = retierPreservingManual([...prev, newProduct], scheduleMode)
+        const modeForTier = scheduleMode === 'sample' ? 'full' : scheduleMode
+        const combined = retierPreservingManual([...prev, newProduct], modeForTier)
         upsertCatalogFromMergedProducts([newProduct], 'manual')
-        if (scheduleMode === 'full') {
+        if (modeForTier === 'full') {
           enqueueAnchorPromotions(prev, combined)
         }
         if (stage === 'schedule') {
@@ -775,7 +814,7 @@ export default function CreatorExecApp() {
             deadlineProducts,
             sprintConfig,
             excludedFromSchedule,
-            scheduleMode,
+            modeForTier,
           )
         }
         return combined
@@ -888,7 +927,19 @@ export default function CreatorExecApp() {
     setError(null)
     setScheduleMode('full')
     setProducts([])
-    setSampleProducts([])
+    // Seed the thin sample wrapper from durable catalog so products reappear visibly.
+    setSampleProducts(
+      activeCatalogProducts().map((product) => ({
+        id: product.id,
+        productName: product.displayName,
+        brand: product.brand ?? '',
+        dateReceived: product.dateReceived ?? new Date().toISOString().slice(0, 10),
+        type: product.isFavorite ? 'favorite' : 'sample',
+        ...(product.firstVideoDeadline
+          ? { firstVideoDeadline: product.firstVideoDeadline }
+          : {}),
+      })),
+    )
     setSchedule([])
     setFileName(null)
     setUploadLandingMode('routed')
@@ -924,40 +975,43 @@ export default function CreatorExecApp() {
 
   const handleSampleBuildSchedule = useCallback((items: SampleProduct[]) => {
     setSampleProducts(items)
-    const merged = hydrateProductsTrialProgress(sampleProductsToMerged(items))
-    setProducts(merged)
-    // Stage 1 dual-write: sample inventory lands in durable catalog.
+    // Dual-write into durable catalog, then build the sprint FROM the catalog
+    // (form list = sprint-level selection; removals exclude from this sprint only).
     upsertCatalogFromSampleProducts(items)
-    upsertCatalogFromMergedProducts(merged, 'sample')
-    setScheduleMode('sample')
+    const selectedIds = new Set(items.map((item) => item.id))
+    const fromCatalog = buildSprintProductsFromCatalog().filter((product) =>
+      selectedIds.has(product.id),
+    )
+    setProducts(fromCatalog)
+    setScheduleMode('full')
     setDeadlineProducts([])
     setExcludedFromSchedule(new Set())
     setStage('config')
-    saveCurrentSprintStart(merged, sprintConfig, 'sample', null)
+    saveCurrentSprintStart(fromCatalog, sprintConfig, 'full', null)
   }, [saveCurrentSprintStart, sprintConfig])
+
+  /** Empty-state / Start Over: resume scheduling from durable catalog products. */
+  const handleContinueWithCatalog = useCallback(() => {
+    const fromCatalog = buildSprintProductsFromCatalog()
+    if (fromCatalog.length === 0) {
+      handleEnterSampleMode()
+      return
+    }
+    setSampleProducts([])
+    setProducts(fromCatalog)
+    setScheduleMode('full')
+    setDeadlineProducts([])
+    setExcludedFromSchedule(new Set())
+    setFileName(null)
+    setUploadLandingMode('routed')
+    setShowProductEntry(false)
+    setStage('dashboard')
+    saveCurrentSprintStart(fromCatalog, sprintConfig, 'full', null)
+  }, [handleEnterSampleMode, saveCurrentSprintStart, sprintConfig])
 
   const handleUploadReport = useCallback(() => {
     beginNextSprint('upload')
   }, [beginNextSprint])
-
-  const handleAddDeadline = useCallback(
-    (data: DeadlineFormData) => {
-      const newDeadline: DeadlineProduct = {
-        id: crypto.randomUUID(),
-        productName: data.productName,
-        brand: data.brand,
-        deadlineDate: data.deadlineDate,
-        videosRequired: data.videosRequired,
-        videosFilmed: data.videosFilmed,
-      }
-      setDeadlineProducts((prev) => {
-        const next = [...prev, newDeadline]
-        rebuildSchedule(products, next, sprintConfig, excludedFromSchedule, scheduleMode)
-        return next
-      })
-    },
-    [products, rebuildSchedule, sprintConfig, excludedFromSchedule, scheduleMode],
-  )
 
   const handleRemoveFromSchedule = useCallback(
     (productKey: string) => {
@@ -1224,6 +1278,8 @@ export default function CreatorExecApp() {
           onAddSamples={handleEnterSampleMode}
           onUploadReport={() => setShowUploadPanel(true)}
           onAddRetainerDeal={handleAddRetainerFromEmpty}
+          catalogProductCount={activeCatalogProducts().length}
+          onContinueWithCatalog={handleContinueWithCatalog}
         />
       ) : stage === 'upload' && !showRetainerOnlySchedule ? (
         <div className="fade-in">
@@ -1415,9 +1471,8 @@ export default function CreatorExecApp() {
           sampleMode={isSampleMode}
           momentumMode={isMomentumMode}
           getFilmedCount={getFilmedCount}
-          onFilmedIncrement={incrementFilmed}
-          onFilmedDecrement={decrementFilmed}
-          onAddDeadline={handleAddDeadline}
+          onFilmedIncrement={handleScheduleFilmedIncrement}
+          onFilmedDecrement={handleScheduleFilmedDecrement}
           onRemoveFromSchedule={handleRemoveFromSchedule}
           onBack={
             showRetainerOnlySchedule ? () => {} : () => setStage('config')

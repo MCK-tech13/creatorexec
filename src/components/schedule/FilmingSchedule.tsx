@@ -16,7 +16,6 @@ import { getScheduleTierExplanation } from '../../lib/onboarding/beginnerCopy'
 import { ProductChoosingTips } from '../sample/ProductChoosingTips'
 import { TierBadge } from '../dashboard/TierBadge'
 import { ContentPolicyDisclaimer } from '../ui/ContentPolicyDisclaimer'
-import { AddDeadlineModal, type DeadlineFormData } from './AddDeadlineModal'
 
 interface FilmingScheduleProps {
   schedule: DaySchedule[]
@@ -25,9 +24,8 @@ interface FilmingScheduleProps {
   sampleMode?: boolean
   momentumMode?: boolean
   getFilmedCount: (storageKey: string) => number
-  onFilmedIncrement: (storageKey: string, max: number) => void
-  onFilmedDecrement: (storageKey: string) => void
-  onAddDeadline: (data: DeadlineFormData) => void
+  onFilmedIncrement: (storageKey: string, max: number, productKey: string) => void
+  onFilmedDecrement: (storageKey: string, productKey: string) => void
   onRemoveFromSchedule: (productKey: string) => void
   onBack: () => void
   onStartOver: () => void
@@ -46,7 +44,6 @@ export function FilmingSchedule({
   getFilmedCount,
   onFilmedIncrement,
   onFilmedDecrement,
-  onAddDeadline,
   onRemoveFromSchedule,
   onBack,
   onStartOver,
@@ -57,7 +54,6 @@ export function FilmingSchedule({
     () => new Set(schedule.map((d) => d.day)),
   )
   const [copied, setCopied] = useState(false)
-  const [showDeadlineModal, setShowDeadlineModal] = useState(false)
 
   const filmedByProductId = useMemo(
     () => new Map(products.map((p) => [p.id, p.videosFilmed])),
@@ -136,16 +132,6 @@ export function FilmingSchedule({
           <ContentPolicyDisclaimer className="mt-3 max-w-2xl" />
         </div>
         <div className="flex flex-wrap gap-2">
-          {!sampleMode && (
-          <button
-            type="button"
-            onClick={() => setShowDeadlineModal(true)}
-            className="btn-secondary inline-flex items-center gap-2 px-4 py-2.5 text-sm"
-          >
-            <Plus className="h-4 w-4" />
-            Add Sample / Deadline
-          </button>
-          )}
           <button
             type="button"
             onClick={copySchedule}
@@ -239,7 +225,7 @@ export function FilmingSchedule({
                               <div className="flex shrink-0 items-center gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => onFilmedDecrement(row.storageKey)}
+                                  onClick={() => onFilmedDecrement(row.storageKey, row.productKey)}
                                   disabled={filmed === 0}
                                   className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
                                   aria-label="Decrement filmed count"
@@ -248,7 +234,9 @@ export function FilmingSchedule({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => onFilmedIncrement(row.storageKey, row.total)}
+                                  onClick={() =>
+                                    onFilmedIncrement(row.storageKey, row.total, row.productKey)
+                                  }
                                   disabled={complete}
                                   className="flex h-8 w-8 items-center justify-center border border-border-warm bg-white font-body text-stone transition hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
                                   aria-label="Increment filmed count"
@@ -340,12 +328,6 @@ export function FilmingSchedule({
         </button>
       </div>
 
-      {showDeadlineModal && (
-        <AddDeadlineModal
-          onClose={() => setShowDeadlineModal(false)}
-          onSubmit={onAddDeadline}
-        />
-      )}
     </div>
   )
 }

@@ -268,6 +268,7 @@ export type Database = {
           in_rotation: boolean
           is_manual: boolean
           date_received: string | null
+          first_video_deadline: string | null
           archived_at: string | null
           created_at: string
           updated_at: string
@@ -287,6 +288,7 @@ export type Database = {
           in_rotation?: boolean
           is_manual?: boolean
           date_received?: string | null
+          first_video_deadline?: string | null
           archived_at?: string | null
           created_at?: string
           updated_at?: string
@@ -306,6 +308,7 @@ export type Database = {
           in_rotation?: boolean
           is_manual?: boolean
           date_received?: string | null
+          first_video_deadline?: string | null
           archived_at?: string | null
           created_at?: string
           updated_at?: string

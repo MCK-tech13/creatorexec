@@ -73,12 +73,12 @@ export function MomentumModeScreen({
             You&apos;re building momentum.
           </h1>
           <p className="mx-auto mt-3 max-w-lg text-center font-body text-sm text-stone sm:mt-4 sm:text-base">
-            Upload your commission report and we&apos;ll build a balanced schedule that rotates
-            all your products evenly while your data builds up.
+            Upload your commission report — or add a sample or favorite product — and we&apos;ll
+            build a balanced schedule while your data builds up.
           </p>
 
-          <div className="mt-10 flex justify-center">
-            <label className="block w-full max-w-[400px] cursor-pointer">
+          <div className="mx-auto mt-10 flex w-full max-w-[400px] flex-col gap-3">
+            <label className="block w-full cursor-pointer">
               <input
                 type="file"
                 accept=".csv,.xlsx"
@@ -93,30 +93,28 @@ export function MomentumModeScreen({
                 Choose File
               </span>
             </label>
+            {onEnterSampleMode && (
+              <button
+                type="button"
+                onClick={onEnterSampleMode}
+                className="btn-outline w-full py-4 font-body"
+              >
+                Add a sample or favorite product
+              </button>
+            )}
           </div>
 
           <p className="label-caps mt-8 text-center">Supports .csv and .xlsx files</p>
 
-          {(onEnterUpload || onEnterSampleMode) && (
+          {onEnterUpload && (
             <div className="mt-10 space-y-3 border-t border-border-warm pt-8 text-center">
-              {onEnterSampleMode && (
-                <button
-                  type="button"
-                  onClick={onEnterSampleMode}
-                  className="link-elegant block w-full font-body text-sm text-stone"
-                >
-                  New to TikTok Shop? Start with your samples instead
-                </button>
-              )}
-              {onEnterUpload && (
-                <button
-                  type="button"
-                  onClick={onEnterUpload}
-                  className="link-elegant block w-full font-body text-sm text-stone"
-                >
-                  Established seller? Use full analysis upload instead
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={onEnterUpload}
+                className="link-elegant block w-full font-body text-sm text-stone"
+              >
+                Established seller? Use full analysis upload instead
+              </button>
             </div>
           )}
         </>
