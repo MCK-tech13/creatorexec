@@ -66,6 +66,8 @@ function upsertById(
           // Keep an existing TikTok id if the incoming row lost it.
           externalProductId: product.externalProductId ?? prev.externalProductId,
           firstVideoDeadline: product.firstVideoDeadline ?? prev.firstVideoDeadline,
+          // CSV rows do not carry favorites — never wipe a catalog Priority flag.
+          isFavorite: Boolean(prev.isFavorite) || Boolean(product.isFavorite),
         }
       : product
     byId.set(merged.id, merged)

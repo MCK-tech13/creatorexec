@@ -224,7 +224,7 @@ function runSurvivesResetTest(): void {
 
   const sprint: CurrentSprintState = {
     stage: 'schedule',
-    scheduleMode: 'sample',
+    scheduleMode: 'full',
     fileName: null,
     sprintConfig: { videosPerDay: 5, sprintDays: 7 },
     products: [

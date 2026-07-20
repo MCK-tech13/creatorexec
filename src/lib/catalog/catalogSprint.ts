@@ -1,10 +1,17 @@
-import type { MergedProduct } from '../../types'
+import type { MergedProduct, ScheduleMode } from '../../types'
 import type { CatalogProduct } from '../../types/productCatalog'
+import { tierProductsMomentum } from '../analysis/momentumMode'
 import { tierProducts } from '../analysis/tierEngine'
 import { hydrateProductsTrialProgress } from '../schedule/trialProgress'
 import { loadProductCatalog } from './productCatalogStorage'
 
 const SENTINEL_EXTERNAL = new Set(['sample', 'manual', ''])
+
+/** Legacy `sample` schedule mode is an alias of `full` (Stage 3). */
+export function normalizeScheduleMode(mode: ScheduleMode | string | null | undefined): ScheduleMode {
+  if (mode === 'momentum') return 'momentum'
+  return 'full'
+}
 
 function displayName(product: CatalogProduct): string {
   return product.brand ? `${product.displayName} (${product.brand})` : product.displayName
@@ -50,17 +57,20 @@ export function activeCatalogProducts(
 /**
  * Build the sprint product list from the durable catalog.
  * Zero-metric rows run through tierEngine → Test; favorites stay Test with isFavorite.
+ * Stage 3: CSV uploads reconcile into catalog, then sprint rebuilds from here.
  */
 export function buildSprintProductsFromCatalog(
   catalog: CatalogProduct[] = loadProductCatalog(),
-  options?: { hydrateTrial?: boolean },
+  options?: { hydrateTrial?: boolean; mode?: ScheduleMode },
 ): MergedProduct[] {
   const active = activeCatalogProducts(catalog)
   if (active.length === 0) return []
 
+  const mode = normalizeScheduleMode(options?.mode)
   const byId = new Map(active.map((product) => [product.id, product]))
   const drafts = active.map(mergedDraftFromCatalog)
-  const tiered = tierProducts(drafts).map((product) => {
+  const ranked = mode === 'momentum' ? tierProductsMomentum(drafts) : tierProducts(drafts)
+  const tiered = ranked.map((product) => {
     const source = byId.get(product.id)
     return {
       ...product,

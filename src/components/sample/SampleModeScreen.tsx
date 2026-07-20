@@ -76,8 +76,9 @@ export function SampleModeScreen({
         Add products to your catalog
       </h1>
       <p className="mx-auto mt-3 max-w-lg text-center font-body text-sm text-stone sm:mt-4 sm:text-base">
-        No-sales products join your durable catalog as Test trials (6 videos). Mark Priority to
-        prefer them in trial slot ordering — it does not change their performance tier.
+        Products join your durable catalog as Test trials (6 videos). An optional first-video
+        deadline applies only to video 1. Mark Priority to prefer them in trial ordering — it does
+        not change their performance tier.
       </p>
 
       <div className="mt-8">

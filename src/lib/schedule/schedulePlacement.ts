@@ -31,17 +31,30 @@ export function countProductOnDay(
   return perDay[day].filter((video) => video.productKey === productKey).length
 }
 
-export function pickSpreadDayIndices(sprintDays: number, spreadCount: number): number[] {
+/**
+ * Prefer `spreadCount` days spaced across the sprint.
+ * `rotationOffset` shifts the pattern so successive Test products do not all
+ * cluster on the same days (e.g. every product on Mon/Wed/Fri).
+ */
+export function pickSpreadDayIndices(
+  sprintDays: number,
+  spreadCount: number,
+  rotationOffset = 0,
+): number[] {
   const count = Math.max(1, Math.min(sprintDays, spreadCount))
   if (count >= sprintDays) {
     return Array.from({ length: sprintDays }, (_, index) => index)
   }
 
-  const indices: number[] = []
+  const base: number[] = []
   for (let i = 0; i < count; i++) {
-    indices.push(Math.floor((i * sprintDays) / count))
+    base.push(Math.floor((i * sprintDays) / count))
   }
-  return [...new Set(indices)].sort((a, b) => a - b)
+  const unique = [...new Set(base)]
+  const offset = ((rotationOffset % sprintDays) + sprintDays) % sprintDays
+  return unique
+    .map((day) => (day + offset) % sprintDays)
+    .sort((a, b) => a - b)
 }
 
 function remainingCapacity(perDay: ScheduledVideo[][], day: number, cap: number): number {
@@ -136,7 +149,7 @@ export function toTierScheduledVideo(
   }
 }
 
-/** Place test slots first: max 2/day, spread across ≥3 days. */
+/** Place test slots first: max 2/day, spread across ≥3 days (rotated per product). */
 export function placeTestProductsWithSpread(
   perDay: ScheduledVideo[][],
   rows: SlotPlacementRow[],
@@ -149,13 +162,15 @@ export function placeTestProductsWithSpread(
     .filter((row) => row.tier === 'Test' && row.remaining > 0)
     .sort((a, b) => compareTrialPriority(a.product, b.product))
 
-  for (const row of tests) {
+  for (let productIndex = 0; productIndex < tests.length; productIndex++) {
+    const row = tests[productIndex]
     const total = row.remaining
     const spreadCount = Math.max(
       MIN_TEST_SPREAD_DAYS,
       Math.ceil(total / MAX_TEST_VIDEOS_PER_DAY),
     )
-    const spreadDays = pickSpreadDayIndices(sprintDays, spreadCount)
+    // Rotate preferred days per product so Tests do not all land on [0, 2, 4].
+    const spreadDays = pickSpreadDayIndices(sprintDays, spreadCount, productIndex)
     let dayCursor = 0
     let safety = 0
 

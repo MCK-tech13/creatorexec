@@ -308,7 +308,8 @@ function parseAppStage(value: unknown): AppStage | null {
 }
 
 function parseScheduleMode(value: unknown): ScheduleMode {
-  if (value === 'sample' || value === 'momentum' || value === 'full') return value
+  // Stage 3: legacy `sample` schedule mode coerces to `full`.
+  if (value === 'momentum') return 'momentum'
   return 'full'
 }
 

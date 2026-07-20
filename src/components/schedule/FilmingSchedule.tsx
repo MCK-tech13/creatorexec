@@ -21,7 +21,6 @@ interface FilmingScheduleProps {
   schedule: DaySchedule[]
   products: MergedProduct[]
   beginnerMode?: boolean
-  sampleMode?: boolean
   momentumMode?: boolean
   getFilmedCount: (storageKey: string) => number
   onFilmedIncrement: (storageKey: string, max: number, productKey: string) => void
@@ -29,7 +28,6 @@ interface FilmingScheduleProps {
   onRemoveFromSchedule: (productKey: string) => void
   onBack: () => void
   onStartOver: () => void
-  onUploadReport?: () => void
   retainerOnly?: boolean
 }
 
@@ -39,7 +37,6 @@ export function FilmingSchedule({
   schedule,
   products,
   beginnerMode = false,
-  sampleMode = false,
   momentumMode = false,
   getFilmedCount,
   onFilmedIncrement,
@@ -47,7 +44,6 @@ export function FilmingSchedule({
   onRemoveFromSchedule,
   onBack,
   onStartOver,
-  onUploadReport,
   retainerOnly = false,
 }: FilmingScheduleProps) {
   const [expandedDays, setExpandedDays] = useState<Set<number>>(
@@ -101,33 +97,15 @@ export function FilmingSchedule({
         </div>
       )}
 
-      {sampleMode && onUploadReport && (
-        <div className="mb-6 flex flex-col gap-4 border border-border-warm p-4 sm:mb-8 sm:p-6 md:flex-row md:items-center md:justify-between">
-          <p className="font-body text-sm text-ink sm:text-base">
-            You&apos;re in Sample Mode. Once you have sales data, upload your commission report
-            to unlock full product rankings.
-          </p>
-          <button
-            type="button"
-            onClick={onUploadReport}
-            className="btn-primary shrink-0 px-6 py-3 text-sm"
-          >
-            Upload Report
-          </button>
-        </div>
-      )}
-
       <div className="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl md:text-4xl">
             Your Filming Schedule
           </h2>
           <p className="mt-2 font-body text-xs text-stone sm:mt-3 sm:text-sm">
-            {sampleMode
-              ? `${totalVideos} videos across ${schedule.length} days · evenly distributed`
-              : momentumMode
-                ? `${totalVideos} videos across ${schedule.length} days · balanced rotation`
-                : `${totalVideos} videos across ${schedule.length} days · sorted by tier, then commission`}
+            {momentumMode
+              ? `${totalVideos} videos across ${schedule.length} days · balanced rotation`
+              : `${totalVideos} videos across ${schedule.length} days · sorted by tier, then commission`}
           </p>
           <ContentPolicyDisclaimer className="mt-3 max-w-2xl" />
         </div>
@@ -320,11 +298,7 @@ export function FilmingSchedule({
           </button>
         )}
         <button type="button" onClick={onStartOver} className="btn-primary flex-1 py-4">
-          {retainerOnly
-            ? 'Add Products'
-            : sampleMode
-              ? 'Start Over'
-              : 'Analyze New Report'}
+          {retainerOnly ? 'Add Products' : 'Analyze New Report'}
         </button>
       </div>
 

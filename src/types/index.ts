@@ -92,7 +92,10 @@ export type AppStage = 'upload' | 'sample' | 'momentum' | 'dashboard' | 'config'
 
 export type MainSection = 'home' | 'sprint' | 'retainers' | 'income' | 'product-scout'
 
-export type ScheduleMode = 'full' | 'sample' | 'momentum'
+export type ScheduleMode = 'full' | 'momentum'
+
+/** @deprecated Legacy value persisted in older sprint rows; coerce to `full`. */
+export type LegacyScheduleMode = ScheduleMode | 'sample'
 
 export type SampleProductType = 'sample' | 'favorite'
 

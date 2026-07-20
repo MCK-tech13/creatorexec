@@ -1,22 +1,4 @@
-import type {
-  DaySchedule,
-  DeadlineProduct,
-  MergedProduct,
-  SampleProduct,
-  ScheduledVideo,
-  SprintConfig,
-} from '../../types'
-import { AngleRotationSession } from './angleRotation'
-import {
-  assignSlotIds,
-  buildDeadlineScheduledVideos,
-  buildFirstVideoDeadlineVideos,
-  placeRetainerVideos,
-  placeVideosRoundRobin,
-  remainingDayCapacity,
-  toTierScheduledVideo,
-} from './schedulePlacement'
-import { createPlacementReasonBuilder, type PlacementReasonBuilder } from './placementReasons'
+import type { MergedProduct, SampleProduct } from '../../types'
 
 /** Favorites first, then samples by date received (oldest first). */
 export function sortSampleProductsForSchedule(products: SampleProduct[]): SampleProduct[] {
@@ -31,8 +13,9 @@ export function sortSampleProductsForSchedule(products: SampleProduct[]): Sample
 }
 
 /**
- * Stage 2: favorites are soft priority flags — they stay Test with zero metrics.
- * Rising/Anchor still require real sales data via tierEngine.
+ * Map catalog-add form rows into MergedProduct drafts.
+ * Favorites are soft priority flags — they stay Test with zero metrics.
+ * Stage 3: scheduling always goes through buildFilmingSchedule / catalog rebuild.
  */
 export function sampleProductsToMerged(products: SampleProduct[]): MergedProduct[] {
   return sortSampleProductsForSchedule(products).map((p) => ({
@@ -52,83 +35,4 @@ export function sampleProductsToMerged(products: SampleProduct[]): MergedProduct
     isFavorite: p.type === 'favorite',
     firstVideoDeadline: p.firstVideoDeadline?.trim() ? p.firstVideoDeadline.trim() : null,
   }))
-}
-
-function toSampleScheduledVideo(
-  product: MergedProduct,
-  angleSession: AngleRotationSession,
-  reasonBuilder: PlacementReasonBuilder,
-  alreadyPlacedInSprint: number,
-): ReturnType<typeof toTierScheduledVideo> {
-  const tier = product.tier === 'Rising' ? 'Rising' : 'Test'
-  return toTierScheduledVideo(
-    product,
-    tier,
-    angleSession,
-    reasonBuilder.forTierPlacement(
-      product.id,
-      tier,
-      product.videosFilmed,
-      alreadyPlacedInSprint,
-      'remaining',
-    ),
-  )
-}
-
-export function buildSampleModeSchedule(
-  products: MergedProduct[],
-  config: SprintConfig,
-  deadlineProducts: DeadlineProduct[] = [],
-  retainerVideos: ScheduledVideo[] = [],
-): DaySchedule[] {
-  const { sprintDays, videosPerDay } = config
-  const cap = Math.max(1, videosPerDay)
-  const perDay: ScheduledVideo[][] = Array.from({ length: sprintDays }, () => [])
-
-  placeRetainerVideos(perDay, retainerVideos, cap)
-  placeVideosRoundRobin(perDay, buildDeadlineScheduledVideos(deadlineProducts), cap)
-  placeVideosRoundRobin(perDay, buildFirstVideoDeadlineVideos(products), cap)
-
-  const totalSlots = cap * sprintDays
-  const priorityCount = perDay.reduce((sum, day) => sum + day.length, 0)
-  const sampleSlots = Math.max(0, totalSlots - priorityCount)
-  // First-video deadline slots already used the catalog product key — skip duplicates.
-  const alreadyPlacedIds = new Set(
-    perDay.flat().map((video) => video.productKey),
-  )
-  const toSchedule = products
-    .filter((product) => !alreadyPlacedIds.has(product.id))
-    .slice(0, sampleSlots)
-  const angleSession = new AngleRotationSession()
-  const reasonBuilder = createPlacementReasonBuilder({
-    mode: 'sample',
-    topAnchorIds: new Set(),
-    provenSlotsByProduct: new Map(),
-    sprintDays,
-  })
-
-  let dayCursor = 0
-  for (const product of toSchedule) {
-    let placed = false
-    for (let attempt = 0; attempt < sprintDays; attempt++) {
-      const day = (dayCursor + attempt) % sprintDays
-      if (remainingDayCapacity(perDay, day, cap) > 0) {
-        const alreadyPlaced = perDay.reduce(
-          (sum, videos) => sum + videos.filter((video) => video.productKey === product.id).length,
-          0,
-        )
-        perDay[day].push(
-          toSampleScheduledVideo(product, angleSession, reasonBuilder, alreadyPlaced),
-        )
-        dayCursor = (day + 1) % sprintDays
-        placed = true
-        break
-      }
-    }
-    if (!placed) break
-  }
-
-  angleSession.persist()
-
-  return assignSlotIds(perDay, sprintDays)
 }
