@@ -190,10 +190,55 @@ function runMomentumRebuildFromCatalog(): void {
   console.log('PASS')
 }
 
+function runTestSpreadRotatesAcrossProducts(): void {
+  console.log('\n=== Test spread rotates preferred days (no Mon/Wed/Fri pile-up) ===')
+  resetStore()
+
+  const tests: MergedProduct[] = Array.from({ length: 6 }, (_, i) => ({
+    id: `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa${i}`,
+    productName: `Test ${i + 1}`,
+    productId: `t${i}`,
+    gmv: 0,
+    commission: 0,
+    itemsSold: 0,
+    orderCount: 0,
+    videosFilmed: 0,
+    score: 0,
+    tier: 'Test' as const,
+    rankInTier: i,
+    inRotation: true,
+    isManual: true,
+  }))
+
+  const schedule = buildFilmingSchedule(
+    tests,
+    { videosPerDay: 15, sprintDays: 7 },
+    [],
+    new Set(),
+  )
+  const counts = schedule.map((day) => day.videos.length)
+  const min = Math.min(...counts)
+  const max = Math.max(...counts)
+  assert(counts.every((count) => count <= 15), 'never exceeds videosPerDay')
+  assert(min > 0, `no empty days after rotation, got ${JSON.stringify(counts)}`)
+  assert(
+    max - min <= 3,
+    `day counts should be roughly even, got ${JSON.stringify(counts)} (spread ${max - min})`,
+  )
+
+  // Legacy bug: all Tests on [0,2,4] → [12,0,12,0,12,0,0]
+  assert(
+    !(counts[1] === 0 && counts[3] === 0 && counts[5] === 0),
+    'must not leave Tue/Thu/Sat empty while Mon/Wed/Fri are loaded',
+  )
+  console.log('PASS', counts)
+}
+
 try {
   runLegacySampleModeCoerces()
   runCsvReconcileKeepsCatalogSamples()
   runMomentumRebuildFromCatalog()
+  runTestSpreadRotatesAcrossProducts()
   console.log('\nAll Stage 3 catalog reconcile checks passed.')
 } catch (error) {
   console.error('\nVERIFICATION FAILED:', error)
