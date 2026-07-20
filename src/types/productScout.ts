@@ -27,6 +27,8 @@ export interface ProductScoutSignal {
   sentiment: SignalSentiment
   /** When false, signal is shown but excluded from total score (missing input). */
   countsTowardScore: boolean
+  /** Non-blocking warning banner shown on the signal card (does not change points). */
+  warning?: string
 }
 
 export interface ProductScoutFunnelRecommendation {

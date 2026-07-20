@@ -56,6 +56,14 @@ function SignalRow({ signal }: { signal: ProductScoutSignal }) {
           {signal.countsTowardScore ? formatPoints(signal.points) : '—'}
         </span>
       </div>
+      {signal.warning && (
+        <div
+          className="mt-3 border border-terracotta/50 bg-terracotta-tint px-3 py-2"
+          role="status"
+        >
+          <p className="font-body text-sm leading-relaxed text-ink">{signal.warning}</p>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { parseCompactNumber, parseDelta } from './metricParser'
+import { formatTrendNumber, parseCompactNumber, parseDelta } from './metricParser'
 import type {
   ProductScoutFunnelRecommendation,
   ProductScoutMetrics,
@@ -15,7 +15,11 @@ interface ParsedScoutMetrics {
   creators: number | null
   creatorsDelta: number | null
   atcUsers: number | null
+  atcUsersDelta: number | null
 }
+
+/** Points above the base +1 direction score for an upward trend. */
+const MAGNITUDE_BONUS_CAP = 2
 
 function noDataSignal(
   id: string,
@@ -41,6 +45,7 @@ function parseScoutMetrics(metrics: ProductScoutMetrics): ParsedScoutMetrics {
     creators: parseCompactNumber(metrics.creators.value),
     creatorsDelta: parseDelta(metrics.creators.delta),
     atcUsers: parseCompactNumber(metrics.atcUsers.value),
+    atcUsersDelta: parseDelta(metrics.atcUsers.delta),
   }
 }
 
@@ -49,16 +54,101 @@ export function hasProductScoutData(metrics: ProductScoutMetrics): boolean {
   return [parsed.orders, parsed.ctr, parsed.creators, parsed.atcUsers].some((v) => v != null)
 }
 
-function scoreOrdersTrend(ordersDelta: number | null): ProductScoutSignal {
+/**
+ * Growth multiple from current level and absolute delta.
+ * previous = current - delta; multiple = current / previous.
+ * previous === 0 (new product, no baseline) → max tier.
+ */
+export function growthMultipleFromDelta(
+  current: number | null,
+  delta: number,
+): { multiple: number | null; noBaseline: boolean } {
+  if (current == null || !(delta > 0)) {
+    return { multiple: null, noBaseline: false }
+  }
+  const previous = current - delta
+  if (previous === 0) {
+    return { multiple: null, noBaseline: true }
+  }
+  if (previous < 0) {
+    return { multiple: null, noBaseline: false }
+  }
+  return { multiple: current / previous, noBaseline: false }
+}
+
+function formatGrowthMultiple(multiple: number): string {
+  const rounded = Math.round(multiple * 10) / 10
+  return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1)
+}
+
+function upwardTrendPoints(
+  subject: 'Orders' | 'ATC users',
+  current: number | null,
+  delta: number,
+): { points: number; magnitudeBonus: number; detail: string } {
+  const { multiple, noBaseline } = growthMultipleFromDelta(current, delta)
+
+  if (noBaseline) {
+    return {
+      points: 3,
+      magnitudeBonus: 2,
+      detail: `${subject} up sharply — new product, no baseline yet.`,
+    }
+  }
+
+  // Missing value (or unusable previous): direction-only +1
+  if (multiple == null) {
+    return {
+      points: 1,
+      magnitudeBonus: 0,
+      detail:
+        subject === 'Orders'
+          ? 'Orders rising — demand is healthy'
+          : 'ATC users rising — interest is growing',
+    }
+  }
+
+  const formatted = formatGrowthMultiple(multiple)
+
+  if (multiple > 5) {
+    return {
+      points: 3,
+      magnitudeBonus: 2,
+      detail: `${subject} up ${formatted}x — strong demand surge`,
+    }
+  }
+  if (multiple >= 2) {
+    return {
+      points: 2,
+      magnitudeBonus: 1,
+      detail: `${subject} up ${formatted}x — solid demand surge`,
+    }
+  }
+  return {
+    points: 1,
+    magnitudeBonus: 0,
+    detail:
+      subject === 'Orders'
+        ? `${subject} up ${formatted}x — demand is healthy`
+        : `${subject} up ${formatted}x — interest is growing`,
+  }
+}
+
+function scoreOrdersTrend(orders: number | null, ordersDelta: number | null): ProductScoutSignal {
   if (ordersDelta == null) {
-    return noDataSignal('orders-trend', 'Orders Trend', 'No trend data — add an orders delta to score demand direction')
+    return noDataSignal(
+      'orders-trend',
+      'Orders Trend',
+      'No trend data — add an orders delta to score demand direction',
+    )
   }
   if (ordersDelta > 0) {
+    const { points, detail } = upwardTrendPoints('Orders', orders, ordersDelta)
     return {
       id: 'orders-trend',
       label: 'Orders Trend',
-      detail: 'Orders rising — demand is healthy',
-      points: 1,
+      detail,
+      points,
       sentiment: 'positive',
       countsTowardScore: true,
     }
@@ -73,11 +163,75 @@ function scoreOrdersTrend(ordersDelta: number | null): ProductScoutSignal {
   }
 }
 
+function scoreAtcTrend(atcUsers: number | null, atcUsersDelta: number | null): ProductScoutSignal {
+  if (atcUsersDelta == null) {
+    return noDataSignal(
+      'atc-trend',
+      'ATC Trend',
+      'No trend data — add an ATC users delta to score interest direction',
+    )
+  }
+  if (atcUsersDelta > 0) {
+    const { points, detail } = upwardTrendPoints('ATC users', atcUsers, atcUsersDelta)
+    return {
+      id: 'atc-trend',
+      label: 'ATC Trend',
+      detail,
+      points,
+      sentiment: 'positive',
+      countsTowardScore: true,
+    }
+  }
+  return {
+    id: 'atc-trend',
+    label: 'ATC Trend',
+    detail: 'ATC users falling — interest may be cooling',
+    points: -1,
+    sentiment: 'negative',
+    countsTowardScore: true,
+  }
+}
+
+/**
+ * Cap combined magnitude bonus across Orders + ATC Trend at MAGNITUDE_BONUS_CAP.
+ * Larger bonus keeps priority; remainder goes to the other signal. Orders wins ties.
+ */
+function applyMagnitudeBonusCap(
+  ordersSignal: ProductScoutSignal,
+  atcSignal: ProductScoutSignal,
+): { ordersSignal: ProductScoutSignal; atcSignal: ProductScoutSignal } {
+  const ordersBonus =
+    ordersSignal.countsTowardScore && ordersSignal.points > 1 ? ordersSignal.points - 1 : 0
+  const atcBonus =
+    atcSignal.countsTowardScore && atcSignal.points > 1 ? atcSignal.points - 1 : 0
+
+  if (ordersBonus + atcBonus <= MAGNITUDE_BONUS_CAP) {
+    return { ordersSignal, atcSignal }
+  }
+
+  let keptOrdersBonus: number
+  let keptAtcBonus: number
+
+  if (atcBonus > ordersBonus) {
+    keptAtcBonus = Math.min(atcBonus, MAGNITUDE_BONUS_CAP)
+    keptOrdersBonus = Math.min(ordersBonus, MAGNITUDE_BONUS_CAP - keptAtcBonus)
+  } else {
+    // Orders is primary on ties
+    keptOrdersBonus = Math.min(ordersBonus, MAGNITUDE_BONUS_CAP)
+    keptAtcBonus = Math.min(atcBonus, MAGNITUDE_BONUS_CAP - keptOrdersBonus)
+  }
+
+  return {
+    ordersSignal:
+      ordersBonus > 0 ? { ...ordersSignal, points: 1 + keptOrdersBonus } : ordersSignal,
+    atcSignal: atcBonus > 0 ? { ...atcSignal, points: 1 + keptAtcBonus } : atcSignal,
+  }
+}
+
 function scoreCreatorSaturation(
   creatorLevel: number | null,
   creatorDelta: number | null,
   ordersDelta: number | null,
-  conversionRate: number | null,
 ): ProductScoutSignal {
   if (creatorLevel == null) {
     return noDataSignal('creator-saturation', 'Creator Saturation')
@@ -118,38 +272,15 @@ function scoreCreatorSaturation(
     }
   }
 
-  const healthyConversion = conversionRate != null && conversionRate >= 0.08
-  const ordersRising = ordersDelta != null && ordersDelta > 0
-
-  if (healthyConversion && ordersRising) {
-    return {
-      id: 'creator-saturation',
-      label: 'Creator Saturation',
-      detail: 'Crowded (2,000+ creators) but orders are rising and conversion is healthy',
-      points: 0,
-      sentiment: 'neutral',
-      countsTowardScore: true,
-    }
-  }
-
-  if (healthyConversion && ordersDelta == null) {
-    return {
-      id: 'creator-saturation',
-      label: 'Creator Saturation',
-      detail: 'Crowded (2,000+ creators) with healthy conversion — add an orders trend to refine this',
-      points: -1,
-      sentiment: 'neutral',
-      countsTowardScore: true,
-    }
-  }
-
+  const formattedCreators = formatTrendNumber(creatorLevel)
   return {
     id: 'creator-saturation',
     label: 'Creator Saturation',
-    detail: 'Crowded (2,000+ creators)',
-    points: -1,
-    sentiment: 'negative',
+    detail: `Crowded (${formattedCreators} creators) — informational only`,
+    points: 0,
+    sentiment: 'neutral',
     countsTowardScore: true,
+    warning: `Higher creator competition (${formattedCreators} creators) — demand may still justify testing, but expect more saturated hooks.`,
   }
 }
 
@@ -359,9 +490,17 @@ export function scoreProductScout(metrics: ProductScoutMetrics): ProductScoutSco
   const parsed = parseScoutMetrics(metrics)
   const rate = conversionRate(parsed)
 
+  let ordersTrend = scoreOrdersTrend(parsed.orders, parsed.ordersDelta)
+  let atcTrend = scoreAtcTrend(parsed.atcUsers, parsed.atcUsersDelta)
+  ;({ ordersSignal: ordersTrend, atcSignal: atcTrend } = applyMagnitudeBonusCap(
+    ordersTrend,
+    atcTrend,
+  ))
+
   const signals: ProductScoutSignal[] = [
-    scoreOrdersTrend(parsed.ordersDelta),
-    scoreCreatorSaturation(parsed.creators, parsed.creatorsDelta, parsed.ordersDelta, rate),
+    ordersTrend,
+    atcTrend,
+    scoreCreatorSaturation(parsed.creators, parsed.creatorsDelta, parsed.ordersDelta),
     scoreCtr(parsed.ctr, parsed.ctrDelta, parsed.creators),
     scoreConversion(parsed.orders, parsed.atcUsers),
   ]
