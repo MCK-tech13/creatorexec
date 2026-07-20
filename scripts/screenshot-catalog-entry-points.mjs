@@ -252,12 +252,8 @@ const pages = {
         <p class="hint">Saved to your durable catalog. Zero-sales products enter as Test (6-video trial).</p>
       </div>
       <div class="field">
-        <span>Commission Amount ($)</span>
+        <span>Videos Already Filmed</span>
         <input value="0" readonly />
-      </div>
-      <div class="field">
-        <span>Tier</span>
-        <select disabled><option>Test</option></select>
       </div>
       <div class="field">
         <span>First-video deadline (optional)</span>

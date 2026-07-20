@@ -1,18 +1,14 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import type { ManualProductFormData, ManualTier } from '../../types'
+import type { ManualProductFormData } from '../../types'
 
 interface AddProductModalProps {
   onClose: () => void
   onSubmit: (data: ManualProductFormData) => void
 }
 
-const TIERS: ManualTier[] = ['Anchor', 'Rising', 'Test']
-
 export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
   const [productName, setProductName] = useState('')
-  const [commission, setCommission] = useState('')
-  const [tier, setTier] = useState<ManualTier>('Test')
   const [videosFilmed, setVideosFilmed] = useState('0')
   const [firstVideoDeadline, setFirstVideoDeadline] = useState('')
 
@@ -23,8 +19,8 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
 
     onSubmit({
       productName: trimmed,
-      commission: Math.max(0, parseFloat(commission) || 0),
-      tier,
+      commission: 0,
+      tier: 'Test',
       videosFilmed: Math.max(0, parseInt(videosFilmed, 10) || 0),
       ...(firstVideoDeadline.trim()
         ? { firstVideoDeadline: firstVideoDeadline.trim() }
@@ -65,34 +61,7 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
           </label>
 
           <label className="block">
-            <span className="label-caps mb-3 block">Commission Amount ($)</span>
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              value={commission}
-              onChange={(e) => setCommission(e.target.value)}
-              className="input-field w-full px-3 py-3"
-            />
-          </label>
-
-          <label className="block">
-            <span className="label-caps mb-3 block">Tier</span>
-            <select
-              value={tier}
-              onChange={(e) => setTier(e.target.value as ManualTier)}
-              className="input-field w-full px-3 py-3"
-            >
-              {TIERS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="label-caps mb-3 block">Videos Filmed</span>
+            <span className="label-caps mb-3 block">Videos Already Filmed</span>
             <input
               type="number"
               min={0}
