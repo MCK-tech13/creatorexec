@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { SUPPORT_EMAIL } from '../../lib/support'
+import { ResetDataModal } from '../onboarding/ResetDataModal'
 
 type SiteFooterVariant = 'landing' | 'app'
 
@@ -9,6 +11,8 @@ interface SiteFooterProps {
 }
 
 export function SiteFooter({ variant = 'landing', onResetOnboarding }: SiteFooterProps) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+
   return (
     <footer className="border-t border-border-warm bg-white">
       <div className="mx-auto max-w-7xl space-y-4 px-5 py-6 text-center sm:px-8 sm:py-8">
@@ -36,13 +40,23 @@ export function SiteFooter({ variant = 'landing', onResetOnboarding }: SiteFoote
         {variant === 'app' && onResetOnboarding && (
           <button
             type="button"
-            onClick={onResetOnboarding}
+            onClick={() => setShowResetConfirm(true)}
             className="link-elegant font-body text-xs uppercase tracking-[0.14em] text-stone"
           >
-            Restart Sprint Setup
+            Reset Data
           </button>
         )}
       </div>
+
+      {showResetConfirm && onResetOnboarding && (
+        <ResetDataModal
+          onCancel={() => setShowResetConfirm(false)}
+          onConfirm={() => {
+            setShowResetConfirm(false)
+            onResetOnboarding()
+          }}
+        />
+      )}
     </footer>
   )
 }

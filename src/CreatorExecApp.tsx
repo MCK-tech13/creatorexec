@@ -40,6 +40,7 @@ import { findAnchorPromotions } from './lib/celebrations/anchorPromotions'
 import {
   hasSeenFirstSprintCelebration,
   markFirstSprintCelebrationSeen,
+  resetFirstSprintCelebrationSeen,
 } from './lib/celebrations/firstSprintStorage'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
 import { tierProducts, computeScore } from './lib/analysis/tierEngine'
@@ -559,8 +560,9 @@ export default function CreatorExecApp() {
     clearSprintEntrySeen()
     setOnboardingComplete(false)
     setUserMode('beginner')
-    setMainSection('home')
-    navigate(appPathForSection('home'))
+    // Quiz only renders on the Sprint section — send them there to retake it.
+    setMainSection('sprint')
+    navigate(appPathForSection('sprint'))
     setStage('upload')
     setProducts([])
     setDeadlineProducts([])
@@ -575,6 +577,7 @@ export default function CreatorExecApp() {
     clearTrialProgress()
     clearProductCatalog()
     clearSprintSnapshots()
+    resetFirstSprintCelebrationSeen(getActiveUserId())
     setScheduleMode('full')
     setSampleProducts([])
     setPendingProducts(null)
