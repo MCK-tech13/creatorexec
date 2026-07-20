@@ -200,10 +200,10 @@ const pages = {
     `
     <div class="mark" aria-hidden="true"></div>
     <h2>Know exactly what to film. Every sprint.</h2>
-    <p class="sub">Upload your TikTok Shop commission report — or add products without sales data — and get a personalized filming schedule.</p>
+    <p class="sub">Upload your TikTok Shop commission report — or add a sample or favorite product — and get a personalized filming schedule.</p>
     <div class="cta-stack">
       <button class="btn-primary" type="button">Choose File</button>
-      <button class="btn-outline" type="button">Add a product without sales data yet</button>
+      <button class="btn-outline" type="button">Add a sample or favorite product</button>
     </div>
     <p class="alt">Have some sales but not many? Try Momentum Mode instead</p>
     <p class="caps">Supports .csv and .xlsx files</p>
@@ -214,10 +214,10 @@ const pages = {
     `
     <div class="mark" aria-hidden="true"></div>
     <h1>You're building momentum.</h1>
-    <p class="sub">Upload your commission report — or add products without sales data — and we'll build a balanced schedule while your data builds up.</p>
+    <p class="sub">Upload your commission report — or add a sample or favorite product — and we'll build a balanced schedule while your data builds up.</p>
     <div class="cta-stack">
       <button class="btn-primary" type="button">Choose File</button>
-      <button class="btn-outline" type="button">Add a product without sales data yet</button>
+      <button class="btn-outline" type="button">Add a sample or favorite product</button>
     </div>
     <p class="caps">Supports .csv and .xlsx files</p>
     <p class="alt">Established seller? Use full analysis upload instead</p>
@@ -230,7 +230,7 @@ const pages = {
     <h2>Nothing to schedule yet</h2>
     <p class="sub">Add products to your catalog, upload your commission report, or add a retainer deal to build your first sprint.</p>
     <div class="cta-stack">
-      <button class="btn-outline" type="button">Add a product without sales data yet</button>
+      <button class="btn-outline" type="button">Add a sample or favorite product</button>
       <button class="btn-primary" type="button">Upload Report</button>
       <button class="btn-outline" type="button">Add Retainer Deal</button>
     </div>

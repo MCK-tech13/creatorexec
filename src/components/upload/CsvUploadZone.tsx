@@ -109,7 +109,7 @@ export function CsvUploadZone({
             Know exactly what to film. Every sprint.
           </h2>
           <p className="mx-auto mt-4 max-w-lg font-body text-sm text-stone sm:mt-6 sm:text-base">
-            Upload your TikTok Shop commission report — or add products without sales data —
+            Upload your TikTok Shop commission report — or add a sample or favorite product —
             and get a personalized filming schedule.
           </p>
           <div className="mx-auto mt-10 flex w-full max-w-[400px] flex-col gap-3">
@@ -133,7 +133,7 @@ export function CsvUploadZone({
               onClick={onEnterSampleMode}
               className="btn-outline w-full py-4 font-body"
             >
-              Add a product without sales data yet
+              Add a sample or favorite product
             </button>
           </div>
 

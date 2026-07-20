@@ -58,7 +58,7 @@ export function SprintEmptyState({
             onClick={onAddSamples}
             className={hasCatalog ? 'btn-outline w-full py-3' : 'btn-outline w-full py-3'}
           >
-            {hasCatalog ? 'Add more products' : 'Add a product without sales data yet'}
+            {hasCatalog ? 'Add more products' : 'Add a sample or favorite product'}
           </button>
           <button
             type="button"

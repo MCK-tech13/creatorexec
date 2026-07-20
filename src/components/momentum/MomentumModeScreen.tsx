@@ -73,7 +73,7 @@ export function MomentumModeScreen({
             You&apos;re building momentum.
           </h1>
           <p className="mx-auto mt-3 max-w-lg text-center font-body text-sm text-stone sm:mt-4 sm:text-base">
-            Upload your commission report — or add products without sales data — and we&apos;ll
+            Upload your commission report — or add a sample or favorite product — and we&apos;ll
             build a balanced schedule while your data builds up.
           </p>
 
@@ -99,7 +99,7 @@ export function MomentumModeScreen({
                 onClick={onEnterSampleMode}
                 className="btn-outline w-full py-4 font-body"
               >
-                Add a product without sales data yet
+                Add a sample or favorite product
               </button>
             )}
           </div>
