@@ -6,6 +6,7 @@ import {
   persistCurrentSprintState,
   persistIncomeTracker,
   persistOnboardingState,
+  persistProductCatalog,
   persistProductScoutEntries,
   persistTrialProgress,
   persistUserEngagement,
@@ -51,6 +52,12 @@ export function scheduleIncomeTrackerPersist(): void {
 export function scheduleProductScoutPersist(): void {
   withClient(async (userId, client) => {
     await persistProductScoutEntries(client, userId, getUserDataSnapshot().productScoutEntries)
+  })
+}
+
+export function scheduleProductCatalogPersist(): void {
+  withClient(async (userId, client) => {
+    await persistProductCatalog(client, userId, getUserDataSnapshot().productCatalog)
   })
 }
 

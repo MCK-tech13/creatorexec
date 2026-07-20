@@ -3,6 +3,7 @@ import type { Database } from './database.types'
 import type { UserDataSnapshot } from './dataStore'
 import {
   brandDealToRow,
+  catalogProductToRow,
   currentSprintToRow,
   incomeEntryToRow,
   onboardingProfileToRow,
@@ -135,6 +136,36 @@ export async function persistProductScoutEntries(
   if (rows.length === 0) return
 
   const { error } = await client.from('product_scout_list').upsert(rows)
+  if (error) throw error
+}
+
+export async function persistProductCatalog(
+  client: Client,
+  userId: string,
+  products: UserDataSnapshot['productCatalog'],
+): Promise<void> {
+  const rows = products.map((product) => catalogProductToRow(userId, product))
+  const nextIds = new Set(rows.map((row) => row.id).filter(Boolean) as string[])
+
+  const { data: existing, error: selectError } = await client
+    .from('user_products')
+    .select('id')
+    .eq('user_id', userId)
+
+  if (selectError) throw selectError
+
+  const toDelete = (existing ?? [])
+    .map((row) => row.id)
+    .filter((id) => !nextIds.has(id))
+
+  if (toDelete.length > 0) {
+    const { error } = await client.from('user_products').delete().in('id', toDelete)
+    if (error) throw error
+  }
+
+  if (rows.length === 0) return
+
+  const { error } = await client.from('user_products').upsert(rows)
   if (error) throw error
 }
 

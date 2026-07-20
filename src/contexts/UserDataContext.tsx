@@ -18,6 +18,7 @@ import { fetchUserDataFromSupabase } from '../lib/supabase/fetchUserData'
 import { getSupabaseClient } from '../lib/supabase/client'
 import { migrateLocalStorageToSupabase } from '../lib/supabase/migrateLocalStorage'
 import { flushUserDataPersist } from '../lib/supabase/sync'
+import { backfillCatalogFromSprintState } from '../lib/catalog/productCatalogStorage'
 
 interface UserDataContextValue {
   ready: boolean
@@ -48,6 +49,11 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await migrateLocalStorageToSupabase(client, user.id)
       const snapshot = await fetchUserDataFromSupabase(client, user.id)
       hydrateDataStore(user.id, snapshot)
+      // Stage 1: one-time backfill of durable catalog from live sprint workspace.
+      backfillCatalogFromSprintState({
+        products: snapshot.currentSprintState?.products,
+        sampleProducts: snapshot.currentSprintState?.sampleProducts,
+      })
       setReady(true)
     } catch (loadError) {
       console.error('Failed to load user data', loadError)

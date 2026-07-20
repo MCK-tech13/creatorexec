@@ -252,6 +252,66 @@ export type Database = {
         }
         Relationships: []
       }
+      user_products: {
+        Row: {
+          id: string
+          user_id: string
+          display_name: string
+          brand: string | null
+          external_product_id: string | null
+          source: Database['public']['Enums']['catalog_product_source']
+          is_favorite: boolean
+          gmv: number
+          commission: number
+          items_sold: number
+          order_count: number
+          in_rotation: boolean
+          is_manual: boolean
+          date_received: string | null
+          archived_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          display_name: string
+          brand?: string | null
+          external_product_id?: string | null
+          source?: Database['public']['Enums']['catalog_product_source']
+          is_favorite?: boolean
+          gmv?: number
+          commission?: number
+          items_sold?: number
+          order_count?: number
+          in_rotation?: boolean
+          is_manual?: boolean
+          date_received?: string | null
+          archived_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          display_name?: string
+          brand?: string | null
+          external_product_id?: string | null
+          source?: Database['public']['Enums']['catalog_product_source']
+          is_favorite?: boolean
+          gmv?: number
+          commission?: number
+          items_sold?: number
+          order_count?: number
+          in_rotation?: boolean
+          is_manual?: boolean
+          date_received?: string | null
+          archived_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       onboarding_state: {
         Row: {
           user_id: string
@@ -476,6 +536,7 @@ export type Database = {
       filming_approach: 'whatever_samples' | 'rough_system' | 'solid_system'
       monthly_commission_level: 'just_starting' | 'growing' | 'established'
       product_scout_verdict: 'strong' | 'test' | 'pass'
+      catalog_product_source: 'csv' | 'manual' | 'sample' | 'backfill'
       schedule_mode: 'full' | 'sample' | 'momentum'
       tier_label: 'Anchor' | 'Rising' | 'Test' | 'Cut'
       trial_progress_source: 'manual' | 'sales-history'

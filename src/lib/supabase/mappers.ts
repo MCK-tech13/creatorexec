@@ -13,6 +13,7 @@ import type { IncomeTrackerStore } from '../../types/incomeTracker'
 import type { OnboardingProfile } from '../../types/onboarding'
 import type { BrandDeal } from '../../types/pipeline'
 import type { ProductScoutEntry, ProductScoutMetrics } from '../../types/productScout'
+import type { CatalogProduct, CatalogProductSource } from '../../types/productCatalog'
 import type { SprintSnapshot } from '../../types/sprintReview'
 import type { UserEngagementState } from '../../types/userEngagement'
 import { emptyUserEngagement } from '../../types/userEngagement'
@@ -24,6 +25,7 @@ type TrialRow = Database['public']['Tables']['trial_progress']['Row']
 type DealRow = Database['public']['Tables']['retainer_deals']['Row']
 type IncomeRow = Database['public']['Tables']['income_entries']['Row']
 type ScoutRow = Database['public']['Tables']['product_scout_list']['Row']
+type CatalogRow = Database['public']['Tables']['user_products']['Row']
 type OnboardingRow = Database['public']['Tables']['onboarding_state']['Row']
 type CurrentSprintRow = Database['public']['Tables']['current_sprint_state']['Row']
 type UserEngagementRow = Database['public']['Tables']['user_engagement']['Row']
@@ -53,6 +55,64 @@ export function trialProgressToRows(
     videos_filmed: Math.max(0, entry.videosFilmed),
     source: entry.source ?? null,
   }))
+}
+
+const CATALOG_SOURCES = new Set<CatalogProductSource>([
+  'csv',
+  'manual',
+  'sample',
+  'backfill',
+])
+
+function parseCatalogSource(value: string | null | undefined): CatalogProductSource {
+  if (value && CATALOG_SOURCES.has(value as CatalogProductSource)) {
+    return value as CatalogProductSource
+  }
+  return 'manual'
+}
+
+export function catalogProductFromRow(row: CatalogRow): CatalogProduct {
+  return {
+    id: row.id,
+    displayName: row.display_name,
+    brand: row.brand,
+    externalProductId: row.external_product_id,
+    source: parseCatalogSource(row.source),
+    isFavorite: row.is_favorite,
+    gmv: Number(row.gmv) || 0,
+    commission: Number(row.commission) || 0,
+    itemsSold: Math.max(0, row.items_sold),
+    orderCount: Math.max(0, row.order_count),
+    inRotation: row.in_rotation,
+    isManual: row.is_manual,
+    dateReceived: row.date_received,
+    archivedAt: row.archived_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+export function catalogProductToRow(
+  userId: string,
+  product: CatalogProduct,
+): Database['public']['Tables']['user_products']['Insert'] {
+  return {
+    id: product.id,
+    user_id: userId,
+    display_name: product.displayName,
+    brand: product.brand,
+    external_product_id: product.externalProductId,
+    source: product.source,
+    is_favorite: product.isFavorite,
+    gmv: product.gmv,
+    commission: product.commission,
+    items_sold: Math.max(0, product.itemsSold),
+    order_count: Math.max(0, product.orderCount),
+    in_rotation: product.inRotation,
+    is_manual: product.isManual,
+    date_received: product.dateReceived,
+    archived_at: product.archivedAt,
+  }
 }
 
 export function brandDealFromRow(row: DealRow): BrandDeal {
