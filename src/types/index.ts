@@ -32,6 +32,11 @@ export interface MergedProduct {
   rankInTier: number
   inRotation: boolean
   isManual: boolean
+  /**
+   * Soft scheduling priority for Test trial ordering.
+   * Never forces Rising/Anchor — sales data still owns tier.
+   */
+  isFavorite?: boolean
 }
 
 export interface DeadlineProduct {

@@ -29,6 +29,10 @@ export function sortSampleProductsForSchedule(products: SampleProduct[]): Sample
   return [...favorites, ...samples]
 }
 
+/**
+ * Stage 2: favorites are soft priority flags — they stay Test with zero metrics.
+ * Rising/Anchor still require real sales data via tierEngine.
+ */
 export function sampleProductsToMerged(products: SampleProduct[]): MergedProduct[] {
   return sortSampleProductsForSchedule(products).map((p) => ({
     id: p.id,
@@ -40,10 +44,11 @@ export function sampleProductsToMerged(products: SampleProduct[]): MergedProduct
     orderCount: 0,
     videosFilmed: 0,
     score: 0,
-    tier: p.type === 'favorite' ? 'Rising' : 'Test',
+    tier: 'Test' as const,
     rankInTier: 0,
     inRotation: true,
     isManual: true,
+    isFavorite: p.type === 'favorite',
   }))
 }
 

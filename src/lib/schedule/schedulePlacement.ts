@@ -2,6 +2,7 @@ import type { DaySchedule, DeadlineProduct, MergedProduct, ScheduledVideo } from
 import type { AngleRotationSession } from './angleRotation'
 import { deadlineReason, retainerReason, type PlacementReasonBuilder } from './placementReasons'
 import { formatScheduleProductName } from './scheduleDisplay'
+import { compareTrialPriority } from './trialProgress'
 import {
   MAX_PROVEN_VIDEOS_PER_DAY,
   MAX_RETAINER_VIDEOS_PER_DAY,
@@ -141,7 +142,7 @@ export function placeTestProductsWithSpread(
 ): void {
   const tests = rows
     .filter((row) => row.tier === 'Test' && row.remaining > 0)
-    .sort((a, b) => b.product.commission - a.product.commission)
+    .sort((a, b) => compareTrialPriority(a.product, b.product))
 
   for (const row of tests) {
     const total = row.remaining

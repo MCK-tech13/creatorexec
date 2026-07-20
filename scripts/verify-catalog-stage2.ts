@@ -1,0 +1,295 @@
+/**
+ * Stage 2: catalog-driven sprint scheduling
+ * - No-sales catalog products → Test via tierEngine → full 6-video trial
+ * - Favorites = soft trial priority (never forced Rising/Anchor)
+ * - Sprint rebuilds from catalog after Start Over / sprint clear
+ * - Already-tested keyed by durable catalog UUID
+ *
+ * Run: npx tsx scripts/verify-catalog-stage2.ts
+ */
+import type { MergedProduct, SampleProduct, SprintConfig } from '../src/types'
+import { TIER_REVIEW_VIDEO_COUNT } from '../src/types'
+import { tierProducts } from '../src/lib/analysis/tierEngine'
+import { buildFilmingSchedule } from '../src/lib/schedule/scheduleBuilder'
+import {
+  hydrateProductsTrialProgress,
+  markProductAlreadyTested,
+  selectActiveTrialProducts,
+  testSlotsForProduct,
+} from '../src/lib/schedule/trialProgress'
+import { trialStorageKey } from '../src/lib/schedule/trialProgressStorage'
+import { sampleProductsToMerged } from '../src/lib/schedule/sampleModeSchedule'
+import {
+  clearProductCatalog,
+  loadProductCatalog,
+  saveProductCatalog,
+  upsertCatalogFromSampleProducts,
+} from '../src/lib/catalog/productCatalogStorage'
+import {
+  buildSprintProductsFromCatalog,
+  mergedDraftFromCatalog,
+} from '../src/lib/catalog/catalogSprint'
+import {
+  clearDataStore,
+  getUserDataSnapshot,
+  hydrateDataStore,
+  updateCurrentSprintState,
+} from '../src/lib/supabase/dataStore'
+import { emptyUserEngagement } from '../src/types/userEngagement'
+import type { CurrentSprintState } from '../src/types/currentSprint'
+
+const memoryStorage = new Map<string, string>()
+;(globalThis as { localStorage?: Storage }).localStorage = {
+  getItem: (key) => memoryStorage.get(key) ?? null,
+  setItem: (key, value) => {
+    memoryStorage.set(key, value)
+  },
+  removeItem: (key) => {
+    memoryStorage.delete(key)
+  },
+  clear: () => {
+    memoryStorage.clear()
+  },
+  key: () => null,
+  length: 0,
+}
+
+function assert(condition: boolean, message: string): void {
+  if (!condition) throw new Error(message)
+}
+
+function emptySnapshot() {
+  return {
+    trialProgress: {},
+    brandDeals: [],
+    incomeTracker: [],
+    productScoutEntries: [],
+    productCatalog: [],
+    onboardingProfile: null,
+    sprintEntrySeen: false,
+    welcomeSeen: false,
+    sprintStartSnapshot: null,
+    sprintPreviousSnapshot: null,
+    currentSprintState: null,
+    sprintHistory: [],
+    userEngagement: emptyUserEngagement(),
+  }
+}
+
+function resetStore(): void {
+  clearDataStore()
+  hydrateDataStore('user-stage2', emptySnapshot())
+  memoryStorage.clear()
+}
+
+function mockSample(id: string, name: string, favorite = false): SampleProduct {
+  return {
+    id,
+    productName: name,
+    brand: 'BrandCo',
+    dateReceived: '2026-07-01',
+    type: favorite ? 'favorite' : 'sample',
+  }
+}
+
+function countProductVideos(
+  schedule: ReturnType<typeof buildFilmingSchedule>,
+  productId: string,
+): number {
+  return schedule.reduce(
+    (sum, day) => sum + day.videos.filter((v) => v.productKey === productId).length,
+    0,
+  )
+}
+
+const sprintConfig: SprintConfig = { videosPerDay: 5, sprintDays: 7 }
+
+function runZeroSalesFullTrial(): void {
+  console.log('\n=== No-sales catalog product gets full 6-video Test trial ===')
+  resetStore()
+
+  const samples = [
+    mockSample('11111111-1111-4111-8111-111111111111', 'Zero Sales Serum'),
+  ]
+  upsertCatalogFromSampleProducts(samples)
+  const sprintProducts = buildSprintProductsFromCatalog()
+
+  assert(sprintProducts.length === 1, 'catalog should yield one sprint product')
+  assert(sprintProducts[0].tier === 'Test', 'zero-sales must land in Test via tierEngine')
+  assert(sprintProducts[0].isFavorite !== true, 'standard sample is not favorite')
+  assert(
+    sprintProducts[0].commission === 0 && sprintProducts[0].itemsSold === 0,
+    'metrics stay zero',
+  )
+
+  const slots = testSlotsForProduct(sprintProducts[0])
+  assert(slots === TIER_REVIEW_VIDEO_COUNT, 'fresh Test should need 6 trial slots')
+
+  const schedule = buildFilmingSchedule(sprintProducts, sprintConfig, [], new Set())
+  const placed = countProductVideos(schedule, sprintProducts[0].id)
+  assert(
+    placed === TIER_REVIEW_VIDEO_COUNT,
+    `expected ${TIER_REVIEW_VIDEO_COUNT} trial videos, got ${placed}`,
+  )
+
+  // Not the old 1-slot sample behavior.
+  assert(placed !== 1, 'must not use old 1-slot-per-sprint sample allocator')
+  console.log('PASS')
+}
+
+function runFavoriteSoftPriority(): void {
+  console.log('\n=== Favorite is soft trial priority, never a fake tier ===')
+  resetStore()
+
+  // 7 incomplete Tests: 1 favorite with 0 commission, 6 with higher commission.
+  // Cap is 6 — favorite must be selected even with lowest commission.
+  const fixedSamples: SampleProduct[] = [
+    mockSample('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Priority Fav', true),
+    mockSample('b1111111-bbbb-4bbb-8bbb-bbbbbbbbbbb1', 'Seller 1', false),
+    mockSample('b2222222-bbbb-4bbb-8bbb-bbbbbbbbbbb2', 'Seller 2', false),
+    mockSample('b3333333-bbbb-4bbb-8bbb-bbbbbbbbbbb3', 'Seller 3', false),
+    mockSample('b4444444-bbbb-4bbb-8bbb-bbbbbbbbbbb4', 'Seller 4', false),
+    mockSample('b5555555-bbbb-4bbb-8bbb-bbbbbbbbbbb5', 'Seller 5', false),
+    mockSample('b6666666-bbbb-4bbb-8bbb-bbbbbbbbbbb6', 'Seller 6', false),
+  ]
+  upsertCatalogFromSampleProducts(fixedSamples)
+
+  // Give non-favorites fake commission in catalog so commission sort would prefer them.
+  const catalog = loadProductCatalog().map((product) =>
+    product.isFavorite
+      ? product
+      : { ...product, commission: 50, itemsSold: 1 },
+  )
+  saveProductCatalog(catalog)
+
+  const sprintProducts = buildSprintProductsFromCatalog()
+  for (const product of sprintProducts) {
+    assert(product.tier === 'Test', `${product.productName} must stay Test (itemsSold ≤ 2)`)
+    assert(
+      product.tier !== 'Rising' && product.tier !== 'Anchor',
+      'favorite must never force Rising/Anchor without real sales',
+    )
+  }
+
+  const favorite = sprintProducts.find((p) => p.isFavorite)
+  assert(Boolean(favorite), 'favorite flag should carry onto MergedProduct')
+  assert(favorite!.tier === 'Test', 'favorite stays Test')
+
+  const selected = selectActiveTrialProducts(sprintProducts)
+  assert(selected.length === 6, 'trial cap remains 6')
+  assert(
+    selected.some((p) => p.id === favorite!.id),
+    'favorite must be in the active trial set despite lowest commission',
+  )
+  assert(
+    selected[0].id === favorite!.id,
+    'favorite should sort first in trial priority',
+  )
+
+  // sampleProductsToMerged also must not force Rising.
+  const merged = sampleProductsToMerged([
+    mockSample('cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'Legacy Fav', true),
+  ])
+  assert(merged[0].tier === 'Test', 'sampleProductsToMerged favorite stays Test')
+  assert(merged[0].isFavorite === true, 'sampleProductsToMerged sets isFavorite')
+  console.log('PASS')
+}
+
+function runReappearAfterReset(): void {
+  console.log('\n=== Catalog products reappear in sprint after Start Over ===')
+  resetStore()
+
+  upsertCatalogFromSampleProducts([
+    mockSample('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'Keep After Reset'),
+    mockSample('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'Priority Keep', true),
+  ])
+  const firstSprint = buildSprintProductsFromCatalog()
+  assert(firstSprint.length === 2, 'initial sprint from catalog has 2 products')
+
+  const sprint: CurrentSprintState = {
+    stage: 'schedule',
+    scheduleMode: 'full',
+    fileName: null,
+    sprintConfig,
+    products: firstSprint,
+    deadlineProducts: [],
+    excludedProductKeys: [],
+    sampleProducts: [],
+    schedule: buildFilmingSchedule(firstSprint, sprintConfig, [], new Set()),
+    filmingProgress: {},
+  }
+  updateCurrentSprintState(sprint)
+  assert(getUserDataSnapshot().currentSprintState !== null, 'sprint state set')
+
+  // Simulate resetSprintState: clear sprint workspace only.
+  updateCurrentSprintState(null)
+  assert(getUserDataSnapshot().currentSprintState === null, 'sprint cleared')
+  assert(loadProductCatalog().length === 2, 'catalog survives reset')
+
+  // New sprint rebuilds from catalog — visible reappear.
+  const nextSprint = buildSprintProductsFromCatalog()
+  assert(nextSprint.length === 2, 'products reappear from catalog after reset')
+  assert(
+    nextSprint.every((p) => p.tier === 'Test'),
+    'reappeared products still Test',
+  )
+  const nextSchedule = buildFilmingSchedule(nextSprint, sprintConfig, [], new Set())
+  const totalSlots = nextSchedule.reduce((sum, day) => sum + day.videos.length, 0)
+  assert(totalSlots >= 6, 'reappeared products get trial slots again')
+  console.log('PASS')
+}
+
+function runAlreadyTestedCatalogId(): void {
+  console.log('\n=== Already-tested keyed by durable catalog UUID ===')
+  resetStore()
+
+  const id = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+  upsertCatalogFromSampleProducts([mockSample(id, 'Pretested Oil')])
+  const [product] = buildSprintProductsFromCatalog()
+  assert(product.id === id, 'sprint product id is catalog id')
+  assert(trialStorageKey(product) === id, 'trial key prefers catalog UUID')
+  assert(trialStorageKey(product) !== 'sample', 'must not use sample sentinel')
+
+  markProductAlreadyTested(product)
+  const store = getUserDataSnapshot().trialProgress
+  assert(store[id]?.videosFilmed === TIER_REVIEW_VIDEO_COUNT, 'progress stored under catalog id')
+  assert(store[id]?.source === 'manual', 'already-tested uses manual source')
+
+  const hydrated = hydrateProductsTrialProgress(
+    buildSprintProductsFromCatalog(loadProductCatalog(), { hydrateTrial: false }),
+    store,
+    { persist: false },
+  )
+  assert(hydrated[0].videosFilmed >= TIER_REVIEW_VIDEO_COUNT, 'hydrate restores already-tested')
+  assert(testSlotsForProduct(hydrated[0]) === 0, 'already-tested reserves no trial slots')
+
+  const selected = selectActiveTrialProducts(hydrated)
+  assert(!selected.some((p) => p.id === id), 'already-tested excluded from active trials')
+  console.log('PASS')
+}
+
+function runMergedDraftThroughTierEngine(): void {
+  console.log('\n=== Catalog draft → tierEngine zero-sales → Test ===')
+  resetStore()
+  upsertCatalogFromSampleProducts([
+    mockSample('99999999-9999-4999-8999-999999999999', 'Draft Check', true),
+  ])
+  const draft = mergedDraftFromCatalog(loadProductCatalog()[0])
+  assert(draft.isFavorite === true, 'draft carries favorite')
+  assert(draft.isManual === false, 'draft forces auto-tier path')
+  const [tiered] = tierProducts([draft])
+  assert(tiered.tier === 'Test', 'tierEngine assigns Test for zero sales')
+  console.log('PASS')
+}
+
+try {
+  runZeroSalesFullTrial()
+  runFavoriteSoftPriority()
+  runReappearAfterReset()
+  runAlreadyTestedCatalogId()
+  runMergedDraftThroughTierEngine()
+  console.log('\nAll Stage 2 catalog schedule checks passed.')
+} catch (error) {
+  console.error('\nVERIFICATION FAILED:', error)
+  process.exit(1)
+}

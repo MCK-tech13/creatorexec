@@ -12,8 +12,8 @@ interface SampleModeScreenProps {
 }
 
 const TYPE_OPTIONS: { value: SampleProductType; label: string }[] = [
-  { value: 'sample', label: 'Sample' },
-  { value: 'favorite', label: 'Favorite' },
+  { value: 'sample', label: 'Standard' },
+  { value: 'favorite', label: 'Priority' },
 ]
 
 function formatDisplayDate(iso: string): string {
@@ -68,11 +68,11 @@ export function SampleModeScreen({
       </div>
 
       <h1 className="font-display text-center text-2xl font-bold text-ink sm:text-3xl md:text-4xl">
-        Add your samples and favorites
+        Add products to your catalog
       </h1>
       <p className="mx-auto mt-3 max-w-lg text-center font-body text-sm text-stone sm:mt-4 sm:text-base">
-        Add your current samples and any products you love filming — we&apos;ll build your sprint
-        schedule instantly.
+        No-sales products join your durable catalog as Test trials (6 videos). Mark Priority to
+        prefer them in trial slot ordering — it does not change their performance tier.
       </p>
 
       <div className="mt-8">
@@ -122,7 +122,7 @@ export function SampleModeScreen({
         </div>
 
         <div>
-          <span className="label-caps mb-2 block">Type</span>
+          <span className="label-caps mb-2 block">Scheduling preference</span>
           <div className="grid grid-cols-2 gap-px bg-border-warm">
             {TYPE_OPTIONS.map((opt) => (
               <button
@@ -139,6 +139,9 @@ export function SampleModeScreen({
               </button>
             ))}
           </div>
+          <p className="mt-2 font-body text-xs text-stone">
+            Priority only affects Test trial ordering — never Rising or Anchor without sales.
+          </p>
         </div>
 
         <button
@@ -173,7 +176,7 @@ export function SampleModeScreen({
                     : 'bg-emerald text-white'
                 }`}
               >
-                {product.type === 'sample' ? 'Sample' : 'Favorite'}
+                {product.type === 'sample' ? 'Standard' : 'Priority'}
               </span>
               <button
                 type="button"

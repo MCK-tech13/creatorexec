@@ -137,7 +137,7 @@ export function CsvUploadZone({
                 onClick={onEnterSampleMode}
                 className="link-elegant block w-full font-body text-sm text-stone"
               >
-                New to TikTok Shop? Start with your samples instead
+                New to TikTok Shop? Add products to your catalog instead
               </button>
               <button
                 type="button"

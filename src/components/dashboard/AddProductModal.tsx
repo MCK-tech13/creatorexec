@@ -33,7 +33,7 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 p-4">
       <div className="card-panel w-full max-w-md p-10">
         <div className="mb-8 flex items-center justify-between">
-          <h3 className="font-display text-xl font-bold text-ink">Add Product Manually</h3>
+          <h3 className="font-display text-xl font-bold text-ink">Add Product</h3>
           <button
             type="button"
             onClick={onClose}
@@ -55,6 +55,9 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
               className="input-field w-full px-3 py-3"
               placeholder="Gifted sample, new launch, etc."
             />
+            <p className="mt-2 font-body text-xs text-stone">
+              Saved to your durable catalog. Zero-sales products enter the Test trial (6 videos).
+            </p>
           </label>
 
           <label className="block">

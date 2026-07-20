@@ -89,7 +89,7 @@ export function catalogProductFromMerged(
     brand: null,
     externalProductId,
     source,
-    isFavorite: false,
+    isFavorite: product.isFavorite ?? false,
     gmv: product.gmv,
     commission: product.commission,
     itemsSold: product.itemsSold,
