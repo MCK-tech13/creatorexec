@@ -58,13 +58,17 @@ export function SprintReviewModal({ review, onContinue }: SprintReviewModalProps
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 px-4 py-8 sm:items-center sm:px-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="sprint-review-title"
     >
-      <div className="w-full max-w-2xl border border-border-warm bg-cream-warm fade-in">
-        <div className="border-b border-emerald bg-terracotta-tint px-5 py-6 sm:px-8 sm:py-8">
+      {/*
+        Cap panel height to the viewport; scroll only the body so header + CTA
+        stay visible on desktop without the whole modal overflowing.
+      */}
+      <div className="flex max-h-[min(90dvh,52rem)] w-full max-w-2xl flex-col border border-border-warm bg-cream-warm fade-in">
+        <div className="shrink-0 border-b border-emerald bg-terracotta-tint px-5 py-5 sm:px-8 sm:py-6">
           <p className="font-body text-[11px] font-medium uppercase tracking-[0.14em] text-emerald">
             Sprint complete
           </p>
@@ -79,7 +83,7 @@ export function SprintReviewModal({ review, onContinue }: SprintReviewModalProps
           </p>
         </div>
 
-        <div className="space-y-4 px-4 py-6 sm:space-y-5 sm:px-6 sm:py-8">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-5 sm:space-y-5 sm:px-6 sm:py-6">
           <Section
             title="Commission"
             empty={
@@ -262,7 +266,7 @@ export function SprintReviewModal({ review, onContinue }: SprintReviewModalProps
           </section>
         </div>
 
-        <div className="border-t border-border-warm px-4 py-4 sm:px-6 sm:py-5">
+        <div className="shrink-0 border-t border-border-warm bg-cream-warm px-4 py-4 sm:px-6 sm:py-5">
           <button type="button" onClick={onContinue} className="btn-primary w-full py-3.5">
             Continue to next sprint
           </button>
