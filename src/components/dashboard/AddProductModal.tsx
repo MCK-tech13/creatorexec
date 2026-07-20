@@ -56,7 +56,7 @@ export function AddProductModal({ onClose, onSubmit }: AddProductModalProps) {
               placeholder="Gifted sample, new launch, etc."
             />
             <p className="mt-2 font-body text-xs text-stone">
-              Saved to your durable catalog. Zero-sales products enter the Test trial (6 videos).
+              Saved to your durable catalog. Zero-sales products enter as Test (6-video trial).
             </p>
           </label>
 
