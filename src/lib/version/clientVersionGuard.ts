@@ -24,6 +24,17 @@ function readLoadedSha(): string {
   return 'dev'
 }
 
+/** Exposed for live deploy verification (read-only). */
+declare global {
+  interface Window {
+    __CE_CLIENT_SHA__?: string
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__CE_CLIENT_SHA__ = readLoadedSha()
+}
+
 function readReloadedForSha(): string | null {
   try {
     return sessionStorage.getItem(RELOADED_FOR_SHA_KEY)
