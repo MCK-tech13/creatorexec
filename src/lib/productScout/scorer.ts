@@ -7,6 +7,15 @@ import type {
   ProductScoutVerdict,
 } from '../../types/productScout'
 
+/**
+ * Bump when Product Scout scoring rules change in a way that affects
+ * total_score / verdict for the same metrics input.
+ * Persisted on product_scout_list.scoring_logic_version at save time.
+ *
+ * 2 = creator saturation informational + Orders/ATC growth magnitude tiers
+ */
+export const SCORING_LOGIC_VERSION = 2
+
 interface ParsedScoutMetrics {
   orders: number | null
   ordersDelta: number | null

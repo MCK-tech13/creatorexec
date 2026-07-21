@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ImagePlus, LoaderCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import type { ProductScoutMetrics } from '../../types/productScout'
@@ -10,6 +10,9 @@ import {
   type ExtractConfidence,
 } from '../../lib/productScout/extractScreenshot'
 import { hasProductScoutData, scoreProductScout } from '../../lib/productScout/scorer'
+import { ensureClientVersionCurrent } from '../../lib/version/clientVersionGuard'
+import { clearClientFormDirty, markClientFormDirty } from '../../lib/version/formDirtyRegistry'
+import { saveProductScoutDraft } from '../../lib/version/productScoutDraft'
 import { ProductScoutResults } from './ProductScoutResults'
 import { ProductScoutWalkthrough } from './ProductScoutWalkthrough'
 
@@ -54,14 +57,26 @@ interface ProductScoutFormProps {
   initialName?: string
   initialMetrics?: ProductScoutMetrics
   submitLabel: string
+  formMode?: 'new' | 'edit'
+  editId?: string
   onSubmit: (productName: string, metrics: ProductScoutMetrics) => void
   onCancel: () => void
+}
+
+const FORM_ID = 'product-scout'
+
+function metricsEqual(a: ProductScoutMetrics, b: ProductScoutMetrics): boolean {
+  return (['orders', 'ctr', 'creators', 'atcUsers'] as const).every(
+    (key) => a[key].value === b[key].value && a[key].delta === b[key].delta,
+  )
 }
 
 export function ProductScoutForm({
   initialName = '',
   initialMetrics = EMPTY_PRODUCT_SCOUT_METRICS,
   submitLabel,
+  formMode = 'new',
+  editId,
   onSubmit,
   onCancel,
 }: ProductScoutFormProps) {
@@ -74,13 +89,28 @@ export function ProductScoutForm({
   const [ocrError, setOcrError] = useState<string | null>(null)
   const [ocrConfidence, setOcrConfidence] = useState<ExtractConfidence | null>(null)
   const [ocrFileName, setOcrFileName] = useState<string | null>(null)
+  const [versionChecking, setVersionChecking] = useState(false)
 
   const previewResult = useMemo(() => {
     if (!hasProductScoutData(metrics)) return null
     return scoreProductScout(metrics)
   }, [metrics])
 
-  const canSubmit = previewResult !== null
+  const canSubmit = previewResult !== null && !versionChecking
+
+  const isDirty =
+    productName.trim() !== initialName.trim() || !metricsEqual(metrics, initialMetrics)
+
+  useEffect(() => {
+    if (isDirty) {
+      markClientFormDirty(FORM_ID)
+    } else {
+      clearClientFormDirty(FORM_ID)
+    }
+    return () => {
+      clearClientFormDirty(FORM_ID)
+    }
+  }, [isDirty])
 
   const updateMetric = (key: keyof ProductScoutMetrics, field: 'value' | 'delta', next: string) => {
     setMetrics((prev) => ({
@@ -92,9 +122,9 @@ export function ProductScoutForm({
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!canSubmit) return
+    if (!previewResult || versionChecking) return
 
     const trimmedName = productName.trim()
     if (!trimmedName) {
@@ -103,7 +133,30 @@ export function ProductScoutForm({
     }
 
     setNameError(null)
-    onSubmit(trimmedName, metrics)
+    setVersionChecking(true)
+    try {
+      const current = await ensureClientVersionCurrent({
+        beforeReload: () => {
+          saveProductScoutDraft({
+            productName: trimmedName,
+            metrics,
+            mode: formMode,
+            editId,
+          })
+          clearClientFormDirty(FORM_ID)
+        },
+      })
+      if (!current) return
+      clearClientFormDirty(FORM_ID)
+      onSubmit(trimmedName, metrics)
+    } finally {
+      setVersionChecking(false)
+    }
+  }
+
+  const handleCancel = () => {
+    clearClientFormDirty(FORM_ID)
+    onCancel()
   }
 
   const handleScreenshotSelected = async (file: File | undefined) => {
@@ -285,7 +338,12 @@ export function ProductScoutForm({
       )}
 
       <div className="flex flex-col gap-px sm:flex-row">
-        <button type="button" onClick={onCancel} className="btn-outline flex-1 py-3" disabled={ocrReading}>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="btn-outline flex-1 py-3"
+          disabled={ocrReading || versionChecking}
+        >
           Cancel
         </button>
         <button
@@ -293,7 +351,7 @@ export function ProductScoutForm({
           disabled={!canSubmit || ocrReading}
           className="btn-primary flex-1 py-3 disabled:cursor-not-allowed"
         >
-          {submitLabel}
+          {versionChecking ? 'Checking for updates…' : submitLabel}
         </button>
       </div>
       {canSubmit && !productName.trim() && (

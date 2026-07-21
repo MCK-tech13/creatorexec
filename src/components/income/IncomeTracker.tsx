@@ -20,6 +20,7 @@ import {
   totalsBySource,
   yearsFromStore,
 } from '../../lib/income/incomeUtils'
+import { clearClientFormDirty, markClientFormDirty } from '../../lib/version/formDirtyRegistry'
 
 type ViewMode = 'month' | 'year'
 
@@ -90,6 +91,15 @@ export function IncomeTracker({
 
   const draftEntry = draftEntryId ? store.find((entry) => entry.id === draftEntryId) : null
 
+  useEffect(() => {
+    if (showAddEntry || draftEntryId) {
+      markClientFormDirty('income-entry')
+    } else {
+      clearClientFormDirty('income-entry')
+    }
+    return () => clearClientFormDirty('income-entry')
+  }, [showAddEntry, draftEntryId])
+
   const handleAddMonth = () => {
     const key = monthKey(newYear, newMonth)
     setSelectedMonthKey(key)
@@ -112,11 +122,13 @@ export function IncomeTracker({
     }
     setDraftEntryId(null)
     setShowAddEntry(false)
+    clearClientFormDirty('income-entry')
   }
 
   const handleSaveEntry = () => {
     setDraftEntryId(null)
     setShowAddEntry(false)
+    clearClientFormDirty('income-entry')
   }
 
   const yearlyRows = useMemo(() => {

@@ -17,7 +17,7 @@ import type { CatalogProduct, CatalogProductSource } from '../../types/productCa
 import type { SprintSnapshot } from '../../types/sprintReview'
 import type { UserEngagementState } from '../../types/userEngagement'
 import { emptyUserEngagement } from '../../types/userEngagement'
-import { scoreProductScout } from '../productScout/scorer'
+import { SCORING_LOGIC_VERSION, scoreProductScout } from '../productScout/scorer'
 import { normalizeDealVideoDeliverables } from '../pipeline/videoDeliverableUtils'
 import type { TrialProgressStore } from '../schedule/trialProgressStorage'
 
@@ -230,6 +230,7 @@ export function productScoutToRow(
     metrics: asJson(entry.metrics),
     verdict: scored ? mapScoutVerdict(scored.verdict) : null,
     total_score: scored?.totalScore ?? null,
+    scoring_logic_version: scored ? SCORING_LOGIC_VERSION : null,
     funnel_recommendation: scored?.funnel ? asJson(scored.funnel) : null,
     created_at: entry.createdAt,
     updated_at: entry.updatedAt,

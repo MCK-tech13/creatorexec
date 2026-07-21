@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { BrandDealInsert, DealStage } from '../../types/pipeline'
 import { DEAL_STAGES } from '../../types/pipeline'
+import { clearClientFormDirty, markClientFormDirty } from '../../lib/version/formDirtyRegistry'
 import { RetainerFields } from './RetainerFields'
 
 interface NewDealModalProps {
   onClose: () => void
   onSubmit: (deal: BrandDealInsert) => void
 }
+
+const FORM_ID = 'retainer-new-deal'
 
 export function NewDealModal({ onClose, onSubmit }: NewDealModalProps) {
   const [brandName, setBrandName] = useState('')
@@ -16,8 +19,21 @@ export function NewDealModal({ onClose, onSubmit }: NewDealModalProps) {
   const [retainerDeadlineDate, setRetainerDeadlineDate] = useState<string | undefined>()
 
   const canSubmit = brandName.trim().length > 0
+  const isDirty =
+    brandName.trim().length > 0 ||
+    stage !== 'negotiating' ||
+    isRetainer ||
+    retainerTotalVideos != null ||
+    Boolean(retainerDeadlineDate)
+
+  useEffect(() => {
+    if (isDirty) markClientFormDirty(FORM_ID)
+    else clearClientFormDirty(FORM_ID)
+    return () => clearClientFormDirty(FORM_ID)
+  }, [isDirty])
 
   const handleSubmit = () => {
+    clearClientFormDirty(FORM_ID)
     onSubmit({
       brandName: brandName.trim(),
       stage,
@@ -25,6 +41,11 @@ export function NewDealModal({ onClose, onSubmit }: NewDealModalProps) {
       retainerTotalVideos: isRetainer ? retainerTotalVideos : undefined,
       retainerDeadlineDate: isRetainer ? retainerDeadlineDate : undefined,
     })
+    onClose()
+  }
+
+  const handleClose = () => {
+    clearClientFormDirty(FORM_ID)
     onClose()
   }
 
@@ -86,7 +107,7 @@ export function NewDealModal({ onClose, onSubmit }: NewDealModalProps) {
         </div>
 
         <div className="mt-8 flex gap-3">
-          <button type="button" onClick={onClose} className="btn-outline flex-1 py-3">
+          <button type="button" onClick={handleClose} className="btn-outline flex-1 py-3">
             Cancel
           </button>
           <button
