@@ -17,15 +17,17 @@ type ViewMode = 'list' | 'new' | 'detail' | 'edit'
 
 interface ProductScoutProps {
   entries: ProductScoutEntry[]
+  persistError?: string | null
+  onClearPersistError?: () => void
   onAddEntry: (
     productName: string,
     metrics: ProductScoutEntry['metrics'],
-  ) => ProductScoutEntry
+  ) => ProductScoutEntry | Promise<ProductScoutEntry>
   onUpdateEntry: (
     id: string,
     patch: Partial<Pick<ProductScoutEntry, 'productName' | 'metrics'>>,
-  ) => void
-  onRemoveEntry: (id: string) => void
+  ) => void | Promise<void>
+  onRemoveEntry: (id: string) => void | Promise<void>
 }
 
 /** StrictMode-safe one-shot draft consume (module scope survives remount). */
@@ -43,6 +45,8 @@ function takeProductScoutDraft(): ProductScoutDraft | null {
 
 export function ProductScout({
   entries,
+  persistError = null,
+  onClearPersistError,
   onAddEntry,
   onUpdateEntry,
   onRemoveEntry,
@@ -93,10 +97,15 @@ export function ProductScout({
     setView('detail')
   }
 
-  const handleDelete = (id: string) => {
-    onRemoveEntry(id)
-    setSelectedId(null)
-    setView(entries.length <= 1 ? 'new' : 'list')
+  const handleDelete = async (id: string) => {
+    onClearPersistError?.()
+    try {
+      await onRemoveEntry(id)
+      setSelectedId(null)
+      setView(entries.length <= 1 ? 'new' : 'list')
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   const newFormDefaults = draftSeed
@@ -112,6 +121,30 @@ export function ProductScout({
 
   return (
     <div className="fade-in">
+      {persistError && (
+        <div
+          className="mb-6 border border-terracotta/50 bg-terracotta-tint px-4 py-3"
+          role="alert"
+        >
+          <p className="font-body text-sm font-semibold text-ink">Could not save to Supabase</p>
+          <p className="mt-1 font-body text-sm text-ink break-words">{persistError}</p>
+          <p className="mt-2 font-body text-xs text-stone">
+            List/detail scores are computed live from metrics — they can look correct even when this
+            write fails. Copy the message above (also in the console as{' '}
+            <code className="text-ink">[ProductScout] persist failed</code> /{' '}
+            <code className="text-ink">window.__CE_LAST_PERSIST_ERROR__</code>).
+          </p>
+          {onClearPersistError && (
+            <button
+              type="button"
+              className="mt-3 font-body text-sm text-stone underline"
+              onClick={onClearPersistError}
+            >
+              Dismiss
+            </button>
+          )}
+        </div>
+      )}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl md:text-4xl">
@@ -216,11 +249,17 @@ export function ProductScout({
                 {...newFormDefaults}
                 formMode="new"
                 submitLabel="Add to Product List"
-                onSubmit={(productName, metrics) => {
+                onSubmit={async (productName, metrics) => {
                   setDraftSeed(null)
-                  const entry = onAddEntry(productName, metrics)
-                  setSelectedId(entry.id)
-                  setView('list')
+                  onClearPersistError?.()
+                  try {
+                    const entry = await onAddEntry(productName, metrics)
+                    setSelectedId(entry.id)
+                    setView('list')
+                  } catch (err) {
+                    // persistError banner is set by the hook; keep the form open.
+                    console.error(err)
+                  }
                 }}
                 onCancel={openList}
               />
@@ -294,10 +333,15 @@ export function ProductScout({
                   formMode="edit"
                   editId={selectedEntry.id}
                   submitLabel="Save to Product List"
-                  onSubmit={(productName, metrics) => {
+                  onSubmit={async (productName, metrics) => {
                     setDraftSeed(null)
-                    onUpdateEntry(selectedEntry.id, { productName, metrics })
-                    setView('list')
+                    onClearPersistError?.()
+                    try {
+                      await onUpdateEntry(selectedEntry.id, { productName, metrics })
+                      setView('list')
+                    } catch (err) {
+                      console.error(err)
+                    }
                   }}
                   onCancel={() => {
                     setDraftSeed(null)

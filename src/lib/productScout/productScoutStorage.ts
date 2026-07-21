@@ -11,6 +11,11 @@ export function saveProductScoutEntries(entries: ProductScoutEntry[]): void {
   scheduleProductScoutPersist()
 }
 
+/** Sync in-memory snapshot only (no background persist). */
+export function syncProductScoutEntriesLocal(entries: ProductScoutEntry[]): void {
+  updateProductScoutEntries(entries)
+}
+
 export function createProductScoutEntry(partial: ProductScoutEntryInsert): ProductScoutEntry {
   const now = new Date().toISOString()
   return {

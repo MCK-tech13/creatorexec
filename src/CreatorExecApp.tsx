@@ -372,6 +372,9 @@ export default function CreatorExecApp() {
     addEntry: addProductScoutEntry,
     updateEntry: updateProductScoutEntry,
     removeEntry: removeProductScoutEntry,
+    persistNow: persistProductScoutNow,
+    persistError: productScoutPersistError,
+    clearPersistError: clearProductScoutPersistError,
   } = useProductScout()
 
   const dailyPostingVolume = sprintConfig.videosPerDay
@@ -1251,11 +1254,31 @@ export default function CreatorExecApp() {
       ) : mainSection === 'product-scout' ? (
         <ProductScout
           entries={productScoutEntries}
-          onAddEntry={(productName, metrics) =>
-            addProductScoutEntry({ productName, metrics })
-          }
-          onUpdateEntry={updateProductScoutEntry}
-          onRemoveEntry={removeProductScoutEntry}
+          persistError={productScoutPersistError}
+          onClearPersistError={clearProductScoutPersistError}
+          onAddEntry={async (productName, metrics) => {
+            const entry = addProductScoutEntry({ productName, metrics })
+            const { error } = await persistProductScoutNow()
+            if (error) {
+              // Keep the in-memory entry so the user can retry; surface the real error.
+              throw new Error(error)
+            }
+            return entry
+          }}
+          onUpdateEntry={async (id, patch) => {
+            updateProductScoutEntry(id, patch)
+            const { error } = await persistProductScoutNow()
+            if (error) {
+              throw new Error(error)
+            }
+          }}
+          onRemoveEntry={async (id) => {
+            removeProductScoutEntry(id)
+            const { error } = await persistProductScoutNow()
+            if (error) {
+              throw new Error(error)
+            }
+          }}
         />
       ) : mainSection === 'sprint' && !onboardingComplete ? (
         <OnboardingQuiz onComplete={handleOnboardingComplete} embedded />

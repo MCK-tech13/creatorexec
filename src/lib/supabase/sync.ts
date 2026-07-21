@@ -56,6 +56,17 @@ export function scheduleProductScoutPersist(): void {
   })
 }
 
+/**
+ * Awaited Product Scout upsert — surfaces the real Supabase error to the caller.
+ * Use on submit / mount backfill so silent background-chain failures cannot hide
+ * a failed write. Does NOT go through enqueuePersist (which only console.error's).
+ */
+export async function persistProductScoutEntriesNow(): Promise<void> {
+  const userId = getActiveUserId()
+  const client = getSupabaseClient()
+  await persistProductScoutEntries(client, userId, getUserDataSnapshot().productScoutEntries)
+}
+
 export function scheduleProductCatalogPersist(): void {
   // Capture at schedule time so a later clearDataStore() cannot turn this into
   // an empty wipe when the queued task finally runs.

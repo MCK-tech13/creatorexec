@@ -59,7 +59,7 @@ interface ProductScoutFormProps {
   submitLabel: string
   formMode?: 'new' | 'edit'
   editId?: string
-  onSubmit: (productName: string, metrics: ProductScoutMetrics) => void
+  onSubmit: (productName: string, metrics: ProductScoutMetrics) => void | Promise<void>
   onCancel: () => void
 }
 
@@ -148,7 +148,7 @@ export function ProductScoutForm({
       })
       if (!current) return
       clearClientFormDirty(FORM_ID)
-      onSubmit(trimmedName, metrics)
+      await onSubmit(trimmedName, metrics)
     } finally {
       setVersionChecking(false)
     }
