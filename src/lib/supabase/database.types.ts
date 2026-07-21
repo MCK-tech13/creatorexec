@@ -224,6 +224,7 @@ export type Database = {
           metrics: Json
           verdict: Database['public']['Enums']['product_scout_verdict'] | null
           total_score: number | null
+          scoring_logic_version: number | null
           funnel_recommendation: Json | null
           created_at: string
           updated_at: string
@@ -235,6 +236,7 @@ export type Database = {
           metrics?: Json
           verdict?: Database['public']['Enums']['product_scout_verdict'] | null
           total_score?: number | null
+          scoring_logic_version?: number | null
           funnel_recommendation?: Json | null
           created_at?: string
           updated_at?: string
@@ -246,6 +248,7 @@ export type Database = {
           metrics?: Json
           verdict?: Database['public']['Enums']['product_scout_verdict'] | null
           total_score?: number | null
+          scoring_logic_version?: number | null
           funnel_recommendation?: Json | null
           created_at?: string
           updated_at?: string

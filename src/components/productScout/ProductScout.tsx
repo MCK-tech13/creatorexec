@@ -1,8 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, List, Pencil, Plus, Trash2 } from 'lucide-react'
-import type { ProductScoutEntry } from '../../types/productScout'
+import type { ProductScoutEntry, ProductScoutMetrics } from '../../types/productScout'
 import { scoreProductScout } from '../../lib/productScout/scorer'
 import { entryToFormDefaults } from '../../lib/productScout/formDefaults'
+import {
+  clearProductScoutDraft,
+  loadProductScoutDraft,
+  type ProductScoutDraft,
+} from '../../lib/version/productScoutDraft'
 import { ProductScoutForm } from './ProductScoutForm'
 import { ProductScoutList } from './ProductScoutList'
 import { ProductScoutResults } from './ProductScoutResults'
@@ -23,14 +28,42 @@ interface ProductScoutProps {
   onRemoveEntry: (id: string) => void
 }
 
+/** StrictMode-safe one-shot draft consume (module scope survives remount). */
+let consumedProductScoutDraft: ProductScoutDraft | null | undefined
+
+function takeProductScoutDraft(): ProductScoutDraft | null {
+  if (consumedProductScoutDraft !== undefined) {
+    return consumedProductScoutDraft
+  }
+  const draft = loadProductScoutDraft()
+  if (draft) clearProductScoutDraft()
+  consumedProductScoutDraft = draft
+  return draft
+}
+
 export function ProductScout({
   entries,
   onAddEntry,
   onUpdateEntry,
   onRemoveEntry,
 }: ProductScoutProps) {
-  const [view, setView] = useState<ViewMode>(entries.length === 0 ? 'new' : 'list')
-  const [selectedId, setSelectedId] = useState<string | null>(entries[0]?.id ?? null)
+  const restoredDraft = useMemo(() => takeProductScoutDraft(), [])
+  const [view, setView] = useState<ViewMode>(() => {
+    if (restoredDraft?.mode === 'edit' && restoredDraft.editId) return 'edit'
+    if (restoredDraft) return 'new'
+    return entries.length === 0 ? 'new' : 'list'
+  })
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => restoredDraft?.editId ?? entries[0]?.id ?? null,
+  )
+  const [draftSeed, setDraftSeed] = useState<{
+    productName: string
+    metrics: ProductScoutMetrics
+  } | null>(
+    restoredDraft
+      ? { productName: restoredDraft.productName, metrics: restoredDraft.metrics }
+      : null,
+  )
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === selectedId) ?? null,
@@ -39,7 +72,15 @@ export function ProductScout({
 
   const selectedResult = selectedEntry ? scoreProductScout(selectedEntry.metrics) : null
 
+  useEffect(() => {
+    if (view === 'edit' && restoredDraft?.mode === 'edit' && !selectedEntry) {
+      setView('new')
+      setSelectedId(null)
+    }
+  }, [view, restoredDraft, selectedEntry])
+
   const openList = () => {
+    setDraftSeed(null)
     setView('list')
     if (entries.length > 0 && !selectedId) {
       setSelectedId(entries[0].id)
@@ -47,6 +88,7 @@ export function ProductScout({
   }
 
   const openDetail = (id: string) => {
+    setDraftSeed(null)
     setSelectedId(id)
     setView('detail')
   }
@@ -56,6 +98,17 @@ export function ProductScout({
     setSelectedId(null)
     setView(entries.length <= 1 ? 'new' : 'list')
   }
+
+  const newFormDefaults = draftSeed
+    ? { initialName: draftSeed.productName, initialMetrics: draftSeed.metrics }
+    : {}
+
+  const editFormDefaults = selectedEntry
+    ? draftSeed && restoredDraft?.mode === 'edit' && restoredDraft.editId === selectedEntry.id
+      ? { initialName: draftSeed.productName, initialMetrics: draftSeed.metrics }
+      : entryToFormDefaults(selectedEntry)
+    : null
+
 
   return (
     <div className="fade-in">
@@ -160,8 +213,11 @@ export function ProductScout({
             </p>
             <div className="mt-8">
               <ProductScoutForm
+                {...newFormDefaults}
+                formMode="new"
                 submitLabel="Add to Product List"
                 onSubmit={(productName, metrics) => {
+                  setDraftSeed(null)
                   const entry = onAddEntry(productName, metrics)
                   setSelectedId(entry.id)
                   setView('list')
@@ -232,15 +288,23 @@ export function ProductScout({
           <div className="border border-border-warm bg-white p-6 sm:p-8">
             <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">Edit product metrics</h2>
             <div className="mt-8">
-              <ProductScoutForm
-                {...entryToFormDefaults(selectedEntry)}
-                submitLabel="Save to Product List"
-                onSubmit={(productName, metrics) => {
-                  onUpdateEntry(selectedEntry.id, { productName, metrics })
-                  setView('list')
-                }}
-                onCancel={() => setView('detail')}
-              />
+              {editFormDefaults && selectedEntry && (
+                <ProductScoutForm
+                  {...editFormDefaults}
+                  formMode="edit"
+                  editId={selectedEntry.id}
+                  submitLabel="Save to Product List"
+                  onSubmit={(productName, metrics) => {
+                    setDraftSeed(null)
+                    onUpdateEntry(selectedEntry.id, { productName, metrics })
+                    setView('list')
+                  }}
+                  onCancel={() => {
+                    setDraftSeed(null)
+                    setView('detail')
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>
