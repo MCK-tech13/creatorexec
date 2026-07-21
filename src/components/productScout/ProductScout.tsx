@@ -3,11 +3,7 @@ import { ArrowLeft, List, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { ProductScoutEntry, ProductScoutMetrics } from '../../types/productScout'
 import { scoreProductScout } from '../../lib/productScout/scorer'
 import { entryToFormDefaults } from '../../lib/productScout/formDefaults'
-import {
-  clearProductScoutDraft,
-  loadProductScoutDraft,
-  type ProductScoutDraft,
-} from '../../lib/version/productScoutDraft'
+import { takeProductScoutDraft } from '../../lib/version/productScoutDraft'
 import { ProductScoutForm } from './ProductScoutForm'
 import { ProductScoutList } from './ProductScoutList'
 import { ProductScoutResults } from './ProductScoutResults'
@@ -28,19 +24,6 @@ interface ProductScoutProps {
     patch: Partial<Pick<ProductScoutEntry, 'productName' | 'metrics'>>,
   ) => void | Promise<void>
   onRemoveEntry: (id: string) => void | Promise<void>
-}
-
-/** StrictMode-safe one-shot draft consume (module scope survives remount). */
-let consumedProductScoutDraft: ProductScoutDraft | null | undefined
-
-function takeProductScoutDraft(): ProductScoutDraft | null {
-  if (consumedProductScoutDraft !== undefined) {
-    return consumedProductScoutDraft
-  }
-  const draft = loadProductScoutDraft()
-  if (draft) clearProductScoutDraft()
-  consumedProductScoutDraft = draft
-  return draft
 }
 
 export function ProductScout({

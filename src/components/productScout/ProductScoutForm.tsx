@@ -10,9 +10,12 @@ import {
   type ExtractConfidence,
 } from '../../lib/productScout/extractScreenshot'
 import { hasProductScoutData, scoreProductScout } from '../../lib/productScout/scorer'
-import { ensureClientVersionCurrent } from '../../lib/version/clientVersionGuard'
+import {
+  ensureClientVersionCurrent,
+  registerBeforeClientReload,
+} from '../../lib/version/clientVersionGuard'
 import { clearClientFormDirty, markClientFormDirty } from '../../lib/version/formDirtyRegistry'
-import { saveProductScoutDraft } from '../../lib/version/productScoutDraft'
+import { clearProductScoutDraft, saveProductScoutDraft } from '../../lib/version/productScoutDraft'
 import { ProductScoutResults } from './ProductScoutResults'
 import { ProductScoutWalkthrough } from './ProductScoutWalkthrough'
 
@@ -101,8 +104,20 @@ export function ProductScoutForm({
   const isDirty =
     productName.trim() !== initialName.trim() || !metricsEqual(metrics, initialMetrics)
 
+  // OCR in flight counts as unsaved work — version-guard reloads must wait / draft.
+  const hasUnsavedWork = isDirty || ocrReading
+
+  const persistDraft = () => {
+    saveProductScoutDraft({
+      productName,
+      metrics,
+      mode: formMode,
+      editId,
+    })
+  }
+
   useEffect(() => {
-    if (isDirty) {
+    if (hasUnsavedWork) {
       markClientFormDirty(FORM_ID)
     } else {
       clearClientFormDirty(FORM_ID)
@@ -110,7 +125,43 @@ export function ProductScoutForm({
     return () => {
       clearClientFormDirty(FORM_ID)
     }
-  }, [isDirty])
+  }, [hasUnsavedWork])
+
+  // Debounced autosave so a focus-triggered reload (or SPA remount) can restore.
+  useEffect(() => {
+    if (!hasUnsavedWork) return
+    const timer = window.setTimeout(() => {
+      persistDraft()
+    }, 250)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- persist latest fields on dirty changes
+  }, [hasUnsavedWork, productName, metrics, formMode, editId])
+
+  // Tab background / pagehide: flush draft immediately (mobile may discard the page).
+  useEffect(() => {
+    const flushIfNeeded = () => {
+      if (!hasUnsavedWork) return
+      persistDraft()
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushIfNeeded()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', flushIfNeeded)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', flushIfNeeded)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasUnsavedWork, productName, metrics, formMode, editId])
+
+  // Version-guard reload path (focus / dirty-cleared) must save draft before navigate.
+  useEffect(() => {
+    return registerBeforeClientReload(() => {
+      if (hasUnsavedWork) persistDraft()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasUnsavedWork, productName, metrics, formMode, editId])
 
   const updateMetric = (key: keyof ProductScoutMetrics, field: 'value' | 'delta', next: string) => {
     setMetrics((prev) => ({
@@ -148,6 +199,7 @@ export function ProductScoutForm({
       })
       if (!current) return
       clearClientFormDirty(FORM_ID)
+      clearProductScoutDraft()
       await onSubmit(trimmedName, metrics)
     } finally {
       setVersionChecking(false)
@@ -156,6 +208,7 @@ export function ProductScoutForm({
 
   const handleCancel = () => {
     clearClientFormDirty(FORM_ID)
+    clearProductScoutDraft()
     onCancel()
   }
 

@@ -17,6 +17,8 @@ assert.match(guardSrc, /readReloadedForSha\(\) === liveSha/)
 assert.match(guardSrc, /POLL_INTERVAL_MS = 90_000/)
 assert.match(guardSrc, /beforeReload/)
 assert.match(guardSrc, /hasDirtyClientForms/)
+assert.match(guardSrc, /registerBeforeClientReload/)
+assert.match(guardSrc, /runBeforeReloadHandlers/)
 
 const scorerSrc = readFileSync(join(process.cwd(), 'src/lib/productScout/scorer.ts'), 'utf8')
 assert.match(scorerSrc, /export const SCORING_LOGIC_VERSION = 2/)
