@@ -145,13 +145,21 @@ export async function persistProductScoutEntries(
 
   if (rows.length === 0) return
 
-  const { error } = await client.from('product_scout_list').upsert(rows)
+  // `.select()` forces Prefer: return=representation so callers/network logs see
+  // the written row bodies (default upsert returns an empty 200/201 body).
+  const { error } = await client
+    .from('product_scout_list')
+    .upsert(rows)
+    .select('id, product_name, total_score, verdict, scoring_logic_version')
   if (error) {
     // Batch upsert is atomic — one bad sibling row blocks every product including
     // Hadley. Retry per-row so we persist good rows and surface the real offender.
     const failures: string[] = []
     for (const row of rows) {
-      const { error: rowError } = await client.from('product_scout_list').upsert(row)
+      const { error: rowError } = await client
+        .from('product_scout_list')
+        .upsert(row)
+        .select('id')
       if (rowError) {
         failures.push(
           `${row.product_name ?? row.id}: ${rowError.message}${rowError.code ? ` (${rowError.code})` : ''}`,

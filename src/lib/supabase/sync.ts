@@ -50,21 +50,56 @@ export function scheduleIncomeTrackerPersist(): void {
   })
 }
 
+/**
+ * Serializes Product Scout upserts so mount-backfill and submit cannot race.
+ *
+ * Reproduced on Production (PR #36): mount persistNow() and submit persistNow()
+ * both called persistProductScoutEntries concurrently. The slower mount request
+ * finished last with a stale snapshot (POST 200, empty Prefer body) and
+ * overwrote the successful submit — UI looked correct until hydrate/reload,
+ * then reverted to Pass / old metrics with __CE_LAST_PERSIST_ERROR__ unset.
+ *
+ * Mutex rule: acquire → read the *current* snapshot → upsert → release.
+ * A submit that updates the snapshot while mount holds the lock waits, then
+ * writes the latest list so the last queued persist wins.
+ */
+let productScoutPersistLock: Promise<void> = Promise.resolve()
+
+async function withProductScoutPersistLock<T>(task: () => Promise<T>): Promise<T> {
+  const previous = productScoutPersistLock
+  let release!: () => void
+  productScoutPersistLock = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await previous
+  try {
+    return await task()
+  } finally {
+    release()
+  }
+}
+
 export function scheduleProductScoutPersist(): void {
-  withClient(async (userId, client) => {
-    await persistProductScoutEntries(client, userId, getUserDataSnapshot().productScoutEntries)
+  // Share the same lock as persistProductScoutEntriesNow (do not use the
+  // generic enqueuePersist chain — that raced with awaited submit upserts).
+  void persistProductScoutEntriesNow().catch((error) => {
+    console.error('Failed to persist user data to Supabase', error)
   })
 }
 
 /**
  * Awaited Product Scout upsert — surfaces the real Supabase error to the caller.
  * Use on submit / mount backfill so silent background-chain failures cannot hide
- * a failed write. Does NOT go through enqueuePersist (which only console.error's).
+ * a failed write. Serialized via withProductScoutPersistLock.
  */
 export async function persistProductScoutEntriesNow(): Promise<void> {
-  const userId = getActiveUserId()
-  const client = getSupabaseClient()
-  await persistProductScoutEntries(client, userId, getUserDataSnapshot().productScoutEntries)
+  await withProductScoutPersistLock(async () => {
+    const userId = getActiveUserId()
+    const client = getSupabaseClient()
+    // Read snapshot only while holding the lock so a concurrent submit's
+    // syncProductScoutEntriesLocal() is visible to the next waiter.
+    await persistProductScoutEntries(client, userId, getUserDataSnapshot().productScoutEntries)
+  })
 }
 
 export function scheduleProductCatalogPersist(): void {

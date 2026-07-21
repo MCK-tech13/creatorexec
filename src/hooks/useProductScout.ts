@@ -62,9 +62,8 @@ export function useProductScout() {
   }, [])
 
   // On first mount, re-upsert denormalized score columns (total_score / verdict /
-  // scoring_logic_version). Previously this was fire-and-forget via useEffect →
-  // saveProductScoutEntries, so failures only hit console.error and the UI kept
-  // showing live-rescored verdicts while Supabase stayed stale.
+  // scoring_logic_version). Serialized with submit via productScoutPersistLock so
+  // a slow mount upsert cannot overwrite a newer submit (Production race).
   useEffect(() => {
     if (didMountPersist.current) return
     didMountPersist.current = true
