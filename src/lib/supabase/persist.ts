@@ -109,6 +109,16 @@ export async function persistIncomeTracker(
   if (error) throw error
 }
 
+function throwPersistError(action: string, error: { message: string; code?: string; details?: string; hint?: string }): never {
+  const parts = [
+    `product_scout_list ${action} failed: ${error.message}`,
+    error.code ? `code=${error.code}` : null,
+    error.details ? `details=${error.details}` : null,
+    error.hint ? `hint=${error.hint}` : null,
+  ].filter(Boolean)
+  throw new Error(parts.join(' | '))
+}
+
 export async function persistProductScoutEntries(
   client: Client,
   userId: string,
@@ -122,7 +132,7 @@ export async function persistProductScoutEntries(
     .select('id')
     .eq('user_id', userId)
 
-  if (selectError) throw selectError
+  if (selectError) throwPersistError('select', selectError)
 
   const toDelete = (existing ?? [])
     .map((row) => row.id)
@@ -130,13 +140,30 @@ export async function persistProductScoutEntries(
 
   if (toDelete.length > 0) {
     const { error } = await client.from('product_scout_list').delete().in('id', toDelete)
-    if (error) throw error
+    if (error) throwPersistError('delete', error)
   }
 
   if (rows.length === 0) return
 
   const { error } = await client.from('product_scout_list').upsert(rows)
-  if (error) throw error
+  if (error) {
+    // Batch upsert is atomic — one bad sibling row blocks every product including
+    // Hadley. Retry per-row so we persist good rows and surface the real offender.
+    const failures: string[] = []
+    for (const row of rows) {
+      const { error: rowError } = await client.from('product_scout_list').upsert(row)
+      if (rowError) {
+        failures.push(
+          `${row.product_name ?? row.id}: ${rowError.message}${rowError.code ? ` (${rowError.code})` : ''}`,
+        )
+      }
+    }
+    if (failures.length > 0) {
+      throw new Error(
+        `product_scout_list upsert failed: ${error.message}${error.code ? ` | code=${error.code}` : ''}. Per-row: ${failures.join('; ')}`,
+      )
+    }
+  }
 }
 
 /**
