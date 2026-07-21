@@ -16,6 +16,27 @@ let started = false
 let pendingReload = false
 let reloadInFlight = false
 let dirtyUnsubscribe: (() => void) | null = null
+let pendingLiveSha: string | null = null
+
+const beforeReloadHandlers = new Set<() => void>()
+
+/** Register work that must run immediately before a version-guard reload (e.g. save drafts). */
+export function registerBeforeClientReload(handler: () => void): () => void {
+  beforeReloadHandlers.add(handler)
+  return () => {
+    beforeReloadHandlers.delete(handler)
+  }
+}
+
+function runBeforeReloadHandlers(): void {
+  for (const handler of beforeReloadHandlers) {
+    try {
+      handler()
+    } catch (error) {
+      console.error('beforeClientReload handler failed', error)
+    }
+  }
+}
 
 function readLoadedSha(): string {
   const env = typeof import.meta !== 'undefined' ? import.meta.env : undefined
@@ -95,6 +116,8 @@ function performReload(liveSha: string): void {
 
   reloadInFlight = true
   pendingReload = false
+  pendingLiveSha = null
+  runBeforeReloadHandlers()
   markReloadedForSha(liveSha)
   window.location.reload()
 }
@@ -102,6 +125,7 @@ function performReload(liveSha: string): void {
 function requestReloadForLiveSha(liveSha: string): void {
   if (hasDirtyClientForms()) {
     pendingReload = true
+    pendingLiveSha = liveSha
     return
   }
   performReload(liveSha)
@@ -152,10 +176,11 @@ function onDirtyCleared(): void {
   if (!pendingReload) return
   if (hasDirtyClientForms()) return
   void (async () => {
-    const live = await fetchLiveVersionSha()
+    const live = pendingLiveSha ?? (await fetchLiveVersionSha())
     if (!live || live === 'dev') return
     if (live === readLoadedSha()) {
       pendingReload = false
+      pendingLiveSha = null
       return
     }
     performReload(live)
