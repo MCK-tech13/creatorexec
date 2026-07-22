@@ -38,7 +38,8 @@
     "verify:phase1": "bash scripts/verify-phase1.sh",
     "lint": "oxlint",
     "preview": "vite preview",
-    "verify:sop-tier-scaling": "tsx scripts/verify-sop-tier-scaling.ts"
+    "verify:sop-tier-scaling": "tsx scripts/verify-sop-tier-scaling.ts",
+    "verify:sop-tier-assign": "tsx scripts/verify-sop-tier-assign.ts"
   },
   "dependencies": {
     "@e965/xlsx": "^0.20.3",

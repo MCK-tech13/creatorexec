@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SprintReview, SprintSnapshot } from '../../types/sprintReview'
+import { scheduleModeForDbColumn } from '../catalog/catalogSprint'
 import { parseSprintSnapshot } from './mappers'
 import type { Database, Json } from './database.types'
 
@@ -29,7 +30,8 @@ export async function insertSprintHistoryRecord(
     started_at: sprintStart?.savedAt ?? null,
     ended_at: sprintEnd.savedAt,
     file_name: sprintEnd.fileName,
-    schedule_mode: sprintEnd.scheduleMode,
+    // Enum has no `sop` yet — column stays full/momentum; snapshot JSON keeps real mode.
+    schedule_mode: scheduleModeForDbColumn(sprintEnd.scheduleMode),
     videos_per_day: sprintEnd.config.videosPerDay,
     sprint_days: sprintEnd.config.sprintDays,
     start_total_commission: sprintStart?.totalCommission ?? null,

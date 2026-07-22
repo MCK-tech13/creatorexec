@@ -1,6 +1,7 @@
-import type { MergedProduct, ScheduleMode } from '../../types'
+import type { MergedProduct, ScheduleMode, SprintConfig, SprintDays } from '../../types'
 import type { CatalogProduct } from '../../types/productCatalog'
 import { tierProductsMomentum } from '../analysis/momentumMode'
+import { tierProductsSopList } from '../analysis/sopTierAssign'
 import { tierProducts } from '../analysis/tierEngine'
 import { hydrateProductsTrialProgress } from '../schedule/trialProgress'
 import { loadProductCatalog } from './productCatalogStorage'
@@ -10,6 +11,41 @@ const SENTINEL_EXTERNAL = new Set(['sample', 'manual', ''])
 /** Legacy `sample` schedule mode is an alias of `full` (Stage 3). */
 export function normalizeScheduleMode(mode: ScheduleMode | string | null | undefined): ScheduleMode {
   if (mode === 'momentum') return 'momentum'
+  if (mode === 'sop') return 'sop'
+  return 'full'
+}
+
+/**
+ * Persist `sop` without a DB enum migration yet: schedule_mode column stays
+ * `full`/`momentum`, and sprint_config.analysisMode carries `sop`.
+ */
+export function scheduleModeForDbColumn(mode: ScheduleMode): 'full' | 'momentum' {
+  return mode === 'momentum' ? 'momentum' : 'full'
+}
+
+export function embedAnalysisModeInSprintConfig(
+  config: SprintConfig,
+  mode: ScheduleMode,
+): SprintConfig & { analysisMode?: 'sop' } {
+  if (mode === 'sop') {
+    return { ...config, analysisMode: 'sop' }
+  }
+  const { analysisMode: _drop, ...rest } = config as SprintConfig & {
+    analysisMode?: string
+  }
+  return rest
+}
+
+export function scheduleModeFromPersisted(
+  columnMode: unknown,
+  sprintConfig: unknown,
+): ScheduleMode {
+  const config =
+    sprintConfig && typeof sprintConfig === 'object'
+      ? (sprintConfig as { analysisMode?: unknown })
+      : {}
+  if (config.analysisMode === 'sop') return 'sop'
+  if (columnMode === 'momentum') return 'momentum'
   return 'full'
 }
 
@@ -61,7 +97,12 @@ export function activeCatalogProducts(
  */
 export function buildSprintProductsFromCatalog(
   catalog: CatalogProduct[] = loadProductCatalog(),
-  options?: { hydrateTrial?: boolean; mode?: ScheduleMode },
+  options?: {
+    hydrateTrial?: boolean
+    mode?: ScheduleMode
+    dailyVolume?: number
+    sprintDays?: SprintDays
+  },
 ): MergedProduct[] {
   const active = activeCatalogProducts(catalog)
   if (active.length === 0) return []
@@ -69,7 +110,19 @@ export function buildSprintProductsFromCatalog(
   const mode = normalizeScheduleMode(options?.mode)
   const byId = new Map(active.map((product) => [product.id, product]))
   const drafts = active.map(mergedDraftFromCatalog)
-  const ranked = mode === 'momentum' ? tierProductsMomentum(drafts) : tierProducts(drafts)
+
+  let ranked: MergedProduct[]
+  if (mode === 'momentum') {
+    ranked = tierProductsMomentum(drafts)
+  } else if (mode === 'sop') {
+    ranked = tierProductsSopList(drafts, {
+      dailyVolume: options?.dailyVolume ?? 30,
+      sprintDays: options?.sprintDays ?? 3,
+    })
+  } else {
+    ranked = tierProducts(drafts)
+  }
+
   const tiered = ranked.map((product) => {
     const source = byId.get(product.id)
     return {

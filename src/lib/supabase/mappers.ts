@@ -5,7 +5,6 @@ import type {
   DeadlineProduct,
   MergedProduct,
   SampleProduct,
-  ScheduleMode,
   SprintConfig,
 } from '../../types'
 import type { CurrentSprintState, FilmingProgressStore } from '../../types/currentSprint'
@@ -17,6 +16,11 @@ import type { CatalogProduct, CatalogProductSource } from '../../types/productCa
 import type { SprintSnapshot } from '../../types/sprintReview'
 import type { UserEngagementState } from '../../types/userEngagement'
 import { emptyUserEngagement } from '../../types/userEngagement'
+import {
+  embedAnalysisModeInSprintConfig,
+  scheduleModeForDbColumn,
+  scheduleModeFromPersisted,
+} from '../catalog/catalogSprint'
 import { SCORING_LOGIC_VERSION, scoreProductScout } from '../productScout/scorer'
 import { normalizeDealVideoDeliverables } from '../pipeline/videoDeliverableUtils'
 import type { TrialProgressStore } from '../schedule/trialProgressStorage'
@@ -308,12 +312,6 @@ function parseAppStage(value: unknown): AppStage | null {
     : null
 }
 
-function parseScheduleMode(value: unknown): ScheduleMode {
-  // Stage 3: legacy `sample` schedule mode coerces to `full`.
-  if (value === 'momentum') return 'momentum'
-  return 'full'
-}
-
 function parseSprintConfig(value: unknown): SprintConfig {
   const config = value && typeof value === 'object' ? (value as Partial<SprintConfig>) : {}
   const videosPerDay = Number(config.videosPerDay)
@@ -340,7 +338,8 @@ export function currentSprintFromRow(row: CurrentSprintRow): CurrentSprintState 
 
   return {
     stage,
-    scheduleMode: parseScheduleMode(row.schedule_mode),
+    // `sop` is stored as schedule_mode=full + sprint_config.analysisMode until enum migration.
+    scheduleMode: scheduleModeFromPersisted(row.schedule_mode, row.sprint_config),
     fileName: row.file_name,
     sprintConfig: parseSprintConfig(row.sprint_config),
     products: Array.isArray(row.products) ? (row.products as unknown as MergedProduct[]) : [],
@@ -366,9 +365,11 @@ export function currentSprintToRow(
   return {
     user_id: userId,
     stage: state.stage,
-    schedule_mode: state.scheduleMode,
+    schedule_mode: scheduleModeForDbColumn(state.scheduleMode),
     file_name: state.fileName,
-    sprint_config: asJson(state.sprintConfig),
+    sprint_config: asJson(
+      embedAnalysisModeInSprintConfig(state.sprintConfig, state.scheduleMode),
+    ),
     products: asJson(state.products),
     deadline_products: asJson(state.deadlineProducts),
     excluded_product_keys: state.excludedProductKeys,
