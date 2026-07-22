@@ -347,27 +347,38 @@ console.log(
 
 const totalPlaced = schedule.reduce((s, d) => s + d.videos.length, 0)
 const sprintBudget = config.videosPerDay * config.sprintDays
-assert.ok(
-  totalPlaced <= sprintBudget,
-  `total slots ${totalPlaced} must not exceed sprint budget ${sprintBudget}`,
+assert.equal(
+  totalPlaced,
+  sprintBudget,
+  `total slots ${totalPlaced} must equal sprint budget ${sprintBudget}`,
 )
+for (const day of schedule) {
+  assert.equal(
+    day.videos.length,
+    config.videosPerDay,
+    `Day ${day.day} must be fully filled (${day.videos.length}/${config.videosPerDay})`,
+  )
+}
 
-// With only 1 New Sample, Day 2 must not fake-pad past the per-day cap.
+// With only 1 New Sample, Day 2 New Sample stays capped; remaining slots → Mid overflow.
 const day2 = schedule[1]
 const day2Serum = day2.videos.filter((v) => v.productName.includes('Vitamin C'))
 assert.ok(
   day2Serum.length <= SOP_NEW_SAMPLE_MAX_PER_DAY,
   `Day 2 Vitamin C Serum ${day2Serum.length} > per-day cap ${SOP_NEW_SAMPLE_MAX_PER_DAY}`,
 )
-const day2Empty = config.videosPerDay - day2.videos.length
+const day2MidFill = day2.videos.filter((v) => v.placementReason === 'SOP Mid — capacity fill')
 assert.ok(
-  day2Empty > 0,
-  'Day 2 should leave genuine empty slots when only 1 New Sample is available',
+  day2MidFill.length > 0,
+  'Day 2 should use Mid capacity fill after New Sample soft-cap',
 )
+assert.equal(day2.videos.length, config.videosPerDay, 'Day 2 must be 10/10')
 console.log(
-  `\n✓ Single-NewSample fixture: Day 2 has ${day2.videos.length}/${config.videosPerDay} filled ` +
-    `(Vitamin C ×${day2Serum.length}, empty ×${day2Empty}); total sprint ${totalPlaced}/${sprintBudget}`,
+  `\n✓ Single-NewSample fixture: Day 2 ${day2.videos.length}/${config.videosPerDay} ` +
+    `(Vitamin C ×${day2Serum.length}, Mid capacity fill ×${day2MidFill.length}); ` +
+    `total sprint ${totalPlaced}/${sprintBudget}`,
 )
+console.log('  Day 2 Mid capacity fill:', day2MidFill.map((v) => v.productName).join(', '))
 
 // No New Sample product exceeds per-day cap anywhere
 for (const day of schedule) {
@@ -385,7 +396,22 @@ for (const day of schedule) {
 }
 console.log(`✓ No New Sample exceeds ${SOP_NEW_SAMPLE_MAX_PER_DAY}/day cap`)
 
+// Mid overflow must not dump the whole gap onto one product when multiple Mids exist
+{
+  const midFillCounts = new Map<string, number>()
+  for (const v of day2MidFill) {
+    midFillCounts.set(v.productKey, (midFillCounts.get(v.productKey) ?? 0) + 1)
+  }
+  if (day2MidFill.length >= 2 && midFillCounts.size === 1) {
+    assert.fail('Day 2 Mid capacity fill stacked entirely on one product')
+  }
+  console.log(
+    `✓ Day 2 Mid capacity fill spread across ${midFillCounts.size} Mid product(s)`,
+  )
+}
+
 // Mid products must not stack both sprint videos on one day when capacity exists
+// (capacity-fill extras on additional days are OK; check base demand products span days)
 const midIds = new Set(
   demand.filter((d) => d.kind === 'mid').map((d) => d.product.id),
 )
@@ -478,6 +504,7 @@ console.log(formatScheduleText(schedule))
     for (const v of day.videos) {
       console.log(`  [${v.tier}] ${v.productName} — ${v.placementReason ?? ''}`)
     }
+    assert.equal(day.videos.length, config.videosPerDay, `multi Day ${day.day} full`)
     const nsVideos = day.videos.filter((v) => v.placementReason?.includes('New Sample'))
     const distinctNs = new Set(nsVideos.map((v) => v.productKey))
     for (const id of distinctNs) {
@@ -496,10 +523,22 @@ console.log(formatScheduleText(schedule))
     }
   }
 
+  // Mid overflow must NOT fire on Day 2 when New Sample variety already fills the day
+  const multiDay2MidFill = multiSchedule[1].videos.filter(
+    (v) => v.placementReason === 'SOP Mid — capacity fill',
+  )
+  assert.equal(
+    multiDay2MidFill.length,
+    0,
+    `multi fixture Day 2 should not need Mid overflow, got: ${multiDay2MidFill
+      .map((v) => v.productName)
+      .join(', ')}`,
+  )
+
   const multiTotal = multiSchedule.reduce((s, d) => s + d.videos.length, 0)
   console.log(
     `\n✓ Multi-NewSample fixture: ${multiTotal}/${sprintBudget} slots; ` +
-      `padding distributed across distinct products (cap ${SOP_NEW_SAMPLE_MAX_PER_DAY}/day)`,
+      `Day 2 filled by New Samples only (no Mid capacity fill)`,
   )
 }
 

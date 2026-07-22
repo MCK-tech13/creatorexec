@@ -38,9 +38,16 @@ export const SOP_NEW_SAMPLE_SLOTS_PER_PRODUCT = 1
 
 /**
  * Max videos for one New Sample product on a single day (same fulfillment-day
- * pattern as Urgent samples: 2 on a day, then stop — do not fake-pad past this).
+ * pattern as Urgent samples: 2 on a day, then stop — Mid overflow fills the rest).
  */
 export const SOP_NEW_SAMPLE_MAX_PER_DAY = 2
+
+/**
+ * Soft per-day cap when spreading Mid capacity-fill slots. Prefer not stacking
+ * past this on one Mid while another Mid still has fewer; only exceed when every
+ * Mid product is already at this count and the day is still under capacity.
+ */
+export const SOP_MID_OVERFLOW_SOFT_CAP_PER_DAY = 2
 
 export type SopSlotKind =
   | 'urgent'
@@ -461,8 +468,7 @@ function countProductOnDay(dayVideos: ScheduledVideo[], productId: string): numb
 /**
  * After tiered demand is placed, pad under-full days by cycling New Sample products.
  * Caps any single New Sample at {@link SOP_NEW_SAMPLE_MAX_PER_DAY} videos per day.
- * If every available New Sample is already at that cap for the day, leaves remaining
- * capacity empty rather than force-repeating past the cap.
+ * Stops when every New Sample is at that cap — Mid overflow fill covers the rest.
  */
 export function padDaysWithNewSampleFill(
   perDay: ScheduledVideo[][],
@@ -495,8 +501,53 @@ export function padDaysWithNewSampleFill(
         placed = true
         break
       }
-      // All New Samples already at per-day cap — leave remaining slots empty.
+      // All New Samples at per-day cap — Mid overflow handles remaining capacity.
       if (!placed) break
+    }
+  }
+
+  return added
+}
+
+/**
+ * After New Sample padding, fill any remaining daily capacity with Mid (Rising)
+ * products. Always assigns the next slot to a Mid with the fewest videos that day
+ * (preferring products already on the day when tied under the soft cap), so
+ * overflow spreads across Mid products instead of stacking on one.
+ */
+export function padDaysWithMidOverflowFill(
+  perDay: ScheduledVideo[][],
+  midProducts: MergedProduct[],
+  cap: number,
+  angleSession: AngleRotationSession,
+): number {
+  if (midProducts.length === 0) return 0
+  const pool = [...midProducts].sort((a, b) => b.commission - a.commission)
+  let added = 0
+  const reason = 'SOP Mid — capacity fill'
+
+  for (let day = 0; day < perDay.length; day++) {
+    while (remainingCapacity(perDay, day, cap) > 0) {
+      const ranked = [...pool].sort((a, b) => {
+        const countA = countProductOnDay(perDay[day], a.id)
+        const countB = countProductOnDay(perDay[day], b.id)
+        if (countA !== countB) return countA - countB
+        // Prefer extending a Mid already on the day when counts are equal and under soft cap.
+        const onA = countA > 0 ? 0 : 1
+        const onB = countB > 0 ? 0 : 1
+        if (onA !== onB) return onA - onB
+        return b.commission - a.commission
+      })
+
+      const softEligible = ranked.filter(
+        (p) => countProductOnDay(perDay[day], p.id) < SOP_MID_OVERFLOW_SOFT_CAP_PER_DAY,
+      )
+      const pick = softEligible[0] ?? ranked[0]
+      if (!pick) break
+
+      const video = makeVideo(pick, displayTierFor(pick), reason, angleSession)
+      if (!tryPlace(perDay, day, video, cap)) break
+      added += 1
     }
   }
 
@@ -683,6 +734,12 @@ export function buildSopModeScheduleDetailed(
 
   const newSampleProducts = eligible.filter((p) => p.sopTier === 'NewSample')
   padDaysWithNewSampleFill(perDay, newSampleProducts, cap, angleSession)
+
+  // Days must always reach videosPerDay — Mid overflow after New Sample soft-cap.
+  const midProducts = eligible
+    .filter((p) => p.sopTier === 'Mid')
+    .sort((a, b) => b.commission - a.commission)
+  padDaysWithMidOverflowFill(perDay, midProducts, cap, angleSession)
 
   // Day-level last resort: if any day exceeds cap (should not after tryPlace),
   // or if we somehow over-placed — trim Mid from overloaded days.
