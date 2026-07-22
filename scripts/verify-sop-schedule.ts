@@ -344,6 +344,36 @@ console.log(
   `\n✓ Urgent "${urgentSample.productName}" has ${day1Urgent.length} slots on Day 1`,
 )
 
+const totalPlaced = schedule.reduce((s, d) => s + d.videos.length, 0)
+const sprintBudget = config.videosPerDay * config.sprintDays
+assert.equal(
+  totalPlaced,
+  sprintBudget,
+  `total slots ${totalPlaced} must equal sprint budget ${sprintBudget}`,
+)
+console.log(`✓ Total slots ${totalPlaced} === sprint budget ${sprintBudget}`)
+
+// Mid products must not stack both sprint videos on one day when capacity exists
+const midIds = new Set(
+  demand.filter((d) => d.kind === 'mid').map((d) => d.product.id),
+)
+for (const midId of midIds) {
+  const daysHit = schedule
+    .map((d, idx) => (d.videos.some((v) => v.productKey === midId) ? idx + 1 : null))
+    .filter((d): d is number => d != null)
+  const slots = schedule.reduce(
+    (s, d) => s + d.videos.filter((v) => v.productKey === midId).length,
+    0,
+  )
+  if (slots >= 2) {
+    assert.ok(
+      new Set(daysHit).size >= 2,
+      `Mid ${midId} stacked on one day: days=${daysHit.join(',')}`,
+    )
+  }
+}
+console.log('✓ Mid products with 2+ slots span distinct days')
+
 // Anchors appear across days when present
 const anchors = demand.filter((d) => d.kind === 'anchor')
 if (anchors.length > 0) {

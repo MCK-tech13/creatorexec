@@ -340,6 +340,18 @@ export function applySopSacrificeLadder(
   }
 }
 
+/** Prefer Day 1 + Day 3 on a 3-day sprint; otherwise first↔last evenly spaced. */
+export function preferredMidDayIndices(sprintDays: number, slotCount: number): number[] {
+  const slots = Math.max(1, slotCount)
+  if (slots === 1) return [0]
+  if (sprintDays === 3 && slots === 2) return [0, 2]
+  const days: number[] = []
+  for (let i = 0; i < slots; i++) {
+    days.push(Math.round((i * (sprintDays - 1)) / (slots - 1)))
+  }
+  return [...new Set(days)]
+}
+
 function remainingCapacity(perDay: ScheduledVideo[][], day: number, cap: number): number {
   return Math.max(0, cap - perDay[day].length)
 }
@@ -355,7 +367,7 @@ function tryPlace(
   return true
 }
 
-/** Prefer spread days; fall back to any open day. */
+/** Prefer spread days; fall back to any open day (may stack on one day). */
 function placeSpreadSlots(
   perDay: ScheduledVideo[][],
   videoFactory: () => ScheduledVideo,
@@ -372,14 +384,12 @@ function placeSpreadSlots(
           Math.floor((i * sprintDays) / Math.max(slots, 1)) % sprintDays,
         )
 
-  // Unique preferred days first
   const preferred = [...new Set(order)].filter((d) => d >= 0 && d < sprintDays)
   for (const day of preferred) {
     if (placed >= slots) break
     if (tryPlace(perDay, day, videoFactory(), cap)) placed += 1
   }
 
-  // Fill remaining anywhere with capacity
   for (let day = 0; day < sprintDays && placed < slots; day++) {
     while (placed < slots && tryPlace(perDay, day, videoFactory(), cap)) {
       placed += 1
@@ -387,6 +397,88 @@ function placeSpreadSlots(
   }
 
   return placed
+}
+
+/**
+ * Place at most one slot per day for a product (Mid / Rotator spread rule).
+ * Prefers `preferDays`; only stacks on the same day if every other day is full.
+ */
+export function placeDistinctDaySlots(
+  perDay: ScheduledVideo[][],
+  videoFactory: () => ScheduledVideo,
+  slots: number,
+  cap: number,
+  preferDays: number[],
+): number {
+  const sprintDays = perDay.length
+  let placed = 0
+  const usedDays = new Set<number>()
+
+  const tryDay = (day: number): boolean => {
+    if (usedDays.has(day)) return false
+    if (!tryPlace(perDay, day, videoFactory(), cap)) return false
+    usedDays.add(day)
+    placed += 1
+    return true
+  }
+
+  for (const day of preferDays) {
+    if (placed >= slots) break
+    if (day < 0 || day >= sprintDays) continue
+    tryDay(day)
+  }
+
+  for (let day = 0; day < sprintDays && placed < slots; day++) {
+    tryDay(day)
+  }
+
+  // Last resort: same-day stack only when no unused day has capacity.
+  while (placed < slots) {
+    let progressed = false
+    for (let day = 0; day < sprintDays; day++) {
+      if (placed >= slots) break
+      if (tryPlace(perDay, day, videoFactory(), cap)) {
+        placed += 1
+        progressed = true
+      }
+    }
+    if (!progressed) break
+  }
+
+  return placed
+}
+
+/**
+ * After tiered demand is placed, pad each under-full day by cycling New Sample products
+ * until every day reaches `cap` (or no New Sample products exist).
+ */
+export function padDaysWithNewSampleFill(
+  perDay: ScheduledVideo[][],
+  newSampleProducts: MergedProduct[],
+  cap: number,
+  angleSession: AngleRotationSession,
+): number {
+  if (newSampleProducts.length === 0) return 0
+  const pool = [...newSampleProducts].sort((a, b) => b.commission - a.commission)
+  let cursor = 0
+  let added = 0
+
+  for (let day = 0; day < perDay.length; day++) {
+    while (remainingCapacity(perDay, day, cap) > 0) {
+      const product = pool[cursor % pool.length]
+      cursor += 1
+      const video = makeVideo(
+        product,
+        displayTierFor(product),
+        reasonForKind('newSample'),
+        angleSession,
+      )
+      if (!tryPlace(perDay, day, video, cap)) break
+      added += 1
+    }
+  }
+
+  return added
 }
 
 /**
@@ -500,42 +592,58 @@ export function buildSopModeScheduleDetailed(
     )
   }
 
-  // --- 3) Protected flexible: Rotator, Band A ---
-  for (const kind of ['rotator', 'bandA'] as const) {
-    for (const row of demand.filter((d) => d.kind === kind)) {
-      placeSpreadSlots(
-        perDay,
-        () =>
-          makeVideo(row.product, displayTierFor(row.product), reasonForKind(kind), angleSession),
-        row.slots,
-        cap,
-      )
-    }
+  // --- 3) Protected flexible: Rotator (spread across distinct days), Band A ---
+  for (const row of demand.filter((d) => d.kind === 'rotator')) {
+    placeDistinctDaySlots(
+      perDay,
+      () =>
+        makeVideo(
+          row.product,
+          displayTierFor(row.product),
+          reasonForKind('rotator'),
+          angleSession,
+        ),
+      row.slots,
+      cap,
+      preferredMidDayIndices(sprintDays, row.slots),
+    )
+  }
+  for (const row of demand.filter((d) => d.kind === 'bandA')) {
+    placeDistinctDaySlots(
+      perDay,
+      () =>
+        makeVideo(row.product, displayTierFor(row.product), reasonForKind('bandA'), angleSession),
+      row.slots,
+      cap,
+      preferredMidDayIndices(sprintDays, row.slots),
+    )
   }
 
-  // --- 4) Mid (may be sacrificed on overloaded days) ---
+  // --- 4) Mid — must split across different days (prefer Day 1 + Day 3 on 3-day) ---
   for (const row of demand.filter((d) => d.kind === 'mid')) {
-    placeSpreadSlots(
+    placeDistinctDaySlots(
       perDay,
       () =>
         makeVideo(row.product, displayTierFor(row.product), reasonForKind('mid'), angleSession),
       row.slots,
       cap,
+      preferredMidDayIndices(sprintDays, row.slots),
     )
   }
 
   // --- 5) Band B (already globally sacrificed by CPI) ---
   for (const row of demand.filter((d) => d.kind === 'bandB')) {
-    placeSpreadSlots(
+    placeDistinctDaySlots(
       perDay,
       () =>
         makeVideo(row.product, displayTierFor(row.product), reasonForKind('bandB'), angleSession),
       row.slots,
       cap,
+      preferredMidDayIndices(sprintDays, row.slots),
     )
   }
 
-  // --- 6) New Sample fill ---
+  // --- 6) Initial New Sample fill from demand (1 each), then pad days to capacity ---
   for (const row of demand.filter((d) => d.kind === 'newSample')) {
     placeSpreadSlots(
       perDay,
@@ -550,6 +658,9 @@ export function buildSopModeScheduleDetailed(
       cap,
     )
   }
+
+  const newSampleProducts = eligible.filter((p) => p.sopTier === 'NewSample')
+  padDaysWithNewSampleFill(perDay, newSampleProducts, cap, angleSession)
 
   // Day-level last resort: if any day exceeds cap (should not after tryPlace),
   // or if we somehow over-placed — trim Mid from overloaded days.
