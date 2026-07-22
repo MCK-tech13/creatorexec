@@ -12,6 +12,7 @@ import {
   SOP_ANCHOR_TIE_RATIO,
   SOP_FULL_TEST_VIDEOS,
 } from '../src/lib/analysis/sopTierAssign'
+import { computeSopScaling } from '../src/lib/analysis/sopTierEngine'
 import { retierProductsForMode } from '../src/lib/analysis/momentumMode'
 import {
   scheduleModeForDbColumn,
@@ -290,6 +291,123 @@ console.log('SOP tier assignment verification')
     undefined,
   )
   console.log('✓ scheduleMode DB persistence helpers')
+}
+
+// --- Overflow past Top/Mid budget → Band A/B/Retired / NewSample ---
+{
+  const topMidBudget =
+    computeSopScaling({ dailyVolume: 30, sprintDays: 3 }).products.anchorProductCount +
+    computeSopScaling({ dailyVolume: 30, sprintDays: 3 }).products.rotatorProductCount +
+    computeSopScaling({ dailyVolume: 30, sprintDays: 3 }).products.midProductCount
+  assert.equal(topMidBudget, 25, '30×3 Top+Mid budget is 4+6+15=25')
+
+  const products: Draft[] = []
+  // 25 Top/Mid seats — steep drop after Anchors so ~10% tie pull-up does not fire
+  for (let i = 0; i < 25; i++) {
+    products.push(
+      draft({
+        id: `top-${i}`,
+        productName: `TopEarn ${String(i).padStart(2, '0')}`,
+        // ranks 1–4: 400/350/300/250; rank 5: 100 (< 90% of 250)
+        commission: i < 4 ? 400 - i * 50 : 100 - (i - 4),
+        itemsSold: 40,
+        videosFilmed: 6,
+      }),
+    )
+  }
+  // 7 overflow rows (ranks 26+)
+  products.push(
+    draft({
+      id: 'ov-banda',
+      productName: 'Overflow BandA',
+      commission: 24.4,
+      itemsSold: 7,
+      gmv: 139.93,
+      videosFilmed: 6,
+    }),
+    draft({
+      id: 'ov-bandb',
+      productName: 'Overflow BandB',
+      commission: 14.11,
+      itemsSold: 4,
+      gmv: 90,
+      videosFilmed: 6,
+    }),
+    draft({
+      id: 'ov-retired-cpi',
+      productName: 'Overflow Retired CPI',
+      commission: 9.6,
+      itemsSold: 6,
+      gmv: 60,
+      videosFilmed: 6,
+    }),
+    draft({
+      id: 'ov-highticket',
+      productName: 'Overflow HighTicket',
+      commission: 12,
+      itemsSold: 1,
+      gmv: 80,
+      videosFilmed: 6,
+    }),
+    draft({
+      id: 'ov-bandb2',
+      productName: 'Overflow BandB2',
+      commission: 6.75,
+      itemsSold: 1,
+      gmv: 45,
+      videosFilmed: 6,
+    }),
+    draft({
+      id: 'ov-newsample',
+      productName: 'Overflow NewSample',
+      commission: 8,
+      itemsSold: 3,
+      gmv: 40,
+      videosFilmed: 2,
+    }),
+    draft({
+      id: 'ov-retired-low',
+      productName: 'Overflow Retired Low',
+      commission: 3.7,
+      itemsSold: 2,
+      gmv: 24,
+      videosFilmed: 6,
+    }),
+  )
+  assert.equal(products.length, 32)
+
+  const { products: tiered, meta } = tierProductsSop(products, {
+    dailyVolume: 30,
+    sprintDays: 3,
+  })
+  assert.equal(meta.anchorTieExpanded, false, 'overflow fixture must not trigger anchor tie')
+  assert.equal(meta.anchorCount + meta.rotatorCount + meta.midCount, 25)
+
+  const expect: Record<string, SopTier> = {
+    'ov-banda': 'BandA',
+    'ov-bandb': 'BandB',
+    'ov-retired-cpi': 'Retired',
+    'ov-highticket': 'BandB',
+    'ov-bandb2': 'BandB',
+    'ov-newsample': 'NewSample',
+    'ov-retired-low': 'Retired',
+  }
+  for (const [id, want] of Object.entries(expect)) {
+    const p = tiered.find((x) => x.id === id)
+    assert.ok(p, `missing ${id}`)
+    assert.equal(
+      p!.sopTier,
+      want,
+      `${id}: expected ${want}, got ${p!.sopTier} (commission=${p!.commission})`,
+    )
+    assert.ok(
+      p!.sopTier !== 'Anchor' && p!.sopTier !== 'Rotator' && p!.sopTier !== 'Mid',
+      `${id} must not land in Top/Mid`,
+    )
+  }
+  console.log(
+    `✓ Overflow past Top/Mid (${products.length} products > ${topMidBudget} budget) → Band/Retired/NewSample`,
+  )
 }
 
 console.log('\nAll SOP tier assignment checks passed.')

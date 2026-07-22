@@ -102,6 +102,7 @@ export function buildSprintProductsFromCatalog(
     mode?: ScheduleMode
     dailyVolume?: number
     sprintDays?: SprintDays
+    floors?: Parameters<typeof tierProductsSopList>[1]['floors']
   },
 ): MergedProduct[] {
   const active = activeCatalogProducts(catalog)
@@ -118,6 +119,7 @@ export function buildSprintProductsFromCatalog(
     ranked = tierProductsSopList(drafts, {
       dailyVolume: options?.dailyVolume ?? 30,
       sprintDays: options?.sprintDays ?? 3,
+      floors: options?.floors,
     })
   } else {
     ranked = tierProducts(drafts)

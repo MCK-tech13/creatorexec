@@ -82,6 +82,16 @@ export interface RetainerScheduleEntry {
 export interface SprintConfig {
   videosPerDay: number
   sprintDays: SprintDays
+  /**
+   * SOP Band A hard floor (per sprint window). When unset, engine default ($5) applies.
+   * Only used when scheduleMode is `sop`.
+   */
+  sopBandAFloor?: number
+  /**
+   * SOP Band B hard floor (per sprint window). When unset, engine default ($2) applies.
+   * Only used when scheduleMode is `sop`.
+   */
+  sopBandBFloor?: number
 }
 
 export interface ScheduledVideo {
