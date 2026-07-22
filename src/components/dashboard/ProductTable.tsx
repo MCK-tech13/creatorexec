@@ -1,23 +1,20 @@
 import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
-import type { MergedProduct, SopTier, Tier } from '../../types'
+import type { MergedProduct, Tier } from '../../types'
 import { TierBadge } from './TierBadge'
 import { ProductFlagBadge } from './ProductFlagBadge'
 import { VideoProgressBar } from './VideoProgressBar'
 import { isReadyForTierReview } from '../../lib/dashboard/videoProgress'
 import { trialStorageKey } from '../../lib/schedule/trialProgressStorage'
-import type { DashboardTierFilter } from './TierTabs'
 
 type SortField = 'commission' | 'gmv' | 'itemsSold' | 'score'
 type SortDir = 'asc' | 'desc'
 
 interface ProductTableProps {
   products: MergedProduct[]
-  activeTier: DashboardTierFilter
+  activeTier: Tier | 'All'
   beginnerMode?: boolean
   advancedControlsOpen?: boolean
-  /** When true, filter/display uses sopTier instead of legacy tier. */
-  sopMode?: boolean
   stalledKeys?: Set<string>
   slowingAnchorKeys?: Set<string>
   onVideosFilmedChange: (productId: string, videosFilmed: number) => void
@@ -67,7 +64,6 @@ export function ProductTable({
   activeTier,
   beginnerMode = false,
   advancedControlsOpen = false,
-  sopMode = false,
   stalledKeys,
   slowingAnchorKeys,
   onVideosFilmedChange,
@@ -81,16 +77,12 @@ export function ProductTable({
 
   const filtered = useMemo(() => {
     const list =
-      activeTier === 'All'
-        ? products
-        : sopMode
-          ? products.filter((p) => p.sopTier === (activeTier as SopTier))
-          : products.filter((p) => p.tier === (activeTier as Tier))
+      activeTier === 'All' ? products : products.filter((p) => p.tier === activeTier)
     return [...list].sort((a, b) => {
       const mul = sortDir === 'asc' ? 1 : -1
       return (a[sortField] - b[sortField]) * mul
     })
-  }, [products, activeTier, sortField, sortDir, sopMode])
+  }, [products, activeTier, sortField, sortDir])
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -154,11 +146,7 @@ export function ProductTable({
               )}
 
               <div className="mt-2 flex items-center justify-between gap-3">
-                <TierBadge
-                  tier={product.tier}
-                  sopTier={sopMode ? product.sopTier : undefined}
-                  showTooltip={beginnerMode}
-                />
+                <TierBadge tier={product.tier} showTooltip={beginnerMode} />
                 <span className="shrink-0 font-body text-sm font-semibold tabular-nums text-emerald">
                   {formatCurrency(product.commission)}
                 </span>
@@ -291,11 +279,7 @@ export function ProductTable({
                     </div>
                   </td>
                   <td className="px-5 py-5">
-                    <TierBadge
-                      tier={product.tier}
-                      sopTier={sopMode ? product.sopTier : undefined}
-                      showTooltip={beginnerMode}
-                    />
+                    <TierBadge tier={product.tier} showTooltip={beginnerMode} />
                     <TestTrialStatus
                       product={product}
                       onMarkTrialPreviouslyCompleted={onMarkTrialPreviouslyCompleted}

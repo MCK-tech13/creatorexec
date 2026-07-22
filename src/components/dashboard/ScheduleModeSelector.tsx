@@ -19,7 +19,7 @@ const OPTIONS: Array<{ value: ScheduleMode; label: string; hint: string }> = [
   {
     value: 'sop',
     label: 'SOP',
-    hint: 'Creator SOP Top / Mid / Band A·B ranking',
+    hint: 'Creator SOP ranking — shown as Anchor / Rising / Test / Cut',
   },
 ]
 

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import {
   assignSopWinnerBand,
   isSopUrgentSample,
+  sopBandFromSopTier,
   sopTierToLegacyTier,
   tierProductsSop,
   SOP_ANCHOR_TIE_RATIO,
@@ -225,7 +226,7 @@ console.log('SOP tier assignment verification')
   console.log('✓ Anchor ~10% tie pull-up')
 }
 
-// --- Legacy tier mapping ---
+// --- Legacy tier mapping + sopBand metadata ---
 {
   assert.equal(sopTierToLegacyTier('Anchor'), 'Anchor')
   assert.equal(sopTierToLegacyTier('Rotator'), 'Rising')
@@ -235,7 +236,16 @@ console.log('SOP tier assignment verification')
   assert.equal(sopTierToLegacyTier('NewSample'), 'Test')
   assert.equal(sopTierToLegacyTier('Urgent'), 'Test')
   assert.equal(sopTierToLegacyTier('Retired'), 'Cut')
-  console.log('✓ Legacy dashboard tier mapping')
+
+  assert.equal(sopBandFromSopTier('BandA'), 'A')
+  assert.equal(sopBandFromSopTier('BandB'), 'B')
+  assert.equal(sopBandFromSopTier('Anchor'), null)
+  assert.equal(sopBandFromSopTier('Rotator'), null)
+  assert.equal(sopBandFromSopTier('Mid'), null)
+  assert.equal(sopBandFromSopTier('NewSample'), null)
+  assert.equal(sopBandFromSopTier('Urgent'), null)
+  assert.equal(sopBandFromSopTier('Retired'), null)
+  console.log('✓ Visible tier mapping + sopBand metadata (Band only on Test winners)')
 }
 
 // --- retierProductsForMode('sop') wiring; full/momentum untouched ---
@@ -404,6 +414,18 @@ console.log('SOP tier assignment verification')
       p!.sopTier !== 'Anchor' && p!.sopTier !== 'Rotator' && p!.sopTier !== 'Mid',
       `${id} must not land in Top/Mid`,
     )
+    assert.equal(p!.tier, sopTierToLegacyTier(want), `${id} visible tier`)
+    assert.equal(p!.sopBand ?? null, sopBandFromSopTier(want), `${id} sopBand`)
+    if (want === 'BandA' || want === 'BandB') {
+      assert.equal(p!.tier, 'Test', `${id} Band winners must display as Test`)
+      assert.ok(p!.sopBand === 'A' || p!.sopBand === 'B')
+    } else {
+      assert.equal(p!.sopBand ?? null, null, `${id} non-Band must have sopBand null`)
+    }
+  }
+  // Rising (Rotator/Mid) never carries Band metadata
+  for (const p of tiered.filter((x) => x.tier === 'Rising')) {
+    assert.equal(p.sopBand ?? null, null, `${p.id} Rising must not have sopBand`)
   }
   console.log(
     `✓ Overflow past Top/Mid (${products.length} products > ${topMidBudget} budget) → Band/Retired/NewSample`,
