@@ -1,14 +1,16 @@
-import type {
-  DaySchedule,
-  DeadlineProduct,
-  MergedProduct,
-  ScheduledVideo,
-  ScheduleTierLabel,
-  SprintConfig,
+import {
+  TIER_REVIEW_VIDEO_COUNT,
+  type DaySchedule,
+  type DeadlineProduct,
+  type MergedProduct,
+  type ScheduledVideo,
+  type ScheduleTierLabel,
+  type SprintConfig,
 } from '../../types'
 import { AngleRotationSession } from './angleRotation'
 import { formatDeadlineCountdown } from './deadlineUtils'
 import { formatScheduleProductName } from './scheduleDisplay'
+import { collapseDayVideos } from './collapseDayVideos'
 import {
   buildFirstVideoDeadlineVideos,
   decrementRemainingForFirstVideoDeadlines,
@@ -312,15 +314,70 @@ export function buildFilmingSchedule(
   return schedule
 }
 
+function videoCountLabel(count: number): string {
+  return count === 1 ? '1 video' : `${count} videos`
+}
+
+/** Pull trial slot numbers from placement reasons for a grouped product line. */
+function trialProgressNote(reasons: string[]): string | null {
+  const totalDefault = TIER_REVIEW_VIDEO_COUNT
+  const numbers: number[] = []
+  let total = totalDefault
+
+  for (const reason of reasons) {
+    const single = /^Trial video (\d+) of (\d+)$/.exec(reason)
+    if (single) {
+      numbers.push(parseInt(single[1], 10))
+      total = parseInt(single[2], 10)
+      continue
+    }
+    const range = /^Trial videos (\d+)–(\d+) of (\d+)$/.exec(reason)
+    if (range) {
+      const start = parseInt(range[1], 10)
+      const end = parseInt(range[2], 10)
+      total = parseInt(range[3], 10)
+      for (let n = start; n <= end; n++) numbers.push(n)
+      continue
+    }
+    if (/^First trial video/.test(reason)) {
+      numbers.push(1)
+    }
+  }
+
+  if (numbers.length === 0) return null
+  const unique = [...new Set(numbers)].sort((a, b) => a - b)
+  return `trial ${unique.map((n) => `${n} of ${total}`).join(', ')}`
+}
+
+function deadlineNote(deadlineDate: string | undefined): string | null {
+  if (!deadlineDate) return null
+  return formatDeadlineCountdown(deadlineDate).toLowerCase()
+}
+
+/**
+ * Clipboard-friendly schedule: one line per product per day (with video count),
+ * not one line per individual slot.
+ */
 export function formatScheduleText(schedule: DaySchedule[]): string {
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   return schedule
     .map((day) => {
       const dayLabel = dayNames[(day.day - 1) % 7]
-      const lines = day.videos.map((v) => {
-        const countdown =
-          v.deadlineDate != null ? ` (${formatDeadlineCountdown(v.deadlineDate)})` : ''
-        return `  [${v.tier}] ${v.productName}${countdown} — ${v.placementReason ?? v.suggestedAngle}`
+      const collapsed = collapseDayVideos(day.day, day.videos)
+      const lines = collapsed.map((row) => {
+        const slotReasons = day.videos
+          .filter((v) => v.productName === row.productName)
+          .map((v) => v.placementReason ?? '')
+        const trial = trialProgressNote(slotReasons)
+        const due = deadlineNote(row.deadlineDate)
+        const firstTrialMentionsDue = slotReasons.some((r) =>
+          /^First trial video — post by /.test(r),
+        )
+        const notes = [trial, due && !firstTrialMentionsDue ? due : null].filter(
+          (note): note is string => Boolean(note),
+        )
+        const noteSuffix = notes.length > 0 ? ` (${notes.join(' · ')})` : ''
+        return `  ${row.productName} — ${videoCountLabel(row.total)}${noteSuffix}`
       })
       return `Day ${day.day} — ${dayLabel}\n${lines.join('\n')}`
     })
