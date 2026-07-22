@@ -39,7 +39,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "verify:sop-tier-scaling": "tsx scripts/verify-sop-tier-scaling.ts",
-    "verify:sop-tier-assign": "tsx scripts/verify-sop-tier-assign.ts"
+    "verify:sop-tier-assign": "tsx scripts/verify-sop-tier-assign.ts",
+    "verify:sop-schedule": "tsx scripts/verify-sop-schedule.ts"
   },
   "dependencies": {
     "@e965/xlsx": "^0.20.3",
