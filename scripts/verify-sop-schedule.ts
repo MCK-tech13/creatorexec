@@ -14,6 +14,7 @@ import {
   applySopSacrificeLadder,
   buildSopModeScheduleDetailed,
   buildSopSlotDemand,
+  SOP_NEW_SAMPLE_MAX_PER_DAY,
   SOP_URGENT_DAY1_MIN_SLOTS,
 } from '../src/lib/schedule/sopSchedule'
 import { formatScheduleText } from '../src/lib/schedule/scheduleBuilder'
@@ -346,12 +347,43 @@ console.log(
 
 const totalPlaced = schedule.reduce((s, d) => s + d.videos.length, 0)
 const sprintBudget = config.videosPerDay * config.sprintDays
-assert.equal(
-  totalPlaced,
-  sprintBudget,
-  `total slots ${totalPlaced} must equal sprint budget ${sprintBudget}`,
+assert.ok(
+  totalPlaced <= sprintBudget,
+  `total slots ${totalPlaced} must not exceed sprint budget ${sprintBudget}`,
 )
-console.log(`✓ Total slots ${totalPlaced} === sprint budget ${sprintBudget}`)
+
+// With only 1 New Sample, Day 2 must not fake-pad past the per-day cap.
+const day2 = schedule[1]
+const day2Serum = day2.videos.filter((v) => v.productName.includes('Vitamin C'))
+assert.ok(
+  day2Serum.length <= SOP_NEW_SAMPLE_MAX_PER_DAY,
+  `Day 2 Vitamin C Serum ${day2Serum.length} > per-day cap ${SOP_NEW_SAMPLE_MAX_PER_DAY}`,
+)
+const day2Empty = config.videosPerDay - day2.videos.length
+assert.ok(
+  day2Empty > 0,
+  'Day 2 should leave genuine empty slots when only 1 New Sample is available',
+)
+console.log(
+  `\n✓ Single-NewSample fixture: Day 2 has ${day2.videos.length}/${config.videosPerDay} filled ` +
+    `(Vitamin C ×${day2Serum.length}, empty ×${day2Empty}); total sprint ${totalPlaced}/${sprintBudget}`,
+)
+
+// No New Sample product exceeds per-day cap anywhere
+for (const day of schedule) {
+  const byProduct = new Map<string, number>()
+  for (const v of day.videos) {
+    if (!v.placementReason?.includes('New Sample')) continue
+    byProduct.set(v.productKey, (byProduct.get(v.productKey) ?? 0) + 1)
+  }
+  for (const [id, n] of byProduct) {
+    assert.ok(
+      n <= SOP_NEW_SAMPLE_MAX_PER_DAY,
+      `Day ${day.day} New Sample ${id} has ${n} > cap ${SOP_NEW_SAMPLE_MAX_PER_DAY}`,
+    )
+  }
+}
+console.log(`✓ No New Sample exceeds ${SOP_NEW_SAMPLE_MAX_PER_DAY}/day cap`)
 
 // Mid products must not stack both sprint videos on one day when capacity exists
 const midIds = new Set(
@@ -386,6 +418,90 @@ if (anchors.length > 0) {
 
 console.log('\n--- Copy Schedule text (grouped) ---\n')
 console.log(formatScheduleText(schedule))
+
+// --- Multi New Sample fixture: padding must distribute across distinct products ---
+{
+  console.log('\n--- Multi New Sample padding fixture ---')
+  const multiNs = Array.from({ length: 8 }, (_, i) => ({
+    id: `ns-${i}`,
+    productName: `New Sample ${String(i).padStart(2, '0')}`,
+    productId: `ns-${i}`,
+    gmv: 10,
+    commission: 3 - i * 0.1,
+    itemsSold: 1,
+    orderCount: 1,
+    videosFilmed: 1,
+    inRotation: true,
+    isManual: false,
+  }))
+  const multiPool = [
+    ...fillers.map(({ score: _s, tier: _t, rankInTier: _r, ...rest }) => rest),
+    {
+      ...earbuds,
+      videosFilmed: 6,
+      commission: 24.4,
+      itemsSold: 7,
+      gmv: 139.93,
+    },
+    {
+      ...lamp,
+      videosFilmed: 6,
+      commission: 14.11,
+      itemsSold: 4,
+      gmv: 90,
+    },
+    urgentSample,
+    ...multiNs,
+  ]
+  const { products: multiTiered } = tierProductsSop(multiPool, {
+    dailyVolume: config.videosPerDay,
+    sprintDays: config.sprintDays,
+    asOfDate: asOf,
+  })
+  const nsTier = multiTiered.filter((p) => p.sopTier === 'NewSample')
+  assert.ok(nsTier.length >= 4, `expected several NewSample tiers, got ${nsTier.length}`)
+  console.log(
+    `NewSample products available: ${nsTier.map((p) => p.productName).join(', ')}`,
+  )
+
+  const { schedule: multiSchedule } = buildSopModeScheduleDetailed(
+    multiTiered,
+    config,
+    [],
+    new Set(),
+    [],
+    asOf,
+  )
+
+  for (const day of multiSchedule) {
+    console.log(`\nDay ${day.day} (${day.videos.length} slots):`)
+    for (const v of day.videos) {
+      console.log(`  [${v.tier}] ${v.productName} — ${v.placementReason ?? ''}`)
+    }
+    const nsVideos = day.videos.filter((v) => v.placementReason?.includes('New Sample'))
+    const distinctNs = new Set(nsVideos.map((v) => v.productKey))
+    for (const id of distinctNs) {
+      const n = nsVideos.filter((v) => v.productKey === id).length
+      assert.ok(n <= SOP_NEW_SAMPLE_MAX_PER_DAY, `multi fixture Day ${day.day} ${id} ×${n}`)
+    }
+    // When several New Samples exist and the day needed padding, prefer variety
+    // over repeating one product (at most 1 repeat once others are used).
+    if (nsVideos.length > SOP_NEW_SAMPLE_MAX_PER_DAY && nsTier.length >= nsVideos.length) {
+      assert.equal(
+        distinctNs.size,
+        nsVideos.length,
+        `Day ${day.day}: enough distinct New Samples exist — expected no repeats, ` +
+          `got ${nsVideos.length} slots across ${distinctNs.size} products`,
+      )
+    }
+  }
+
+  const multiTotal = multiSchedule.reduce((s, d) => s + d.videos.length, 0)
+  console.log(
+    `\n✓ Multi-NewSample fixture: ${multiTotal}/${sprintBudget} slots; ` +
+      `padding distributed across distinct products (cap ${SOP_NEW_SAMPLE_MAX_PER_DAY}/day)`,
+  )
+}
 
 console.log('\n' + '='.repeat(72))
 console.log('verify-sop-schedule: PASS')

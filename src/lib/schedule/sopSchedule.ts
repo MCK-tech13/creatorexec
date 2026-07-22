@@ -36,6 +36,12 @@ export const SOP_BAND_VIDEOS_PER_PRODUCT = 2
 /** New Sample products get at most this many fill slots each (from remainder pool). */
 export const SOP_NEW_SAMPLE_SLOTS_PER_PRODUCT = 1
 
+/**
+ * Max videos for one New Sample product on a single day (same fulfillment-day
+ * pattern as Urgent samples: 2 on a day, then stop — do not fake-pad past this).
+ */
+export const SOP_NEW_SAMPLE_MAX_PER_DAY = 2
+
 export type SopSlotKind =
   | 'urgent'
   | 'anchor'
@@ -448,9 +454,15 @@ export function placeDistinctDaySlots(
   return placed
 }
 
+function countProductOnDay(dayVideos: ScheduledVideo[], productId: string): number {
+  return dayVideos.filter((v) => v.productKey === productId).length
+}
+
 /**
- * After tiered demand is placed, pad each under-full day by cycling New Sample products
- * until every day reaches `cap` (or no New Sample products exist).
+ * After tiered demand is placed, pad under-full days by cycling New Sample products.
+ * Caps any single New Sample at {@link SOP_NEW_SAMPLE_MAX_PER_DAY} videos per day.
+ * If every available New Sample is already at that cap for the day, leaves remaining
+ * capacity empty rather than force-repeating past the cap.
  */
 export function padDaysWithNewSampleFill(
   perDay: ScheduledVideo[][],
@@ -465,16 +477,26 @@ export function padDaysWithNewSampleFill(
 
   for (let day = 0; day < perDay.length; day++) {
     while (remainingCapacity(perDay, day, cap) > 0) {
-      const product = pool[cursor % pool.length]
-      cursor += 1
-      const video = makeVideo(
-        product,
-        displayTierFor(product),
-        reasonForKind('newSample'),
-        angleSession,
-      )
-      if (!tryPlace(perDay, day, video, cap)) break
-      added += 1
+      let placed = false
+      for (let attempt = 0; attempt < pool.length; attempt++) {
+        const product = pool[(cursor + attempt) % pool.length]
+        if (countProductOnDay(perDay[day], product.id) >= SOP_NEW_SAMPLE_MAX_PER_DAY) {
+          continue
+        }
+        const video = makeVideo(
+          product,
+          displayTierFor(product),
+          reasonForKind('newSample'),
+          angleSession,
+        )
+        if (!tryPlace(perDay, day, video, cap)) break
+        cursor = (cursor + attempt + 1) % pool.length
+        added += 1
+        placed = true
+        break
+      }
+      // All New Samples already at per-day cap — leave remaining slots empty.
+      if (!placed) break
     }
   }
 
