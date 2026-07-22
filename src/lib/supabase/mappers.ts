@@ -316,19 +316,10 @@ function parseSprintConfig(value: unknown): SprintConfig {
   const config = value && typeof value === 'object' ? (value as Partial<SprintConfig>) : {}
   const videosPerDay = Number(config.videosPerDay)
   const sprintDays = Number(config.sprintDays)
-  const sopBandAFloor = Number(config.sopBandAFloor)
-  const sopBandBFloor = Number(config.sopBandBFloor)
-  const parsed: SprintConfig = {
+  return {
     videosPerDay: videosPerDay >= 1 ? videosPerDay : 5,
     sprintDays: sprintDays === 3 || sprintDays === 14 ? sprintDays : 7,
   }
-  if (Number.isFinite(sopBandAFloor) && sopBandAFloor >= 0) {
-    parsed.sopBandAFloor = sopBandAFloor
-  }
-  if (Number.isFinite(sopBandBFloor) && sopBandBFloor >= 0) {
-    parsed.sopBandBFloor = sopBandBFloor
-  }
-  return parsed
 }
 
 function parseFilmingProgress(value: unknown): FilmingProgressStore {

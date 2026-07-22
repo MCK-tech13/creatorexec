@@ -41,7 +41,7 @@ export const SOP_COMMISSION_PER_ITEM_MIN = 2
 /** High-ticket override — fixed (≥ $10/item with ≥ 1 sale → Band B minimum). */
 export const SOP_HIGH_TICKET_COMMISSION_PER_ITEM = 10
 
-/** Default editable hard floors (per sprint window). */
+/** Fixed hard floors (per sprint window) — not user-configurable. */
 export const SOP_DEFAULT_BAND_A_FLOOR = 5
 export const SOP_DEFAULT_BAND_B_FLOOR = 2
 
