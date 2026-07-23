@@ -1,5 +1,5 @@
 import type { BrandDeal } from '../../../types/pipeline'
-import { isActiveRetainer } from '../retainerUtils'
+import { countVideosCompleted, isActiveRetainer } from '../retainerUtils'
 import type { CaptionMatchConfidence, CaptionMatchSuggestion, CaptionPost } from './types'
 
 const MIN_TOKEN_LEN = 3
@@ -45,10 +45,24 @@ function scoreDealAgainstCaption(deal: BrandDeal, captionNorm: string): ScoredHi
   return null
 }
 
+/** Retainers that still count for brand ambiguity (including fully filmed / closed). */
+function isMatchableRetainer(deal: BrandDeal): boolean {
+  return deal.isRetainer === true
+}
+
+function dealHasRemainingSlots(deal: BrandDeal): boolean {
+  const total = deal.retainerTotalVideos ?? 0
+  if (total <= 0) return false
+  return countVideosCompleted(deal) < total
+}
+
 /**
  * Build unambiguous caption→deal suggestions.
- * - Skips captions with 0 hits
- * - Skips captions that hit 2+ active deals (ambiguous — safer for demo)
+ * - Ambiguity is scored against ALL retainer deals (including completed checklists),
+ *   so a caption naming two brands is never treated as a single-brand hit just
+ *   because one deal is already fully filmed.
+ * - A suggestion is only emitted when exactly one retainer matches AND that deal
+ *   is still an active retainer with remaining checklist slots.
  * - Newest caption first among remaining
  */
 export function buildCaptionMatchSuggestions(
@@ -56,7 +70,7 @@ export function buildCaptionMatchSuggestions(
   deals: BrandDeal[],
   options?: { dismissedIds?: Set<string>; confirmedCaptionIds?: Set<string> },
 ): CaptionMatchSuggestion[] {
-  const active = deals.filter(isActiveRetainer)
+  const matchable = deals.filter(isMatchableRetainer)
   const dismissed = options?.dismissedIds ?? new Set<string>()
   const confirmed = options?.confirmedCaptionIds ?? new Set<string>()
 
@@ -68,8 +82,9 @@ export function buildCaptionMatchSuggestions(
     const captionNorm = normalizeMatchText(post.caption)
     if (!captionNorm) continue
 
+    // Ambiguity gate: every retainer brand/product hit counts, even if fully filmed.
     const hits: ScoredHit[] = []
-    for (const deal of active) {
+    for (const deal of matchable) {
       const hit = scoreDealAgainstCaption(deal, captionNorm)
       if (hit) hits.push(hit)
     }
@@ -77,12 +92,11 @@ export function buildCaptionMatchSuggestions(
     if (hits.length !== 1) continue
 
     const hit = hits[0]
+    // Emission gate: only propose if that single deal can still accept a filmed mark.
+    if (!isActiveRetainer(hit.deal) || !dealHasRemainingSlots(hit.deal)) continue
+
     const suggestionId = `${post.id}::${hit.deal.id}`
     if (dismissed.has(suggestionId)) continue
-
-    // Deal must still have room to film
-    const incomplete = hit.deal.filmingChecklist.some((i) => !i.completed)
-    if (!incomplete && (hit.deal.retainerTotalVideos ?? 0) > 0) continue
 
     out.push({
       id: suggestionId,
