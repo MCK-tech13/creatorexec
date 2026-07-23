@@ -1,17 +1,11 @@
-import type { ScheduleMode, SprintConfig, SprintDays } from '../../types'
+import type { SprintConfig, SprintDays } from '../../types'
 import { loadOnboardingProfile } from '../../lib/onboarding/storage'
-import {
-  SOP_DEFAULT_BAND_A_FLOOR,
-  SOP_DEFAULT_BAND_B_FLOOR,
-} from '../../lib/analysis/sopTierEngine'
 
 interface SprintConfigFormProps {
   config: SprintConfig
   onChange: (config: SprintConfig) => void
   onSubmit: () => void
   onBack: () => void
-  /** When `sop`, show editable Band A/B hard floors. */
-  scheduleMode?: ScheduleMode
 }
 
 const SPRINT_OPTIONS: SprintDays[] = [3, 7, 14]
@@ -21,14 +15,10 @@ export function SprintConfigForm({
   onChange,
   onSubmit,
   onBack,
-  scheduleMode = 'full',
 }: SprintConfigFormProps) {
   const totalVideos = config.videosPerDay * config.sprintDays
   const videosValid = Number.isInteger(config.videosPerDay) && config.videosPerDay >= 1
   const onboardingVideos = loadOnboardingProfile()?.videosPerDay
-  const showSopFloors = scheduleMode === 'sop'
-  const bandAFloor = config.sopBandAFloor ?? SOP_DEFAULT_BAND_A_FLOOR
-  const bandBFloor = config.sopBandBFloor ?? SOP_DEFAULT_BAND_B_FLOOR
 
   return (
     <div>
@@ -93,56 +83,6 @@ export function SprintConfigForm({
             ))}
           </div>
         </div>
-
-        {showSopFloors && (
-          <div className="space-y-4 border-t border-border-warm pt-6">
-            <div>
-              <span className="label-caps mb-2 block">SOP band hard floors</span>
-              <p className="font-body text-xs leading-relaxed text-stone">
-                Minimum sprint commission to qualify for Band A / Band B after volume scaling.
-                Commission-per-item ($2) and high-ticket ($10/item) rules stay fixed.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="sopBandAFloor" className="label-caps mb-2 block">
-                  Band A floor ($)
-                </label>
-                <input
-                  id="sopBandAFloor"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={bandAFloor}
-                  onChange={(e) => {
-                    const val = Number(e.target.value)
-                    if (!Number.isFinite(val) || val < 0) return
-                    onChange({ ...config, sopBandAFloor: val })
-                  }}
-                  className="input-field w-full px-4 py-3"
-                />
-              </div>
-              <div>
-                <label htmlFor="sopBandBFloor" className="label-caps mb-2 block">
-                  Band B floor ($)
-                </label>
-                <input
-                  id="sopBandBFloor"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={bandBFloor}
-                  onChange={(e) => {
-                    const val = Number(e.target.value)
-                    if (!Number.isFinite(val) || val < 0) return
-                    onChange({ ...config, sopBandBFloor: val })
-                  }}
-                  className="input-field w-full px-4 py-3"
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="border-t-2 border-emerald pt-7 text-center">
           <p className="label-caps">Total videos this sprint</p>

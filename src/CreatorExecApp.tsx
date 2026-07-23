@@ -388,10 +388,6 @@ export default function CreatorExecApp() {
     (config: SprintConfig = sprintConfig) => ({
       dailyVolume: config.videosPerDay,
       sprintDays: config.sprintDays,
-      floors: {
-        ...(config.sopBandAFloor != null ? { bandAFloor: config.sopBandAFloor } : {}),
-        ...(config.sopBandBFloor != null ? { bandBFloor: config.sopBandBFloor } : {}),
-      },
     }),
     [sprintConfig],
   )
@@ -697,7 +693,7 @@ export default function CreatorExecApp() {
     (config: SprintConfig) => {
       setSprintConfig(config)
       if (scheduleMode !== 'sop') return
-      // Volume / floors change Top/Mid counts and Band thresholds — re-rank live.
+      // Volume changes Top/Mid counts and Band thresholds — re-rank live.
       setProducts((prev) => retierPreservingManual(prev, 'sop', config))
     },
     [scheduleMode, retierPreservingManual],
@@ -1494,7 +1490,6 @@ export default function CreatorExecApp() {
       {stage === 'config' && (
         <SprintConfigForm
           config={sprintConfig}
-          scheduleMode={scheduleMode}
           onChange={handleSprintConfigChange}
           onSubmit={handleGenerateSchedule}
           onBack={() => setStage('dashboard')}
