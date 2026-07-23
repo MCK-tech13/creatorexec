@@ -2,17 +2,19 @@ import type { MergedProduct, ScheduleMode, SprintConfig, SprintDays } from '../.
 import type { CatalogProduct } from '../../types/productCatalog'
 import { tierProductsMomentum } from '../analysis/momentumMode'
 import { tierProductsSopList } from '../analysis/sopTierAssign'
-import { tierProducts } from '../analysis/tierEngine'
+// Full `tierEngine.tierProducts` kept in-repo; not imported on user-reachable catalog path.
 import { hydrateProductsTrialProgress } from '../schedule/trialProgress'
 import { loadProductCatalog } from './productCatalogStorage'
 
 const SENTINEL_EXTERNAL = new Set(['sample', 'manual', ''])
 
-/** Legacy `sample` schedule mode is an alias of `full` (Stage 3). */
+/**
+ * User-facing default is SOP. Momentum is reserved for the silent low-data
+ * fallback. Legacy `full` / `sample` coerce to `sop` (engines stay in repo).
+ */
 export function normalizeScheduleMode(mode: ScheduleMode | string | null | undefined): ScheduleMode {
   if (mode === 'momentum') return 'momentum'
-  if (mode === 'sop') return 'sop'
-  return 'full'
+  return 'sop'
 }
 
 /**
@@ -44,9 +46,10 @@ export function scheduleModeFromPersisted(
     sprintConfig && typeof sprintConfig === 'object'
       ? (sprintConfig as { analysisMode?: unknown })
       : {}
-  if (config.analysisMode === 'sop') return 'sop'
   if (columnMode === 'momentum') return 'momentum'
-  return 'full'
+  if (config.analysisMode === 'sop') return 'sop'
+  // Legacy full / missing analysisMode → SOP (only user-facing path).
+  return 'sop'
 }
 
 function displayName(product: CatalogProduct): string {
@@ -112,17 +115,16 @@ export function buildSprintProductsFromCatalog(
   const byId = new Map(active.map((product) => [product.id, product]))
   const drafts = active.map(mergedDraftFromCatalog)
 
+  // Full `tierProducts` remains in-repo but is not used on user-reachable paths.
   let ranked: MergedProduct[]
   if (mode === 'momentum') {
     ranked = tierProductsMomentum(drafts)
-  } else if (mode === 'sop') {
+  } else {
     ranked = tierProductsSopList(drafts, {
       dailyVolume: options?.dailyVolume ?? 30,
       sprintDays: options?.sprintDays ?? 3,
       floors: options?.floors,
     })
-  } else {
-    ranked = tierProducts(drafts)
   }
 
   const tiered = ranked.map((product) => {

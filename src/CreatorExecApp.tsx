@@ -6,12 +6,9 @@ import { AppShell } from './components/layout/AppShell'
 import { OnboardingQuiz } from './components/onboarding/OnboardingQuiz'
 import { CsvUploadZone } from './components/upload/CsvUploadZone'
 import { SampleModeScreen } from './components/sample/SampleModeScreen'
-import { MomentumModeScreen } from './components/momentum/MomentumModeScreen'
-import { MomentumModePromptModal } from './components/momentum/MomentumModePromptModal'
 import { StatsCards } from './components/dashboard/StatsCards'
 import { TierTabs } from './components/dashboard/TierTabs'
 import { ProductTable } from './components/dashboard/ProductTable'
-import { ScheduleModeSelector } from './components/dashboard/ScheduleModeSelector'
 import { UploadReminderBanner } from './components/dashboard/UploadReminderBanner'
 import { AddProductModal } from './components/dashboard/AddProductModal'
 import { SprintConfigForm } from './components/config/SprintConfigForm'
@@ -44,14 +41,13 @@ import {
   resetFirstSprintCelebrationSeen,
 } from './lib/celebrations/firstSprintStorage'
 import { parseCommissionFile, isParseError } from './lib/csv/parser'
-import { tierProducts, computeScore } from './lib/analysis/tierEngine'
+import { computeScore } from './lib/analysis/tierEngine'
 import {
   formatTopEarnerLine,
   retierProductsForMode,
   shouldSuggestMomentumMode,
   tierProductsMomentum,
 } from './lib/analysis/momentumMode'
-import { buildFilmingSchedule } from './lib/schedule/scheduleBuilder'
 import { buildMomentumModeSchedule } from './lib/schedule/momentumModeSchedule'
 import { buildSopModeSchedule } from './lib/schedule/sopSchedule'
 import {
@@ -163,14 +159,17 @@ function readRestoredSprint(): CurrentSprintState | null {
   try {
     return {
       ...saved,
-      // Stage 3: legacy scheduleMode `sample` coerces to `full`.
+      // Legacy full/sample → sop; momentum only when silent low-data fallback applies.
       scheduleMode: normalizeScheduleMode(saved.scheduleMode),
+      // Momentum is no longer a user-reachable stage.
+      stage: saved.stage === 'momentum' ? 'upload' : saved.stage,
       filmingProgress: previewLegacyFilmingMerge(getActiveUserId(), saved.filmingProgress),
     }
   } catch {
     return {
       ...saved,
       scheduleMode: normalizeScheduleMode(saved.scheduleMode),
+      stage: saved.stage === 'momentum' ? 'upload' : saved.stage,
     }
   }
 }
@@ -193,9 +192,8 @@ function buildScheduleForMode(
   )
   const retainerVideos = buildRetainerVideos(retainerEntries, config.sprintDays)
 
-  // Stage 2: sample-mode entry is a thin wrapper — schedule uses the full
-  // 6-video Test trial allocator (same as CSV), not the old 1-slot path.
-  // Stage 3: `sample` schedule mode no longer exists; momentum / sop branch.
+  // Stage 3: `sample` schedule mode no longer exists.
+  // User-reachable paths: Momentum (silent low-data) or SOP. Full scheduler stays in-repo unused.
   if (mode === 'momentum') {
     return buildMomentumModeSchedule(
       products,
@@ -205,16 +203,7 @@ function buildScheduleForMode(
       retainerVideos,
     )
   }
-  if (mode === 'sop') {
-    return buildSopModeSchedule(
-      products,
-      config,
-      mergedDeadlines,
-      excluded,
-      retainerVideos,
-    )
-  }
-  return buildFilmingSchedule(
+  return buildSopModeSchedule(
     products,
     config,
     mergedDeadlines,
@@ -270,8 +259,6 @@ export default function CreatorExecApp() {
   const [sampleProducts, setSampleProducts] = useState<SampleProduct[]>(
     () => restored?.sampleProducts ?? [],
   )
-  const [pendingProducts, setPendingProducts] = useState<MergedProduct[] | null>(null)
-  const [showMomentumPrompt, setShowMomentumPrompt] = useState(false)
   const [mainSection, setMainSection] = useState<MainSection>(() => {
     const fromUrl = parseAppSectionPath(window.location.pathname)
     if (fromUrl && fromUrl !== 'invalid') return fromUrl
@@ -391,8 +378,8 @@ export default function CreatorExecApp() {
   const dailyPostingVolume = sprintConfig.videosPerDay
 
   const isBeginnerMode = userMode === 'beginner'
-  const isMomentumMode = scheduleMode === 'momentum'
-  const isSopMode = scheduleMode === 'sop'
+  // Momentum may run silently for low-data uploads; never shown as a named mode.
+  const usesSilentMomentum = scheduleMode === 'momentum'
 
   const sopRetierOptions = useCallback(
     (config: SprintConfig = sprintConfig) => ({
@@ -496,9 +483,6 @@ export default function CreatorExecApp() {
             setActiveTier(nextProduct.tier)
           }
         }
-        if (scheduleMode === 'full') {
-          enqueueAnchorPromotions(prev, tiered)
-        }
         if (stage === 'schedule') {
           rebuildSchedule(
             tiered,
@@ -519,7 +503,6 @@ export default function CreatorExecApp() {
       sprintConfig,
       excludedFromSchedule,
       retierPreservingManual,
-      enqueueAnchorPromotions,
       activeTier,
     ],
   )
@@ -534,9 +517,6 @@ export default function CreatorExecApp() {
         mode: effectiveMode,
         ...sopRetierOptions(sprintConfig),
       })
-      if (effectiveMode === 'full') {
-        enqueueAnchorPromotions(products, fromCatalog)
-      }
       setProducts(fromCatalog)
       setScheduleMode(effectiveMode)
       setSampleProducts([])
@@ -551,8 +531,6 @@ export default function CreatorExecApp() {
       fileName,
       saveCurrentSprintStart,
       sprintConfig,
-      products,
-      enqueueAnchorPromotions,
       sopRetierOptions,
     ],
   )
@@ -597,10 +575,8 @@ export default function CreatorExecApp() {
     clearProductCatalog()
     clearSprintSnapshots()
     resetFirstSprintCelebrationSeen(getActiveUserId())
-    setScheduleMode('full')
+    setScheduleMode('sop')
     setSampleProducts([])
-    setPendingProducts(null)
-    setShowMomentumPrompt(false)
     setUploadLandingMode('routed')
     setShowProductEntry(false)
     clearingRef.current = false
@@ -608,7 +584,7 @@ export default function CreatorExecApp() {
   }, [navigate, resetFilmingProgress])
 
   const handleFileLoaded = useCallback(
-    async (file: File, options?: { fromMomentumEntry?: boolean }) => {
+    async (file: File) => {
       setIsProcessing(true)
       setError(null)
       setFileName(file.name)
@@ -624,21 +600,22 @@ export default function CreatorExecApp() {
         markCsvUploadNow()
         setEngagementTick((tick) => tick + 1)
 
-        const fullTiered = tierProducts(result.products)
-
-        if (options?.fromMomentumEntry) {
+        // Silent Momentum fallback when low sales density; otherwise SOP.
+        if (shouldSuggestMomentumMode(result.products as MergedProduct[])) {
           finishUpload(tierProductsMomentum(result.products), 'momentum', file.name)
           return
         }
 
-        if (shouldSuggestMomentumMode(fullTiered)) {
-          setPendingProducts(fullTiered)
-          setShowMomentumPrompt(true)
-          setIsProcessing(false)
-          return
-        }
-
-        finishUpload(fullTiered, 'full', file.name)
+        finishUpload(
+          result.products.map((p) => ({
+            ...p,
+            score: 0,
+            tier: 'Test' as const,
+            rankInTier: 0,
+          })),
+          'sop',
+          file.name,
+        )
       } catch {
         setError('Failed to read the file. Please try again.')
         setIsProcessing(false)
@@ -647,63 +624,11 @@ export default function CreatorExecApp() {
     [finishUpload],
   )
 
-  const handleMomentumPromptConfirm = useCallback(() => {
-    if (!pendingProducts) return
-    const inputs = pendingProducts.map((p) => {
-      const { score, tier, rankInTier, ...rest } = p
-      return rest
-    })
-    finishUpload(tierProductsMomentum(inputs), 'momentum')
-    setPendingProducts(null)
-    setShowMomentumPrompt(false)
-  }, [pendingProducts, finishUpload])
-
-  const handleMomentumPromptDecline = useCallback(() => {
-    if (!pendingProducts) return
-    finishUpload(pendingProducts, 'full')
-    setPendingProducts(null)
-    setShowMomentumPrompt(false)
-  }, [pendingProducts, finishUpload])
-
-  const handleSwitchScheduleMode = useCallback(
-    (mode: ScheduleMode) => {
-      if (scheduleMode === mode) return
-      setScheduleMode(mode)
-      setActiveTier('All')
-      setProducts((prev) => {
-        const tiered = retierProductsForMode(prev, mode, sopRetierOptions())
-        if (mode === 'full') {
-          enqueueAnchorPromotions(prev, tiered)
-        }
-        if (stage === 'schedule') {
-          rebuildSchedule(
-            tiered,
-            deadlineProducts,
-            sprintConfig,
-            excludedFromSchedule,
-            mode,
-          )
-        }
-        return tiered
-      })
-    },
-    [
-      scheduleMode,
-      stage,
-      rebuildSchedule,
-      deadlineProducts,
-      sprintConfig,
-      excludedFromSchedule,
-      enqueueAnchorPromotions,
-      sopRetierOptions,
-    ],
-  )
-
   const handleSprintConfigChange = useCallback(
     (config: SprintConfig) => {
       setSprintConfig(config)
-      if (scheduleMode !== 'sop') return
-      // Volume changes Top/Mid counts and Band thresholds — re-rank live.
+      if (scheduleMode === 'momentum') return
+      // Volume changes Top/Mid counts and Band thresholds — re-rank live (SOP).
       setProducts((prev) => retierPreservingManual(prev, 'sop', config))
     },
     [scheduleMode, retierPreservingManual],
@@ -720,9 +645,6 @@ export default function CreatorExecApp() {
           p.id === productId ? { ...p, videosFilmed } : p,
         )
         const tiered = retierPreservingManual(updated, scheduleMode)
-        if (scheduleMode === 'full') {
-          enqueueAnchorPromotions(prev, tiered)
-        }
         if (stage === 'schedule') {
           rebuildSchedule(
             tiered,
@@ -743,7 +665,6 @@ export default function CreatorExecApp() {
       sprintConfig,
       excludedFromSchedule,
       retierPreservingManual,
-      enqueueAnchorPromotions,
     ],
   )
 
@@ -760,13 +681,10 @@ export default function CreatorExecApp() {
         if (next === prev) return prev
         const modeForTier = scheduleMode
         const tiered = retierPreservingManual(next, modeForTier)
-        if (modeForTier === 'full') {
-          enqueueAnchorPromotions(prev, tiered)
-        }
         return tiered
       })
     },
-    [incrementFilmed, scheduleMode, retierPreservingManual, enqueueAnchorPromotions],
+    [incrementFilmed, scheduleMode, retierPreservingManual],
   )
 
   const handleScheduleFilmedDecrement = useCallback(
@@ -839,9 +757,6 @@ export default function CreatorExecApp() {
         const modeForTier = scheduleMode
         const combined = retierPreservingManual([...prev, newProduct], modeForTier)
         upsertCatalogFromMergedProducts([newProduct], 'manual')
-        if (modeForTier === 'full') {
-          enqueueAnchorPromotions(prev, combined)
-        }
         if (stage === 'schedule') {
           rebuildSchedule(
             combined,
@@ -862,7 +777,6 @@ export default function CreatorExecApp() {
       sprintConfig,
       excludedFromSchedule,
       retierPreservingManual,
-      enqueueAnchorPromotions,
     ],
   )
 
@@ -876,10 +790,8 @@ export default function CreatorExecApp() {
     setSchedule([])
     setError(null)
     setFileName(null)
-    setScheduleMode('full')
+    setScheduleMode('sop')
     setSampleProducts([])
-    setPendingProducts(null)
-    setShowMomentumPrompt(false)
     setSprintConfig((prev) => ({
       videosPerDay: loadOnboardingProfile()?.videosPerDay ?? prev.videosPerDay,
       sprintDays: 7,
@@ -959,7 +871,7 @@ export default function CreatorExecApp() {
 
   const handleEnterSampleMode = useCallback(() => {
     setError(null)
-    setScheduleMode('full')
+    setScheduleMode('sop')
     setProducts([])
     // Seed the thin sample wrapper from durable catalog so products reappear visibly.
     setSampleProducts(
@@ -981,17 +893,6 @@ export default function CreatorExecApp() {
     setShowProductEntry(false)
   }, [])
 
-  const handleEnterMomentumMode = useCallback(() => {
-    setError(null)
-    setScheduleMode('full')
-    setProducts([])
-    setSampleProducts([])
-    setSchedule([])
-    setFileName(null)
-    setUploadLandingMode('routed')
-    setStage('momentum')
-    setShowProductEntry(false)
-  }, [])
 
   const handleEnterUpload = useCallback(() => {
     setError(null)
@@ -1017,11 +918,11 @@ export default function CreatorExecApp() {
       selectedIds.has(product.id),
     )
     setProducts(fromCatalog)
-    setScheduleMode('full')
+    setScheduleMode('sop')
     setDeadlineProducts([])
     setExcludedFromSchedule(new Set())
     setStage('config')
-    saveCurrentSprintStart(fromCatalog, sprintConfig, 'full', null)
+    saveCurrentSprintStart(fromCatalog, sprintConfig, 'sop', null)
   }, [saveCurrentSprintStart, sprintConfig])
 
   /** Empty-state / Start Over: resume scheduling from durable catalog products. */
@@ -1033,14 +934,14 @@ export default function CreatorExecApp() {
     }
     setSampleProducts([])
     setProducts(fromCatalog)
-    setScheduleMode('full')
+    setScheduleMode('sop')
     setDeadlineProducts([])
     setExcludedFromSchedule(new Set())
     setFileName(null)
     setUploadLandingMode('routed')
     setShowProductEntry(false)
     setStage('dashboard')
-    saveCurrentSprintStart(fromCatalog, sprintConfig, 'full', null)
+    saveCurrentSprintStart(fromCatalog, sprintConfig, 'sop', null)
   }, [handleEnterSampleMode, saveCurrentSprintStart, sprintConfig])
 
   const handleRemoveFromSchedule = useCallback(
@@ -1059,7 +960,7 @@ export default function CreatorExecApp() {
     beginNextSprint('start-over')
   }
 
-  const topEarnerLine = isMomentumMode ? formatTopEarnerLine(products) : null
+  const topEarnerLine = usesSilentMomentum ? formatTopEarnerLine(products) : null
 
   const productFlags = useMemo(() => {
     const completedSprintEnds = getUserDataSnapshot().sprintHistory.map(
@@ -1354,8 +1255,8 @@ export default function CreatorExecApp() {
           <CsvUploadZone
             onFileLoaded={(file) => handleFileLoaded(file)}
             onEnterSampleMode={handleEnterSampleMode}
-            onEnterMomentumMode={handleEnterMomentumMode}
             isProcessing={isProcessing}
+            showAlternatePaths={false}
           />
           {error && (
             <div className="mt-6 border border-border-warm px-6 py-4 font-body text-sm text-stone">
@@ -1370,48 +1271,17 @@ export default function CreatorExecApp() {
           initialProducts={sampleProducts}
           onBuildSchedule={handleSampleBuildSchedule}
           onEnterUpload={handleEnterUpload}
-          onEnterMomentum={handleEnterMomentumMode}
         />
       )}
 
-      {stage === 'momentum' && (
-        <div className="fade-in">
-          <MomentumModeScreen
-            onFileLoaded={(file) => handleFileLoaded(file, { fromMomentumEntry: true })}
-            onEnterUpload={handleEnterUpload}
-            onEnterSampleMode={handleEnterSampleMode}
-            isProcessing={isProcessing}
-          />
-          {error && (
-            <div className="mt-6 border border-border-warm px-6 py-4 font-body text-sm text-stone">
-              {error}
-            </div>
-          )}
-        </div>
-      )}
+
 
       {stage === 'dashboard' && (
         <div className="space-y-8 fade-in">
           {fileName && (
             <p className="font-body text-sm font-medium text-emerald">Report analyzed ✓</p>
           )}
-          {isMomentumMode && (
-            <div className="border border-terracotta/40 bg-terracotta-tint px-6 py-5">
-              <p className="font-body text-base text-ink">
-                You&apos;re in Momentum Mode. Keep filming consistently and your top products
-                will surface over time. Upload a new report each sprint to track your progress.
-              </p>
-            </div>
-          )}
-          {isSopMode && (
-            <div className="border border-emerald/30 bg-white px-6 py-5">
-              <p className="font-body text-base text-ink">
-                You&apos;re in SOP Mode. Products still use Anchor / Rising / Test / Cut in the
-                dashboard. Band A/B status is kept internally for scheduling priority.
-              </p>
-            </div>
-          )}
-          {isBeginnerMode && !isMomentumMode && !isSopMode && (
+          {isBeginnerMode && !usesSilentMomentum && (
             <div className="border-t-2 border-emerald pt-6">
               <p className="font-body text-base leading-relaxed text-stone">
                 Here are your products ranked by performance. Your top earners are highlighted
@@ -1423,19 +1293,13 @@ export default function CreatorExecApp() {
           {topEarnerLine && (
             <p className="font-body text-base text-stone">{topEarnerLine}</p>
           )}
-          <div className="mt-6 sm:mt-8">
-            <ScheduleModeSelector
-              mode={scheduleMode}
-              onChange={handleSwitchScheduleMode}
-            />
-          </div>
           <div className="mt-8 sm:mt-12">
             <TierTabs
               products={products}
               activeTier={activeTier}
               onTierChange={setActiveTier}
             />
-            {isBeginnerMode && !isMomentumMode && !isSopMode && (
+            {isBeginnerMode && !usesSilentMomentum && (
               <div className="mt-3 flex justify-end sm:mt-4">
                 <button
                   type="button"
@@ -1450,7 +1314,7 @@ export default function CreatorExecApp() {
           <ProductTable
             products={products}
             activeTier={activeTier}
-            beginnerMode={isBeginnerMode && !isMomentumMode && !isSopMode}
+            beginnerMode={isBeginnerMode && !usesSilentMomentum}
             advancedControlsOpen={showAdvancedControls}
             stalledKeys={productFlags.stalled}
             slowingAnchorKeys={productFlags.slowingAnchors}
@@ -1458,7 +1322,7 @@ export default function CreatorExecApp() {
             onInRotationChange={handleInRotationChange}
             onMarkTrialPreviouslyCompleted={handleMarkTrialPreviouslyCompleted}
           />
-          {!isBeginnerMode && !isMomentumMode && !isSopMode && (
+          {!isBeginnerMode && !usesSilentMomentum && (
             <p className="font-body text-xs text-stone">
               New Test products get a 6-video trial before low performers can move to Cut. If you
               already tested a product before CreatorExec, use &quot;Already tested this
@@ -1483,7 +1347,7 @@ export default function CreatorExecApp() {
               Configure Sprint →
             </button>
           </div>
-          {isBeginnerMode && !isMomentumMode && !isSopMode && (
+          {isBeginnerMode && !usesSilentMomentum && (
             <p className="text-center">
               <button
                 type="button"
@@ -1510,8 +1374,8 @@ export default function CreatorExecApp() {
         <FilmingSchedule
           schedule={schedule}
           products={products}
-          beginnerMode={isBeginnerMode && !isMomentumMode}
-          momentumMode={isMomentumMode}
+          beginnerMode={isBeginnerMode && !usesSilentMomentum}
+          momentumMode={false}
           getFilmedCount={getFilmedCount}
           onFilmedIncrement={handleScheduleFilmedIncrement}
           onFilmedDecrement={handleScheduleFilmedDecrement}
@@ -1533,12 +1397,7 @@ export default function CreatorExecApp() {
         />
       )}
 
-      {showMomentumPrompt && (
-        <MomentumModePromptModal
-          onConfirm={handleMomentumPromptConfirm}
-          onDecline={handleMomentumPromptDecline}
-        />
-      )}
+
 
       {firstSprintCelebration && (
         <FirstSprintCelebration

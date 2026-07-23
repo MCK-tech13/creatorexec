@@ -6,7 +6,7 @@ import { EditorialMark } from '../ui/EditorialMark'
 interface CsvUploadZoneProps {
   onFileLoaded: (file: File) => void
   onEnterSampleMode: () => void
-  onEnterMomentumMode: () => void
+  onEnterMomentumMode?: () => void
   isProcessing?: boolean
   showAlternatePaths?: boolean
 }
@@ -56,7 +56,7 @@ export function CsvUploadZone({
   onEnterSampleMode,
   onEnterMomentumMode,
   isProcessing,
-  showAlternatePaths = true,
+  showAlternatePaths = false,
 }: CsvUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [fileError, setFileError] = useState<string | null>(null)
@@ -137,14 +137,14 @@ export function CsvUploadZone({
             </button>
           </div>
 
-          {showAlternatePaths && (
+          {showAlternatePaths && onEnterMomentumMode && (
             <div className="mt-10 space-y-3 border-t border-border-warm pt-8 text-center">
               <button
                 type="button"
                 onClick={onEnterMomentumMode}
                 className="link-elegant block w-full font-body text-sm text-stone"
               >
-                Have some sales but not many? Try Momentum Mode instead
+                Have some sales but not many? Try adding more products to your catalog
               </button>
             </div>
           )}

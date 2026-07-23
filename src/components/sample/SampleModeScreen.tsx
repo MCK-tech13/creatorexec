@@ -248,7 +248,7 @@ export function SampleModeScreen({
               onClick={onEnterMomentum}
               className="link-elegant block w-full font-body text-sm text-stone"
             >
-              Have some sales but not many? Try Momentum Mode instead
+              Have some sales but not many? Upload your commission report instead
             </button>
           )}
         </div>

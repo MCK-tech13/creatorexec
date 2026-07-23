@@ -92,7 +92,7 @@ export function FilmingSchedule({
       {momentumMode && (
         <div className="mb-6 border border-terracotta/40 bg-terracotta-tint px-4 py-4 sm:mb-8 sm:px-6 sm:py-5">
           <p className="font-body text-sm text-ink sm:text-base">
-            Momentum Mode — filming all your products consistently to find your winners.
+            Filming all your products consistently to find your winners.
           </p>
         </div>
       )}

@@ -1,5 +1,5 @@
 import type { MergedProduct, SprintDays, Tier } from '../../types'
-import { computeScore, tierProducts } from './tierEngine'
+import { computeScore } from './tierEngine'
 import {
   tierProductsSopList,
   type TierProductsSopOptions,
@@ -12,7 +12,10 @@ type TierInput = Omit<MergedProduct, 'score' | 'tier' | 'rankInTier'> & {
   tier?: Tier
 }
 
-/** Fewer than 5 products with 3+ items sold → suggest Momentum Mode. */
+/**
+ * Fewer than 5 non-manual products with 3+ items sold → apply Momentum
+ * scheduling/tiering automatically (silent; not shown as a named mode).
+ */
 export function shouldSuggestMomentumMode(products: MergedProduct[]): boolean {
   const qualifying = products.filter(
     (p) => !p.isManual && p.itemsSold >= MOMENTUM_MIN_ITEMS_SOLD,
@@ -100,12 +103,10 @@ export function retierProductsForMode(
   if (mode === 'momentum') {
     return tierProductsMomentum(inputs)
   }
-  if (mode === 'sop') {
-    return tierProductsSopList(inputs, {
-      dailyVolume: options?.dailyVolume ?? 30,
-      sprintDays: options?.sprintDays ?? 3,
-      floors: options?.floors,
-    })
-  }
-  return tierProducts(inputs)
+  // SOP is the only non-momentum user path; Full `tierProducts` is unused here.
+  return tierProductsSopList(inputs, {
+    dailyVolume: options?.dailyVolume ?? 30,
+    sprintDays: options?.sprintDays ?? 3,
+    floors: options?.floors,
+  })
 }

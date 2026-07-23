@@ -9,7 +9,6 @@ export function stageFromMonthlyCommission(level: MonthlyCommissionLevel): AppSt
     case 'just_starting':
       return 'sample'
     case 'growing':
-      return 'momentum'
     case 'established':
       return 'upload'
   }
