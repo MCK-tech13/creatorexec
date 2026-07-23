@@ -9,8 +9,9 @@ import { SampleModeScreen } from './components/sample/SampleModeScreen'
 import { MomentumModeScreen } from './components/momentum/MomentumModeScreen'
 import { MomentumModePromptModal } from './components/momentum/MomentumModePromptModal'
 import { StatsCards } from './components/dashboard/StatsCards'
-import { TierTabs } from './components/dashboard/TierTabs'
+import { TierTabs, type DashboardTierFilter } from './components/dashboard/TierTabs'
 import { ProductTable } from './components/dashboard/ProductTable'
+import { ScheduleModeSelector } from './components/dashboard/ScheduleModeSelector'
 import { UploadReminderBanner } from './components/dashboard/UploadReminderBanner'
 import { AddProductModal } from './components/dashboard/AddProductModal'
 import { SprintConfigForm } from './components/config/SprintConfigForm'
@@ -131,7 +132,6 @@ import type {
   SampleProduct,
   ScheduleMode,
   SprintConfig,
-  Tier,
 } from './types'
 import { TIER_REVIEW_VIDEO_COUNT } from './types'
 import type { OnboardingProfile, UserMode } from './types/onboarding'
@@ -244,7 +244,7 @@ export default function CreatorExecApp() {
     () => new Set(restored?.excludedProductKeys ?? []),
   )
   const [showAdvancedControls, setShowAdvancedControls] = useState(false)
-  const [activeTier, setActiveTier] = useState<Tier | 'All'>('All')
+  const [activeTier, setActiveTier] = useState<DashboardTierFilter>('All')
   const [sprintConfig, setSprintConfig] = useState<SprintConfig>(
     () => restored?.sprintConfig ?? initialSprintConfig(),
   )
@@ -381,6 +381,19 @@ export default function CreatorExecApp() {
 
   const isBeginnerMode = userMode === 'beginner'
   const isMomentumMode = scheduleMode === 'momentum'
+  const isSopMode = scheduleMode === 'sop'
+
+  const sopRetierOptions = useCallback(
+    (config: SprintConfig = sprintConfig) => ({
+      dailyVolume: config.videosPerDay,
+      sprintDays: config.sprintDays,
+      floors: {
+        ...(config.sopBandAFloor != null ? { bandAFloor: config.sopBandAFloor } : {}),
+        ...(config.sopBandBFloor != null ? { bandBFloor: config.sopBandBFloor } : {}),
+      },
+    }),
+    [sprintConfig],
+  )
 
   const rebuildSchedule = useCallback(
     (
@@ -399,16 +412,14 @@ export default function CreatorExecApp() {
       // products aren't held in Test for a trial they opted out of.
       const next =
         videosChanged
-          ? retierProductsForMode(hydrated, mode, {
-              dailyVolume: config.videosPerDay,
-              sprintDays: config.sprintDays,
-            })
+          ? retierProductsForMode(hydrated, mode, sopRetierOptions(config))
           : hydrated
       if (
         next.some(
           (product, index) =>
             product.videosFilmed !== productList[index]?.videosFilmed ||
-            product.tier !== productList[index]?.tier,
+            product.tier !== productList[index]?.tier ||
+            product.sopTier !== productList[index]?.sopTier,
         )
       ) {
         setProducts(next)
@@ -425,17 +436,18 @@ export default function CreatorExecApp() {
         ),
       )
     },
-    [brandDeals],
+    [brandDeals, sopRetierOptions],
   )
 
   const retierPreservingManual = useCallback(
-    (updated: MergedProduct[], mode: ScheduleMode): MergedProduct[] => {
-      return retierProductsForMode(updated, mode, {
-        dailyVolume: sprintConfig.videosPerDay,
-        sprintDays: sprintConfig.sprintDays,
-      })
+    (
+      updated: MergedProduct[],
+      mode: ScheduleMode,
+      config: SprintConfig = sprintConfig,
+    ): MergedProduct[] => {
+      return retierProductsForMode(updated, mode, sopRetierOptions(config))
     },
-    [sprintConfig.videosPerDay, sprintConfig.sprintDays],
+    [sprintConfig, sopRetierOptions],
   )
 
   const enqueueAnchorPromotions = useCallback((previous: MergedProduct[], next: MergedProduct[]) => {
@@ -473,7 +485,15 @@ export default function CreatorExecApp() {
             nextTier: nextProduct.tier,
           })
           // Follow the product if it left Test (e.g. moved to Cut).
-          if (nextProduct.tier !== 'Test' && activeTier === 'Test') {
+          if (isSopMode) {
+            if (
+              nextProduct.sopTier &&
+              activeTier !== 'All' &&
+              nextProduct.sopTier !== activeTier
+            ) {
+              setActiveTier(nextProduct.sopTier)
+            }
+          } else if (nextProduct.tier !== 'Test' && activeTier === 'Test') {
             setActiveTier(nextProduct.tier)
           }
         }
@@ -495,6 +515,7 @@ export default function CreatorExecApp() {
     [
       stage,
       scheduleMode,
+      isSopMode,
       rebuildSchedule,
       deadlineProducts,
       sprintConfig,
@@ -513,8 +534,7 @@ export default function CreatorExecApp() {
       upsertCatalogFromMergedProducts(tiered, 'csv')
       const fromCatalog = buildSprintProductsFromCatalog(undefined, {
         mode: effectiveMode,
-        dailyVolume: sprintConfig.videosPerDay,
-        sprintDays: sprintConfig.sprintDays,
+        ...sopRetierOptions(sprintConfig),
       })
       if (effectiveMode === 'full') {
         enqueueAnchorPromotions(products, fromCatalog)
@@ -535,6 +555,7 @@ export default function CreatorExecApp() {
       sprintConfig,
       products,
       enqueueAnchorPromotions,
+      sopRetierOptions,
     ],
   )
 
@@ -650,11 +671,9 @@ export default function CreatorExecApp() {
     (mode: ScheduleMode) => {
       if (scheduleMode === mode) return
       setScheduleMode(mode)
+      setActiveTier('All')
       setProducts((prev) => {
-        const tiered = retierProductsForMode(prev, mode, {
-          dailyVolume: sprintConfig.videosPerDay,
-          sprintDays: sprintConfig.sprintDays,
-        })
+        const tiered = retierProductsForMode(prev, mode, sopRetierOptions())
         if (mode === 'full') {
           enqueueAnchorPromotions(prev, tiered)
         }
@@ -678,7 +697,18 @@ export default function CreatorExecApp() {
       sprintConfig,
       excludedFromSchedule,
       enqueueAnchorPromotions,
+      sopRetierOptions,
     ],
+  )
+
+  const handleSprintConfigChange = useCallback(
+    (config: SprintConfig) => {
+      setSprintConfig(config)
+      if (scheduleMode !== 'sop') return
+      // Volume / floors change Top/Mid counts and Band thresholds — re-rank live.
+      setProducts((prev) => retierPreservingManual(prev, 'sop', config))
+    },
+    [scheduleMode, retierPreservingManual],
   )
 
   const handleVideosFilmedChange = useCallback(
@@ -1375,7 +1405,15 @@ export default function CreatorExecApp() {
               </p>
             </div>
           )}
-          {isBeginnerMode && !isMomentumMode && (
+          {isSopMode && (
+            <div className="border border-emerald/30 bg-white px-6 py-5">
+              <p className="font-body text-base text-ink">
+                You&apos;re in SOP Mode. Products rank into Anchor, Rotator, Mid, and Band A/B
+                from commission aggregates. Band floors are editable in sprint config.
+              </p>
+            </div>
+          )}
+          {isBeginnerMode && !isMomentumMode && !isSopMode && (
             <div className="border-t-2 border-emerald pt-6">
               <p className="font-body text-base leading-relaxed text-stone">
                 Here are your products ranked by performance. Your top earners are highlighted
@@ -1387,13 +1425,20 @@ export default function CreatorExecApp() {
           {topEarnerLine && (
             <p className="font-body text-base text-stone">{topEarnerLine}</p>
           )}
+          <div className="mt-6 sm:mt-8">
+            <ScheduleModeSelector
+              mode={scheduleMode}
+              onChange={handleSwitchScheduleMode}
+            />
+          </div>
           <div className="mt-8 sm:mt-12">
             <TierTabs
               products={products}
               activeTier={activeTier}
               onTierChange={setActiveTier}
+              sopMode={isSopMode}
             />
-            {isBeginnerMode && !isMomentumMode && (
+            {isBeginnerMode && !isMomentumMode && !isSopMode && (
               <div className="mt-3 flex justify-end sm:mt-4">
                 <button
                   type="button"
@@ -1408,15 +1453,16 @@ export default function CreatorExecApp() {
           <ProductTable
             products={products}
             activeTier={activeTier}
-            beginnerMode={isBeginnerMode && !isMomentumMode}
+            beginnerMode={isBeginnerMode && !isMomentumMode && !isSopMode}
             advancedControlsOpen={showAdvancedControls}
+            sopMode={isSopMode}
             stalledKeys={productFlags.stalled}
             slowingAnchorKeys={productFlags.slowingAnchors}
             onVideosFilmedChange={handleVideosFilmedChange}
             onInRotationChange={handleInRotationChange}
             onMarkTrialPreviouslyCompleted={handleMarkTrialPreviouslyCompleted}
           />
-          {!isBeginnerMode && !isMomentumMode && (
+          {!isBeginnerMode && !isMomentumMode && !isSopMode && (
             <p className="font-body text-xs text-stone">
               New Test products get a 6-video trial before low performers can move to Cut. If you
               already tested a product before CreatorExec, use &quot;Already tested this
@@ -1441,28 +1487,7 @@ export default function CreatorExecApp() {
               Configure Sprint →
             </button>
           </div>
-          {!isMomentumMode ? (
-            <p className="text-center">
-              <button
-                type="button"
-                onClick={() => handleSwitchScheduleMode('momentum')}
-                className="link-elegant font-body text-sm text-emerald"
-              >
-                Switch to Momentum Mode
-              </button>
-            </p>
-          ) : (
-            <p className="text-center">
-              <button
-                type="button"
-                onClick={() => handleSwitchScheduleMode('full')}
-                className="link-elegant font-body text-sm text-emerald"
-              >
-                Switch to Full Mode
-              </button>
-            </p>
-          )}
-          {isBeginnerMode && !isMomentumMode && (
+          {isBeginnerMode && !isMomentumMode && !isSopMode && (
             <p className="text-center">
               <button
                 type="button"
@@ -1479,7 +1504,8 @@ export default function CreatorExecApp() {
       {stage === 'config' && (
         <SprintConfigForm
           config={sprintConfig}
-          onChange={setSprintConfig}
+          scheduleMode={scheduleMode}
+          onChange={handleSprintConfigChange}
           onSubmit={handleGenerateSchedule}
           onBack={() => setStage('dashboard')}
         />
