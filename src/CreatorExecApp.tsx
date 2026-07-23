@@ -53,6 +53,7 @@ import {
 } from './lib/analysis/momentumMode'
 import { buildFilmingSchedule } from './lib/schedule/scheduleBuilder'
 import { buildMomentumModeSchedule } from './lib/schedule/momentumModeSchedule'
+import { buildSopModeSchedule } from './lib/schedule/sopSchedule'
 import {
   hydrateProductsTrialProgress,
   persistProductVideosFilmed,
@@ -194,9 +195,18 @@ function buildScheduleForMode(
 
   // Stage 2: sample-mode entry is a thin wrapper — schedule uses the full
   // 6-video Test trial allocator (same as CSV), not the old 1-slot path.
-  // Stage 3: `sample` schedule mode no longer exists; only momentum branches.
+  // Stage 3: `sample` schedule mode no longer exists; momentum / sop branch.
   if (mode === 'momentum') {
     return buildMomentumModeSchedule(
+      products,
+      config,
+      mergedDeadlines,
+      excluded,
+      retainerVideos,
+    )
+  }
+  if (mode === 'sop') {
+    return buildSopModeSchedule(
       products,
       config,
       mergedDeadlines,
