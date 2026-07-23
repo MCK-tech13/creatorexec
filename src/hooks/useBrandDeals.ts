@@ -75,6 +75,31 @@ export function useBrandDeals() {
     )
   }, [])
 
+  /**
+   * Caption-match Confirm path.
+   * KNOWN SIMPLIFICATION: marks the next incomplete checklist item (generic +1),
+   * not a specific deliverable tied to which caption fulfilled which video.
+   */
+  const completeNextIncompleteChecklistItem = useCallback((dealId: string): boolean => {
+    let didComplete = false
+    setDeals((prev) =>
+      prev.map((deal) => {
+        if (deal.id !== dealId) return deal
+        const nextIncomplete = deal.filmingChecklist.find((item) => !item.completed)
+        if (!nextIncomplete) return deal
+        didComplete = true
+        return {
+          ...deal,
+          filmingChecklist: deal.filmingChecklist.map((item) =>
+            item.id === nextIncomplete.id ? { ...item, completed: true } : item,
+          ),
+          updatedAt: new Date().toISOString(),
+        }
+      }),
+    )
+    return didComplete
+  }, [])
+
   return {
     deals,
     addDeal,
@@ -82,5 +107,6 @@ export function useBrandDeals() {
     moveDeal,
     removeDeal,
     toggleChecklistItem,
+    completeNextIncompleteChecklistItem,
   }
 }

@@ -22,6 +22,7 @@
     "verify:product-flags": "tsx scripts/verify-product-flags.ts",
     "verify:upload-reminder": "tsx scripts/verify-upload-reminder.ts",
     "verify:tiktok-oauth": "tsx scripts/verify-tiktok-oauth.ts",
+    "verify:caption-match": "tsx scripts/verify-caption-match.ts",
     "verify:milestone-celebrations": "tsx scripts/verify-milestone-celebrations.ts",
     "verify:pre-tested-products": "tsx scripts/verify-pre-tested-products.ts",
     "verify:product-catalog": "tsx scripts/verify-product-catalog.ts",

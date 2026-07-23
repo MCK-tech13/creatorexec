@@ -14,6 +14,7 @@ import { AddProductModal } from './components/dashboard/AddProductModal'
 import { SprintConfigForm } from './components/config/SprintConfigForm'
 import { FilmingSchedule } from './components/schedule/FilmingSchedule'
 import { RetainerDeals } from './components/pipeline/RetainerDeals'
+import { CaptionMatchConfirmModal } from './components/pipeline/CaptionMatchConfirmModal'
 import { IncomeTracker } from './components/income/IncomeTracker'
 import { ProductScout } from './components/productScout/ProductScout'
 import { DashboardHome } from './components/dashboard/DashboardHome'
@@ -99,6 +100,8 @@ import {
   type CurrentSprintState,
 } from './types/currentSprint'
 import { useBrandDeals } from './hooks/useBrandDeals'
+import { useCaptionMatchSuggestions } from './hooks/useCaptionMatchSuggestions'
+import { dealsMissingCaptionDemoBrands } from './lib/pipeline/captionMatch'
 import {
   buildRetainerScheduleEntries,
   buildRetainerVideos,
@@ -360,7 +363,44 @@ export default function CreatorExecApp() {
     moveDeal,
     removeDeal,
     toggleChecklistItem,
+    completeNextIncompleteChecklistItem,
   } = useBrandDeals()
+
+  const {
+    ready: captionMatchReady,
+    activeSuggestion: captionMatchSuggestion,
+    declineSuggestion: declineCaptionMatch,
+    markSuggestionConfirmed,
+    resetDemoHistory: resetCaptionMatchDemoHistory,
+  } = useCaptionMatchSuggestions(brandDeals)
+
+  const handleLoadCaptionMatchDemo = useCallback(() => {
+    const missing = dealsMissingCaptionDemoBrands(brandDeals)
+    for (const insert of missing) {
+      addDeal(insert)
+    }
+    resetCaptionMatchDemoHistory()
+    setMainSection('retainers')
+    navigate(appPathForSection('retainers'))
+  }, [brandDeals, addDeal, resetCaptionMatchDemoHistory, navigate])
+
+  const handleCaptionMatchConfirm = useCallback(() => {
+    if (!captionMatchSuggestion) return
+    // Generic next-incomplete checklist item (demo simplification — not per-deliverable).
+    completeNextIncompleteChecklistItem(captionMatchSuggestion.dealId)
+    markSuggestionConfirmed(captionMatchSuggestion)
+  }, [captionMatchSuggestion, completeNextIncompleteChecklistItem, markSuggestionConfirmed])
+
+  const handleCaptionMatchDecline = useCallback(() => {
+    if (!captionMatchSuggestion) return
+    declineCaptionMatch(captionMatchSuggestion)
+  }, [captionMatchSuggestion, declineCaptionMatch])
+
+  const showCaptionMatchModal =
+    captionMatchReady &&
+    !firstSprintCelebration &&
+    !sprintReview &&
+    Boolean(captionMatchSuggestion)
 
   const {
     entries: productScoutEntries,
@@ -1165,6 +1205,7 @@ export default function CreatorExecApp() {
           onMoveDeal={moveDeal}
           onRemoveDeal={removeDeal}
           onToggleChecklist={toggleChecklistItem}
+          onLoadCaptionMatchDemo={handleLoadCaptionMatchDemo}
           openNewDealRequest={openNewRetainerDeal}
           onNewDealOpenHandled={() => setOpenNewRetainerDeal(false)}
         />
@@ -1384,7 +1425,13 @@ export default function CreatorExecApp() {
         />
       )}
 
-
+      {showCaptionMatchModal && captionMatchSuggestion && (
+        <CaptionMatchConfirmModal
+          suggestion={captionMatchSuggestion}
+          onConfirm={handleCaptionMatchConfirm}
+          onDecline={handleCaptionMatchDecline}
+        />
+      )}
 
       {firstSprintCelebration && (
         <FirstSprintCelebration
