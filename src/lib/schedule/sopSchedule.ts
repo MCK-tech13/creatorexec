@@ -73,8 +73,22 @@ export interface SopSacrificeReport {
   newSampleSlotsCut: number
   bandBSlotsCut: number
   midSlotsCut: number
+  /** Band A slots trimmed to honor New Sample floor (never cut Band A to zero). */
+  bandASlotsCut: number
+  /** Reserved New Sample floor applied for this sacrifice pass (0 if none). */
+  newSampleFloorReserved: number
   /** Products that lost Band B slots, lowest CPI first. */
   bandBCuts: Array<{ productName: string; commissionPerItem: number; slotsCut: number }>
+}
+
+/**
+ * Minimum New Sample slots to reserve per sprint when any New Sample demand exists:
+ * max(1, round(10% of budget)).
+ */
+export function sopNewSampleMinSlots(budget: number): number {
+  const b = Math.max(0, Math.floor(budget))
+  if (b <= 0) return 0
+  return Math.max(1, Math.round(b * 0.1))
 }
 
 function commissionPerItem(product: MergedProduct): number {
@@ -284,8 +298,10 @@ export function buildSopSlotDemand(
 
 /**
  * Sacrifice ladder when demand exceeds budget.
- * Order: New Sample fill → Band B (lowest CPI first) → Mid (counted for day-level later).
- * Never cuts: Urgent, Anchor, Rotator, Band A.
+ * Order: New Sample above floor → Band B (lowest CPI) → Mid → Band A (not to zero).
+ * Never cuts: Urgent, Anchor, Rotator.
+ * Reserves a New Sample minimum (max(1, ~10% budget)) before Band A can absorb
+ * the entire small-budget remainder — Band A may be trimmed but not eliminated.
  */
 export function applySopSacrificeLadder(
   demand: SopSlotDemand[],
@@ -296,13 +312,22 @@ export function applySopSacrificeLadder(
     newSampleSlotsCut: 0,
     bandBSlotsCut: 0,
     midSlotsCut: 0,
+    bandASlotsCut: 0,
+    newSampleFloorReserved: 0,
     bandBCuts: [],
   }
 
   const total = () => next.reduce((sum, d) => sum + d.slots, 0)
+  const slotsOf = (kind: SopSlotKind) =>
+    next.filter((d) => d.kind === kind).reduce((sum, d) => sum + d.slots, 0)
 
-  // 1) Cut New Sample fill first (lowest commission first among fill).
-  while (total() > budget) {
+  const newSampleAvailable = slotsOf('newSample')
+  const newSampleFloor =
+    newSampleAvailable > 0 ? Math.min(sopNewSampleMinSlots(budget), newSampleAvailable) : 0
+  report.newSampleFloorReserved = newSampleFloor
+
+  // 1) Cut New Sample fill above the reserved floor (lowest commission first).
+  while (total() > budget && slotsOf('newSample') > newSampleFloor) {
     const fill = next
       .filter((d) => d.kind === 'newSample' && d.slots > 0)
       .sort((a, b) => a.product.commission - b.product.commission)
@@ -336,8 +361,7 @@ export function applySopSacrificeLadder(
     }
   }
 
-  // 3) Mid cuts are applied during day packing (one Mid slot from overloaded day).
-  // Pre-emptively trim Mid only if still over budget after Band B (global last resort).
+  // 3) Trim Mid if still over budget.
   while (total() > budget) {
     const mids = next
       .filter((d) => d.kind === 'mid' && d.slots > 0)
@@ -345,6 +369,27 @@ export function applySopSacrificeLadder(
     if (mids.length === 0) break
     mids[0].slots -= 1
     report.midSlotsCut += 1
+  }
+
+  // 4) Trim Band A to honor New Sample floor — keep at least 1 Band A slot if any remain.
+  while (total() > budget && slotsOf('bandA') > 1) {
+    const bandA = next
+      .filter((d) => d.kind === 'bandA' && d.slots > 0)
+      .sort((a, b) => a.product.commission - b.product.commission)
+    if (bandA.length === 0) break
+    bandA[0].slots -= 1
+    report.bandASlotsCut += 1
+  }
+
+  // 5) Last resort only: if still over after Band A is at 1, dip into New Sample floor.
+  // (Hard protections Urgent/Anchor/Rotator are never cut.)
+  while (total() > budget && slotsOf('newSample') > 0) {
+    const fill = next
+      .filter((d) => d.kind === 'newSample' && d.slots > 0)
+      .sort((a, b) => a.product.commission - b.product.commission)
+    if (fill.length === 0) break
+    fill[0].slots -= 1
+    report.newSampleSlotsCut += 1
   }
 
   return {

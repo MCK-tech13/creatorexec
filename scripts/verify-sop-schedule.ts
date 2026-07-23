@@ -16,6 +16,7 @@ import {
   buildSopSlotDemand,
   SOP_NEW_SAMPLE_MAX_PER_DAY,
   SOP_URGENT_DAY1_MIN_SLOTS,
+  sopNewSampleMinSlots,
 } from '../src/lib/schedule/sopSchedule'
 import { formatScheduleText } from '../src/lib/schedule/scheduleBuilder'
 import type { MergedProduct, SprintConfig } from '../src/types'
@@ -200,15 +201,22 @@ assert.equal(
     ),
   })
 
-  // Force sacrifice: budget below flexible demand but above protected floor
-  // Protected = urgent(2)+anchor(3)+rotator(4)+bandA(4) = 13
-  const protectedSlots = demand
-    .filter((d) => ['urgent', 'anchor', 'rotator', 'bandA'].includes(d.kind))
+  // Force sacrifice with a budget that fits hard protections + NS floor + ≥1 Band A.
+  // Band A may trim; New Sample must keep its reserved floor (not get zeroed by Band A).
+  const hardProtected = demand
+    .filter((d) => ['urgent', 'anchor', 'rotator'].includes(d.kind))
     .reduce((s, d) => s + d.slots, 0)
-  const { demand: cut, report } = applySopSacrificeLadder(demand, protectedSlots)
-  assert.ok(report.newSampleSlotsCut + report.bandBSlotsCut + report.midSlotsCut > 0)
+  const nsIdeal = demand.filter((d) => d.kind === 'newSample').reduce((s, d) => s + d.slots, 0)
+  assert.ok(nsIdeal > 0, 'fixture must include New Sample demand')
+  const probeBudget = hardProtected + 5
+  const nsFloor = Math.min(sopNewSampleMinSlots(probeBudget), nsIdeal)
+  const tightBudget = hardProtected + nsFloor + 1
+  const { demand: cut, report } = applySopSacrificeLadder(demand, tightBudget)
+  assert.ok(
+    report.newSampleSlotsCut + report.bandBSlotsCut + report.midSlotsCut + report.bandASlotsCut > 0,
+  )
   const after = cut.reduce((s, d) => s + d.slots, 0)
-  assert.equal(after, protectedSlots, 'flexible slots fully sacrificed down to protected floor')
+  assert.equal(after, tightBudget, 'demand trimmed exactly to budget')
   assert.equal(
     cut.filter((d) => d.kind === 'urgent').reduce((s, d) => s + d.slots, 0),
     demand.filter((d) => d.kind === 'urgent').reduce((s, d) => s + d.slots, 0),
@@ -219,18 +227,22 @@ assert.equal(
     demand.filter((d) => d.kind === 'anchor').reduce((s, d) => s + d.slots, 0),
     'anchor slots never cut',
   )
-  assert.equal(
-    cut.filter((d) => d.kind === 'bandA').reduce((s, d) => s + d.slots, 0),
-    demand.filter((d) => d.kind === 'bandA').reduce((s, d) => s + d.slots, 0),
-    'band A slots never cut',
+  const nsAfter = cut.filter((d) => d.kind === 'newSample').reduce((s, d) => s + d.slots, 0)
+  const bandAAfter = cut.filter((d) => d.kind === 'bandA').reduce((s, d) => s + d.slots, 0)
+  assert.ok(
+    nsAfter >= nsFloor,
+    `New Sample floor reserved (need ≥${nsFloor}, got ${nsAfter})`,
   )
+  assert.ok(bandAAfter >= 1, `Band A not cut to zero, got ${bandAAfter}`)
   assert.equal(
-    cut.filter((d) => d.kind === 'mid' || d.kind === 'newSample' || d.kind === 'bandB').length,
+    cut.filter((d) => d.kind === 'mid' || d.kind === 'bandB').length,
     0,
-    'mid / newSample / bandB fully cut at protected floor',
+    'mid / bandB fully cut when budget is tight',
   )
-  console.log('Sacrifice ladder @ protected floor budget:', report)
-  console.log('✓ Sacrifice never cuts Urgent / Anchor / Rotator / Band A')
+  console.log('Sacrifice ladder @ tight budget (NS floor + Band A min):', report)
+  console.log(
+    `✓ Sacrifice keeps New Sample floor (≥${nsFloor}) + ≥1 Band A; never cuts Urgent / Anchor / Rotator`,
+  )
 }
 
 // --- Band B sacrifice order: lowest CPI first ---
@@ -539,6 +551,112 @@ console.log(formatScheduleText(schedule))
   console.log(
     `\n✓ Multi-NewSample fixture: ${multiTotal}/${sprintBudget} slots; ` +
       `Day 2 filled by New Samples only (no Mid capacity fill)`,
+  )
+}
+
+// --- 5×3 low-end end-to-end: New Sample floor must appear in the schedule ---
+{
+  console.log('\n' + '='.repeat(72))
+  console.log('SOP END-TO-END @ 5 videos/day × 3 days (New Sample floor)')
+  console.log('='.repeat(72))
+
+  const lowConfig: SprintConfig = { videosPerDay: 5, sprintDays: 3 }
+  const drafts = parsed.products.map((p) => ({
+    id: p.id,
+    productName: p.productName,
+    productId: p.productId,
+    gmv: p.gmv,
+    commission: p.commission,
+    itemsSold: p.itemsSold,
+    orderCount: p.orderCount,
+    videosFilmed: 6,
+    inRotation: true,
+    isManual: false,
+  }))
+  const serumRow = drafts.find((p) => p.productName.includes('Vitamin C'))
+  if (serumRow) {
+    serumRow.videosFilmed = 1
+    serumRow.commission = 4
+    serumRow.itemsSold = 2
+  }
+  const postureRow = drafts.find((p) => p.productName.includes('Posture'))
+  if (postureRow) postureRow.videosFilmed = 2
+
+  const extraNs = [
+    { name: 'Lip Oil Sample', commission: 3.2, videos: 1 },
+    { name: 'Brow Tint Sample', commission: 2.8, videos: 0 },
+    { name: 'Mini Primer Sample', commission: 2.5, videos: 1 },
+  ].map((x, i) => ({
+    id: `ns-extra-${i}`,
+    productName: x.name,
+    productId: `ns-extra-${i}`,
+    gmv: 15,
+    commission: x.commission,
+    itemsSold: 1,
+    orderCount: 1,
+    videosFilmed: x.videos,
+    inRotation: true,
+    isManual: false,
+  }))
+
+  const lowPool = [...drafts, urgentSample, ...extraNs]
+  const { products: lowTier } = tierProductsSop(lowPool, {
+    dailyVolume: lowConfig.videosPerDay,
+    sprintDays: lowConfig.sprintDays,
+    asOfDate: asOf,
+  })
+  const lowNsAvailable = lowTier.filter((p) => p.sopTier === 'NewSample')
+  assert.ok(lowNsAvailable.length > 0, '5×3 fixture needs New Sample products')
+
+  const {
+    schedule: lowSchedule,
+    sacrifice: lowSacrifice,
+    budget: lowBudget,
+    demand: lowDemand,
+  } = buildSopModeScheduleDetailed(lowTier, lowConfig, [], new Set(), [], asOf)
+
+  const lowSprintBudget = lowConfig.videosPerDay * lowConfig.sprintDays
+  const nsFloor = sopNewSampleMinSlots(lowBudget)
+  const nsDemandSlots = lowDemand
+    .filter((d) => d.kind === 'newSample')
+    .reduce((s, d) => s + d.slots, 0)
+
+  console.log('\nSacrifice:', lowSacrifice)
+  console.log({
+    budget: lowBudget,
+    nsFloor,
+    nsDemandSlotsAfterSacrifice: nsDemandSlots,
+    bandASlotsCut: lowSacrifice.bandASlotsCut,
+  })
+
+  assert.ok(
+    lowSacrifice.newSampleFloorReserved >= 1,
+    'New Sample floor must be reserved at 5×3',
+  )
+  assert.ok(nsDemandSlots >= 1, 'post-sacrifice demand must keep ≥1 New Sample slot')
+
+  let lowTotal = 0
+  console.log('\n--- Day-by-day SOP schedule (5 × 3) ---')
+  for (const day of lowSchedule) {
+    lowTotal += day.videos.length
+    console.log(`\nDay ${day.day} (${day.videos.length}/${lowConfig.videosPerDay} slots):`)
+    for (const v of day.videos) {
+      console.log(`  [${v.tier}] ${v.productName} — ${v.placementReason ?? ''}`)
+    }
+    assert.equal(day.videos.length, lowConfig.videosPerDay, `5×3 Day ${day.day} full`)
+  }
+  assert.equal(lowTotal, lowSprintBudget)
+
+  const nsInSchedule = lowSchedule.flatMap((d) =>
+    d.videos.filter((v) => v.placementReason?.includes('New Sample')),
+  )
+  assert.ok(
+    nsInSchedule.length >= 1,
+    `5×3 schedule must include ≥1 New Sample slot, got ${nsInSchedule.length}`,
+  )
+  console.log(
+    `\n✓ 5×3: ${lowTotal}/${lowSprintBudget}; New Sample in schedule: ` +
+      nsInSchedule.map((v) => v.productName).join(', '),
   )
 }
 
