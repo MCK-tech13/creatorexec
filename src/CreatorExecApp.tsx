@@ -28,13 +28,11 @@ import {
 import { loadIncomeTracker } from './lib/income/incomeStorage'
 import { SprintEmptyState } from './components/sprint/SprintEmptyState'
 import { SprintReviewModal } from './components/sprint/SprintReviewModal'
-import { AnchorPromotionToast } from './components/celebrations/AnchorPromotionToast'
 import { FirstSprintCelebration } from './components/celebrations/FirstSprintCelebration'
 import {
   AlreadyTestedToast,
   type AlreadyTestedNotice,
 } from './components/dashboard/AlreadyTestedToast'
-import { findAnchorPromotions } from './lib/celebrations/anchorPromotions'
 import {
   hasSeenFirstSprintCelebration,
   markFirstSprintCelebrationSeen,
@@ -272,7 +270,6 @@ export default function CreatorExecApp() {
   const [pendingSprintReset, setPendingSprintReset] = useState<'upload' | 'start-over' | null>(
     null,
   )
-  const [anchorPromotionQueue, setAnchorPromotionQueue] = useState<string[]>([])
   const [alreadyTestedNotice, setAlreadyTestedNotice] = useState<AlreadyTestedNotice | null>(
     null,
   )
@@ -443,16 +440,6 @@ export default function CreatorExecApp() {
     },
     [sprintConfig, sopRetierOptions],
   )
-
-  const enqueueAnchorPromotions = useCallback((previous: MergedProduct[], next: MergedProduct[]) => {
-    const promotions = findAnchorPromotions(previous, next)
-    if (promotions.length === 0) return
-    setAnchorPromotionQueue((queue) => [...queue, ...promotions.map((p) => p.productName)])
-  }, [])
-
-  const dismissCurrentAnchorPromotion = useCallback(() => {
-    setAnchorPromotionQueue((queue) => queue.slice(1))
-  }, [])
 
   const dismissAlreadyTestedNotice = useCallback(() => {
     setAlreadyTestedNotice(null)
@@ -1409,14 +1396,6 @@ export default function CreatorExecApp() {
 
       {sprintReview && !firstSprintCelebration && (
         <SprintReviewModal review={sprintReview} onContinue={handleSprintReviewContinue} />
-      )}
-
-      {anchorPromotionQueue[0] && (
-        <AnchorPromotionToast
-          key={`${anchorPromotionQueue[0]}-${anchorPromotionQueue.length}`}
-          productName={anchorPromotionQueue[0]}
-          onDismiss={dismissCurrentAnchorPromotion}
-        />
       )}
 
       {alreadyTestedNotice && (
