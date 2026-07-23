@@ -9,7 +9,7 @@ import { SampleModeScreen } from './components/sample/SampleModeScreen'
 import { MomentumModeScreen } from './components/momentum/MomentumModeScreen'
 import { MomentumModePromptModal } from './components/momentum/MomentumModePromptModal'
 import { StatsCards } from './components/dashboard/StatsCards'
-import { TierTabs, type DashboardTierFilter } from './components/dashboard/TierTabs'
+import { TierTabs } from './components/dashboard/TierTabs'
 import { ProductTable } from './components/dashboard/ProductTable'
 import { ScheduleModeSelector } from './components/dashboard/ScheduleModeSelector'
 import { UploadReminderBanner } from './components/dashboard/UploadReminderBanner'
@@ -132,6 +132,7 @@ import type {
   SampleProduct,
   ScheduleMode,
   SprintConfig,
+  Tier,
 } from './types'
 import { TIER_REVIEW_VIDEO_COUNT } from './types'
 import type { OnboardingProfile, UserMode } from './types/onboarding'
@@ -244,7 +245,7 @@ export default function CreatorExecApp() {
     () => new Set(restored?.excludedProductKeys ?? []),
   )
   const [showAdvancedControls, setShowAdvancedControls] = useState(false)
-  const [activeTier, setActiveTier] = useState<DashboardTierFilter>('All')
+  const [activeTier, setActiveTier] = useState<Tier | 'All'>('All')
   const [sprintConfig, setSprintConfig] = useState<SprintConfig>(
     () => restored?.sprintConfig ?? initialSprintConfig(),
   )
@@ -484,16 +485,8 @@ export default function CreatorExecApp() {
             previousTier: target.tier,
             nextTier: nextProduct.tier,
           })
-          // Follow the product if it left Test (e.g. moved to Cut).
-          if (isSopMode) {
-            if (
-              nextProduct.sopTier &&
-              activeTier !== 'All' &&
-              nextProduct.sopTier !== activeTier
-            ) {
-              setActiveTier(nextProduct.sopTier)
-            }
-          } else if (nextProduct.tier !== 'Test' && activeTier === 'Test') {
+          // Follow the product if it left the active tab (e.g. Test → Cut).
+          if (nextProduct.tier !== 'Test' && activeTier === 'Test') {
             setActiveTier(nextProduct.tier)
           }
         }
@@ -515,7 +508,6 @@ export default function CreatorExecApp() {
     [
       stage,
       scheduleMode,
-      isSopMode,
       rebuildSchedule,
       deadlineProducts,
       sprintConfig,
@@ -1408,8 +1400,8 @@ export default function CreatorExecApp() {
           {isSopMode && (
             <div className="border border-emerald/30 bg-white px-6 py-5">
               <p className="font-body text-base text-ink">
-                You&apos;re in SOP Mode. Products rank into Anchor, Rotator, Mid, and Band A/B
-                from commission aggregates. Band floors are editable in sprint config.
+                You&apos;re in SOP Mode. Products still use Anchor / Rising / Test / Cut in the
+                dashboard. Band A/B status is kept internally for scheduling priority.
               </p>
             </div>
           )}
@@ -1436,7 +1428,6 @@ export default function CreatorExecApp() {
               products={products}
               activeTier={activeTier}
               onTierChange={setActiveTier}
-              sopMode={isSopMode}
             />
             {isBeginnerMode && !isMomentumMode && !isSopMode && (
               <div className="mt-3 flex justify-end sm:mt-4">
@@ -1455,7 +1446,6 @@ export default function CreatorExecApp() {
             activeTier={activeTier}
             beginnerMode={isBeginnerMode && !isMomentumMode && !isSopMode}
             advancedControlsOpen={showAdvancedControls}
-            sopMode={isSopMode}
             stalledKeys={productFlags.stalled}
             slowingAnchorKeys={productFlags.slowingAnchors}
             onVideosFilmedChange={handleVideosFilmedChange}

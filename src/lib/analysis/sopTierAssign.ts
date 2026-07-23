@@ -5,7 +5,7 @@
  * Band A/B / Retired / New Sample / Urgent from videos + deadlines + thresholds.
  * Does not modify tierEngine.ts.
  */
-import type { MergedProduct, SopTier, SprintDays, Tier } from '../../types'
+import type { MergedProduct, SopBand, SopTier, SprintDays, Tier } from '../../types'
 import { computeScore } from './tierEngine'
 import {
   computeSopScaling,
@@ -15,7 +15,7 @@ import {
   type SopScalingResult,
 } from './sopTierEngine'
 
-export type { SopTier }
+export type { SopTier, SopBand }
 
 /** Full-test completion count from the SOP (6-video rule). */
 export const SOP_FULL_TEST_VIDEOS = 6
@@ -26,9 +26,13 @@ export const SOP_URGENT_DEADLINE_DAYS = 4
 /** Pull rank N+1 into Anchor when within this fraction of the last Anchor's commission. */
 export const SOP_ANCHOR_TIE_RATIO = 0.9
 
-export type SopTierInput = Omit<MergedProduct, 'score' | 'tier' | 'rankInTier' | 'sopTier'> & {
+export type SopTierInput = Omit<
+  MergedProduct,
+  'score' | 'tier' | 'rankInTier' | 'sopTier' | 'sopBand'
+> & {
   tier?: Tier
   sopTier?: SopTier
+  sopBand?: SopBand | null
 }
 
 export interface TierProductsSopOptions {
@@ -75,7 +79,10 @@ export function meetsSopPerItemCondition(commission: number, itemsSold: number):
   )
 }
 
-/** Map SOP tier → existing dashboard Tier until SOP UI ships (PR 3). */
+/**
+ * Map SOP backend rank → visible dashboard Tier (Anchor / Rising / Test / Cut).
+ * Band A/B collapse to Test; scheduling still reads sopBand / sopTier.
+ */
 export function sopTierToLegacyTier(sopTier: SopTier): Tier {
   switch (sopTier) {
     case 'Anchor':
@@ -91,6 +98,16 @@ export function sopTierToLegacyTier(sopTier: SopTier): Tier {
     case 'Retired':
       return 'Cut'
   }
+}
+
+/**
+ * Band metadata for PR 4 scheduling.
+ * Only BandA/BandB (visible Test, post–Full-Test-Complete) — never Rising/Anchor.
+ */
+export function sopBandFromSopTier(sopTier: SopTier): SopBand | null {
+  if (sopTier === 'BandA') return 'A'
+  if (sopTier === 'BandB') return 'B'
+  return null
 }
 
 function startOfUtcDay(d: Date): number {
@@ -239,6 +256,7 @@ export function tierProductsSop(
       videosFilmed,
       score: computeScore(p.commission, p.gmv, p.itemsSold),
       sopTier,
+      sopBand: sopBandFromSopTier(sopTier),
       tier: sopTierToLegacyTier(sopTier),
       rankInTier: 0,
     }
@@ -252,6 +270,7 @@ export function tierProductsSop(
       videosFilmed,
       score: computeScore(p.commission, p.gmv, p.itemsSold),
       sopTier,
+      sopBand: p.sopBand ?? sopBandFromSopTier(sopTier),
       tier: sopTierToLegacyTier(sopTier),
       rankInTier: 0,
     }

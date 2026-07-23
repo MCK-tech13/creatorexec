@@ -94,7 +94,7 @@ export function retierProductsForMode(
     if (p.isManual) {
       return { ...p }
     }
-    const { score: _score, tier: _tier, rankInTier: _rankInTier, sopTier: _sopTier, ...rest } = p
+    const { score: _score, tier: _tier, rankInTier: _rankInTier, sopTier: _sopTier, sopBand: _sopBand, ...rest } = p
     return rest
   })
   if (mode === 'momentum') {

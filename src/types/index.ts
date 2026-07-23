@@ -11,6 +11,13 @@ export type SopTier =
   | 'Urgent'
   | 'Retired'
 
+/**
+ * Band A/B metadata for SOP scheduling (PR 4).
+ * Only set on visible Test-tier products that are post–Full-Test-Complete Band winners.
+ * Never set on Anchor / Rising (Rotator/Mid) / NewSample / Urgent / Retired.
+ */
+export type SopBand = 'A' | 'B'
+
 export type ScheduleTierLabel = Tier | 'Deadline' | 'Retainer'
 
 export type ManualTier = 'Anchor' | 'Rising' | 'Test'
@@ -41,10 +48,16 @@ export interface MergedProduct {
   score: number
   tier: Tier
   /**
-   * Present when scheduleMode is `sop`. Legacy `tier` is a dashboard-compatible
-   * mapping until SOP-specific UI lands.
+   * Full SOP rank from assignment (Anchor/Rotator/Mid/BandA/…).
+   * Present when scheduleMode is `sop`. Dashboard `tier` is the collapsed
+   * Anchor/Rising/Test/Cut label shown in the UI.
    */
   sopTier?: SopTier
+  /**
+   * Band A/B metadata for scheduling (PR 4). Only on Test-tier Band winners;
+   * null/undefined otherwise. Not shown as a distinct UI tier.
+   */
+  sopBand?: SopBand | null
   rankInTier: number
   inRotation: boolean
   isManual: boolean

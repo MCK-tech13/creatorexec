@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { HelpCircle } from 'lucide-react'
-import type { ScheduleTierLabel, SopTier, Tier } from '../../types'
+import type { ScheduleTierLabel, Tier } from '../../types'
 import {
   TIER_BADGE_CLASS,
   TIER_STYLES,
@@ -8,15 +8,9 @@ import {
   tierStyleFor,
 } from '../../lib/theme/tierStyles'
 import { TIER_TOOLTIPS } from '../../lib/onboarding/beginnerCopy'
-import {
-  formatSopTierLabel,
-  sopTierBadgeTone,
-} from '../../lib/analysis/sopTierLabels'
 
 interface TierBadgeProps {
   tier: Tier | ScheduleTierLabel
-  /** When set, badge shows SOP label with legacy color tone. */
-  sopTier?: SopTier
   showTooltip?: boolean
 }
 
@@ -24,21 +18,19 @@ function isProductTier(tier: Tier | ScheduleTierLabel): tier is Tier {
   return tier in TIER_STYLES
 }
 
-export function TierBadge({ tier, sopTier, showTooltip = false }: TierBadgeProps) {
-  const toneTier = sopTier ? sopTierBadgeTone(sopTier) : tier
-  const style = tierStyleFor(toneTier)
-  const label = sopTier ? formatSopTierLabel(sopTier) : tier
+export function TierBadge({ tier, showTooltip = false }: TierBadgeProps) {
+  const style = tierStyleFor(tier)
   const tooltipId = useId()
   const [open, setOpen] = useState(false)
 
   const badge = (
     <span className={`${TIER_BADGE_CLASS} ${style.bg} ${style.text} ${style.border}`}>
-      <span className={tierBadgeDotClass(toneTier)} aria-hidden />
-      {label}
+      <span className={tierBadgeDotClass(tier)} aria-hidden />
+      {tier}
     </span>
   )
 
-  if (!showTooltip || !isProductTier(tier) || sopTier) {
+  if (!showTooltip || !isProductTier(tier)) {
     return badge
   }
 
