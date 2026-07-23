@@ -37,7 +37,8 @@
     "dev:api": "node server/index.mjs",
     "verify:phase1": "bash scripts/verify-phase1.sh",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify:sop-tier-scaling": "tsx scripts/verify-sop-tier-scaling.ts"
   },
   "dependencies": {
     "@e965/xlsx": "^0.20.3",
