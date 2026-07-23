@@ -1,5 +1,6 @@
-import type { MergedProduct, Tier } from '../../types'
+import type { MergedProduct, SprintDays, Tier } from '../../types'
 import { computeScore, tierProducts } from './tierEngine'
+import { tierProductsSopList } from './sopTierAssign'
 
 export const MOMENTUM_MIN_ITEMS_SOLD = 3
 export const MOMENTUM_QUALIFYING_PRODUCT_COUNT = 5
@@ -79,17 +80,24 @@ export function formatTopEarnerLine(products: MergedProduct[]): string | null {
 
 export function retierProductsForMode(
   products: MergedProduct[],
-  mode: 'full' | 'momentum',
+  mode: 'full' | 'momentum' | 'sop',
+  options?: { dailyVolume?: number; sprintDays?: SprintDays },
 ): MergedProduct[] {
   const inputs: TierInput[] = products.map((p) => {
     if (p.isManual) {
       return { ...p }
     }
-    const { score, tier, rankInTier, ...rest } = p
+    const { score: _score, tier: _tier, rankInTier: _rankInTier, sopTier: _sopTier, ...rest } = p
     return rest
   })
   if (mode === 'momentum') {
     return tierProductsMomentum(inputs)
+  }
+  if (mode === 'sop') {
+    return tierProductsSopList(inputs, {
+      dailyVolume: options?.dailyVolume ?? 30,
+      sprintDays: options?.sprintDays ?? 3,
+    })
   }
   return tierProducts(inputs)
 }

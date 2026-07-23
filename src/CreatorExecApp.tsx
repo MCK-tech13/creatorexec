@@ -399,7 +399,10 @@ export default function CreatorExecApp() {
       // products aren't held in Test for a trial they opted out of.
       const next =
         videosChanged
-          ? retierProductsForMode(hydrated, mode)
+          ? retierProductsForMode(hydrated, mode, {
+              dailyVolume: config.videosPerDay,
+              sprintDays: config.sprintDays,
+            })
           : hydrated
       if (
         next.some(
@@ -427,19 +430,12 @@ export default function CreatorExecApp() {
 
   const retierPreservingManual = useCallback(
     (updated: MergedProduct[], mode: ScheduleMode): MergedProduct[] => {
-      const base = updated.map((p) => {
-        if (p.isManual) {
-          return { ...p }
-        }
-        const { score, tier, rankInTier, ...rest } = p
-        return rest
+      return retierProductsForMode(updated, mode, {
+        dailyVolume: sprintConfig.videosPerDay,
+        sprintDays: sprintConfig.sprintDays,
       })
-      if (mode === 'momentum') {
-        return tierProductsMomentum(base)
-      }
-      return tierProducts(base)
     },
-    [],
+    [sprintConfig.videosPerDay, sprintConfig.sprintDays],
   )
 
   const enqueueAnchorPromotions = useCallback((previous: MergedProduct[], next: MergedProduct[]) => {
@@ -515,7 +511,11 @@ export default function CreatorExecApp() {
       // Stage 3: upsert CSV metrics into durable catalog, then rebuild sprint FROM catalog
       // so sample/favorite-only rows stay in rotation alongside report products.
       upsertCatalogFromMergedProducts(tiered, 'csv')
-      const fromCatalog = buildSprintProductsFromCatalog(undefined, { mode: effectiveMode })
+      const fromCatalog = buildSprintProductsFromCatalog(undefined, {
+        mode: effectiveMode,
+        dailyVolume: sprintConfig.videosPerDay,
+        sprintDays: sprintConfig.sprintDays,
+      })
       if (effectiveMode === 'full') {
         enqueueAnchorPromotions(products, fromCatalog)
       }
@@ -647,11 +647,14 @@ export default function CreatorExecApp() {
   }, [pendingProducts, finishUpload])
 
   const handleSwitchScheduleMode = useCallback(
-    (mode: 'full' | 'momentum') => {
+    (mode: ScheduleMode) => {
       if (scheduleMode === mode) return
       setScheduleMode(mode)
       setProducts((prev) => {
-        const tiered = retierProductsForMode(prev, mode)
+        const tiered = retierProductsForMode(prev, mode, {
+          dailyVolume: sprintConfig.videosPerDay,
+          sprintDays: sprintConfig.sprintDays,
+        })
         if (mode === 'full') {
           enqueueAnchorPromotions(prev, tiered)
         }

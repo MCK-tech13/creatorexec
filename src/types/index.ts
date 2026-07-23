@@ -1,5 +1,16 @@
 export type Tier = 'Anchor' | 'Rising' | 'Test' | 'Cut'
 
+/** SOP-mode live ranks / winner / pipeline labels (Creator SOP). */
+export type SopTier =
+  | 'Anchor'
+  | 'Rotator'
+  | 'Mid'
+  | 'BandA'
+  | 'BandB'
+  | 'NewSample'
+  | 'Urgent'
+  | 'Retired'
+
 export type ScheduleTierLabel = Tier | 'Deadline' | 'Retainer'
 
 export type ManualTier = 'Anchor' | 'Rising' | 'Test'
@@ -29,6 +40,11 @@ export interface MergedProduct {
   videosFilmed: number
   score: number
   tier: Tier
+  /**
+   * Present when scheduleMode is `sop`. Legacy `tier` is a dashboard-compatible
+   * mapping until SOP-specific UI lands.
+   */
+  sopTier?: SopTier
   rankInTier: number
   inRotation: boolean
   isManual: boolean
@@ -92,7 +108,7 @@ export type AppStage = 'upload' | 'sample' | 'momentum' | 'dashboard' | 'config'
 
 export type MainSection = 'home' | 'sprint' | 'retainers' | 'income' | 'product-scout'
 
-export type ScheduleMode = 'full' | 'momentum'
+export type ScheduleMode = 'full' | 'momentum' | 'sop'
 
 /** @deprecated Legacy value persisted in older sprint rows; coerce to `full`. */
 export type LegacyScheduleMode = ScheduleMode | 'sample'
