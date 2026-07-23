@@ -1425,14 +1425,6 @@ export default function CreatorExecApp() {
         />
       )}
 
-      {showCaptionMatchModal && captionMatchSuggestion && (
-        <CaptionMatchConfirmModal
-          suggestion={captionMatchSuggestion}
-          onConfirm={handleCaptionMatchConfirm}
-          onDecline={handleCaptionMatchDecline}
-        />
-      )}
-
       {firstSprintCelebration && (
         <FirstSprintCelebration
           videosFilmed={firstSprintCelebration.videosFilmed}
@@ -1453,6 +1445,15 @@ export default function CreatorExecApp() {
         />
       )}
         </>
+      )}
+
+      {/* App-root interrupt — must render on every section (esp. Retainers after demo seed). */}
+      {showCaptionMatchModal && captionMatchSuggestion && (
+        <CaptionMatchConfirmModal
+          suggestion={captionMatchSuggestion}
+          onConfirm={handleCaptionMatchConfirm}
+          onDecline={handleCaptionMatchDecline}
+        />
       )}
     </AppShell>
   )
