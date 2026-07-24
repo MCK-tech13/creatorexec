@@ -15,7 +15,7 @@ interface RetainerDealsProps {
   onMoveDeal: (dealId: string, stage: DealStage) => void
   onRemoveDeal: (id: string) => void
   onToggleChecklist: (dealId: string, itemId: string) => void
-  /** Preview: seed NovaGlow + SipWell deals and reset caption-match history. */
+  /** Preview: re-seed NovaGlow + SipWell retainers and reset caption-match history. */
   onLoadCaptionMatchDemo?: () => void
   openNewDealRequest?: boolean
   onNewDealOpenHandled?: () => void
@@ -133,7 +133,7 @@ export function RetainerDeals({
               onClick={onLoadCaptionMatchDemo}
               className="btn-outline inline-flex w-full items-center justify-center px-4 py-2.5 text-sm sm:w-auto"
             >
-              Load caption-match demo
+              Replay caption-match demo
             </button>
           )}
           <button

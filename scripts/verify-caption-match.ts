@@ -9,6 +9,7 @@ import {
   CAPTION_MATCH_DEMO_BRANDS,
   MOCK_CAPTION_POSTS,
   normalizeMatchText,
+  stripCaptionMatchDemoDeals,
 } from '../src/lib/pipeline/captionMatch'
 import type { BrandDeal } from '../src/types/pipeline'
 
@@ -173,4 +174,65 @@ assert.ok(ambiguousCaption.caption.includes('SipWell Co'))
   console.log('   ✓ 5/5 reloads: ambiguous never pops; singles still work')
 }
 
+// --- Replay after checklists are full must still produce popups ---
+{
+  const novaDone = deal(
+    {
+      id: 'd-nova-old',
+      brandName: CAPTION_MATCH_DEMO_BRANDS.novaGlow.brandName,
+      product: CAPTION_MATCH_DEMO_BRANDS.novaGlow.product,
+    },
+    4,
+  )
+  const sipDone = deal(
+    {
+      id: 'd-sip-old',
+      brandName: CAPTION_MATCH_DEMO_BRANDS.sipWell.brandName,
+      product: CAPTION_MATCH_DEMO_BRANDS.sipWell.product,
+      retainerTotalVideos: 3,
+    },
+    3,
+  )
+  const beforeReplay = buildCaptionMatchSuggestions(MOCK_CAPTION_POSTS, [novaDone, sipDone])
+  assert.equal(
+    beforeReplay.length,
+    0,
+    'fully filmed demo deals must not emit suggestions',
+  )
+
+  const stripped = stripCaptionMatchDemoDeals([novaDone, sipDone, deal({ id: 'keep', brandName: 'OtherCo' })])
+  assert.equal(stripped.length, 1)
+  assert.equal(stripped[0].brandName, 'OtherCo')
+
+  const replayed = [
+    ...stripped,
+    deal({
+      id: 'd-nova-fresh',
+      brandName: CAPTION_MATCH_DEMO_BRANDS.novaGlow.brandName,
+      product: CAPTION_MATCH_DEMO_BRANDS.novaGlow.product,
+    }),
+    deal({
+      id: 'd-sip-fresh',
+      brandName: CAPTION_MATCH_DEMO_BRANDS.sipWell.brandName,
+      product: CAPTION_MATCH_DEMO_BRANDS.sipWell.product,
+      retainerTotalVideos: 3,
+    }),
+  ]
+  const afterReplay = buildCaptionMatchSuggestions(MOCK_CAPTION_POSTS, replayed)
+  console.log(
+    '\n7) REGRESSION — Replay after full checklists:',
+    afterReplay.map((s) => `${s.captionPostId} → ${s.brandName}`),
+  )
+  assert.ok(
+    afterReplay.some((s) => s.captionPostId === NOVA_CLEAR),
+    'replay must restore NovaGlow popup',
+  )
+  assert.ok(
+    afterReplay.some((s) => s.captionPostId === SIP_CLEAR),
+    'replay must restore SipWell popup',
+  )
+  console.log('   ✓ strip + fresh seed restores popups')
+}
+
 console.log('\nverify-caption-match: PASS')
+

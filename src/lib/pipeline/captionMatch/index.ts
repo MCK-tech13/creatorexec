@@ -16,4 +16,9 @@ export {
   loadDismissedSuggestionIds,
   loadConfirmedCaptionIds,
 } from './suggestionStore'
-export { buildCaptionMatchDemoDealInserts, dealsMissingCaptionDemoBrands } from './demoDeals'
+export {
+  buildCaptionMatchDemoDealInserts,
+  dealsMissingCaptionDemoBrands,
+  isCaptionMatchDemoBrand,
+  stripCaptionMatchDemoDeals,
+} from './demoDeals'

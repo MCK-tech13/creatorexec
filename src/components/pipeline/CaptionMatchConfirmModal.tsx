@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import type { CaptionMatchSuggestion } from '../../lib/pipeline/captionMatch/types'
 
 interface CaptionMatchConfirmModalProps {
@@ -9,6 +10,7 @@ interface CaptionMatchConfirmModalProps {
 /**
  * Interruptive confirm — not a passive banner. Surfaces when a mock (later real)
  * caption likely matches an active retainer deal.
+ * Portaled to document.body so PageContainer max-width never clips the overlay.
  */
 export function CaptionMatchConfirmModal({
   suggestion,
@@ -20,9 +22,9 @@ export function CaptionMatchConfirmModal({
     ? ` (${suggestion.product.trim()})`
     : ''
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[55] flex items-center justify-center bg-ink/50 px-6"
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/50 px-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="caption-match-title"
@@ -51,6 +53,7 @@ export function CaptionMatchConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

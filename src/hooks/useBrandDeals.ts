@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { BrandDeal, BrandDealInsert, DealStage } from '../types/pipeline'
 import {
+  buildCaptionMatchDemoDealInserts,
+  stripCaptionMatchDemoDeals,
+} from '../lib/pipeline/captionMatch/demoDeals'
+import {
   createBrandDeal,
   deleteBrandDeal,
   loadBrandDeals,
@@ -10,6 +14,17 @@ import {
 } from '../lib/pipeline/dealStorage'
 import { syncFilmingChecklist } from '../lib/pipeline/retainerUtils'
 
+function withSyncedChecklist(deal: BrandDeal): BrandDeal {
+  const targetCount = deal.isRetainer
+    ? (deal.retainerTotalVideos ?? 0)
+    : (deal.videosRequired ?? 0)
+  if (targetCount <= 0) return deal
+  return {
+    ...deal,
+    filmingChecklist: syncFilmingChecklist(deal, targetCount),
+  }
+}
+
 export function useBrandDeals() {
   const [deals, setDeals] = useState<BrandDeal[]>(() => loadBrandDeals())
 
@@ -18,18 +33,21 @@ export function useBrandDeals() {
   }, [deals])
 
   const addDeal = useCallback((partial: BrandDealInsert) => {
-    let deal = createBrandDeal(partial)
-    const targetCount = deal.isRetainer
-      ? (deal.retainerTotalVideos ?? 0)
-      : (deal.videosRequired ?? 0)
-    if (targetCount > 0) {
-      deal = {
-        ...deal,
-        filmingChecklist: syncFilmingChecklist(deal, targetCount),
-      }
-    }
+    const deal = withSyncedChecklist(createBrandDeal(partial))
     setDeals((prev) => [...prev, deal])
     return deal
+  }, [])
+
+  /**
+   * Preview caption-match: always replace NovaGlow/SipWell with fresh incomplete
+   * retainers so Replay still pops the modal after prior confirms filled slots.
+   */
+  const seedCaptionMatchDemoDeals = useCallback(() => {
+    const fresh = buildCaptionMatchDemoDealInserts().map((partial) =>
+      withSyncedChecklist(createBrandDeal(partial)),
+    )
+    setDeals((prev) => [...stripCaptionMatchDemoDeals(prev), ...fresh])
+    return fresh
   }, [])
 
   const updateDeal = useCallback((id: string, patch: Partial<BrandDeal>) => {
@@ -103,6 +121,7 @@ export function useBrandDeals() {
   return {
     deals,
     addDeal,
+    seedCaptionMatchDemoDeals,
     updateDeal,
     moveDeal,
     removeDeal,

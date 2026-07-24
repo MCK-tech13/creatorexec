@@ -7,6 +7,14 @@ function daysFromNow(days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+const DEMO_BRAND_NAMES_LOWER = new Set(
+  Object.values(CAPTION_MATCH_DEMO_BRANDS).map((b) => b.brandName.toLowerCase()),
+)
+
+export function isCaptionMatchDemoBrand(brandName: string): boolean {
+  return DEMO_BRAND_NAMES_LOWER.has(brandName.trim().toLowerCase())
+}
+
 /** BrandDealInsert rows for Preview caption-match walkthrough. */
 export function buildCaptionMatchDemoDealInserts(): BrandDealInsert[] {
   return [
@@ -38,4 +46,12 @@ export function dealsMissingCaptionDemoBrands(deals: BrandDeal[]): BrandDealInse
   return buildCaptionMatchDemoDealInserts().filter(
     (d) => !existing.has(d.brandName.toLowerCase()),
   )
+}
+
+/**
+ * Drop any prior NovaGlow/SipWell rows (even if fully filmed / non-retainer /
+ * wrong stage) so Replay always restores matchable active retainers.
+ */
+export function stripCaptionMatchDemoDeals(deals: BrandDeal[]): BrandDeal[] {
+  return deals.filter((d) => !isCaptionMatchDemoBrand(d.brandName))
 }

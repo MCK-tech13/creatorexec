@@ -101,7 +101,6 @@ import {
 } from './types/currentSprint'
 import { useBrandDeals } from './hooks/useBrandDeals'
 import { useCaptionMatchSuggestions } from './hooks/useCaptionMatchSuggestions'
-import { dealsMissingCaptionDemoBrands } from './lib/pipeline/captionMatch'
 import {
   buildRetainerScheduleEntries,
   buildRetainerVideos,
@@ -359,6 +358,7 @@ export default function CreatorExecApp() {
   const {
     deals: brandDeals,
     addDeal,
+    seedCaptionMatchDemoDeals,
     updateDeal,
     moveDeal,
     removeDeal,
@@ -375,14 +375,14 @@ export default function CreatorExecApp() {
   } = useCaptionMatchSuggestions(brandDeals)
 
   const handleLoadCaptionMatchDemo = useCallback(() => {
-    const missing = dealsMissingCaptionDemoBrands(brandDeals)
-    for (const insert of missing) {
-      addDeal(insert)
-    }
+    // Always re-seed fresh incomplete retainers + clear dismiss/confirm history.
+    // Prior flow only added missing brands, so a second click after confirming
+    // videos left full checklists and the modal never returned.
+    seedCaptionMatchDemoDeals()
     resetCaptionMatchDemoHistory()
     setMainSection('retainers')
     navigate(appPathForSection('retainers'))
-  }, [brandDeals, addDeal, resetCaptionMatchDemoHistory, navigate])
+  }, [seedCaptionMatchDemoDeals, resetCaptionMatchDemoHistory, navigate])
 
   const handleCaptionMatchConfirm = useCallback(() => {
     if (!captionMatchSuggestion) return

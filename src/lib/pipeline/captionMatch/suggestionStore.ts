@@ -1,9 +1,18 @@
-import { getActiveUserId } from '../../supabase/dataStore'
+import { getActiveUserId, isDataStoreReady } from '../../supabase/dataStore'
 
 const PREFIX = 'creatorexec-caption-match'
 
+function storageUserId(): string {
+  if (!isDataStoreReady()) return 'anon'
+  try {
+    return getActiveUserId()
+  } catch {
+    return 'anon'
+  }
+}
+
 function key(kind: 'dismissed' | 'confirmed'): string {
-  return `${PREFIX}-${kind}-${getActiveUserId()}`
+  return `${PREFIX}-${kind}-${storageUserId()}`
 }
 
 function readSet(kind: 'dismissed' | 'confirmed'): Set<string> {
