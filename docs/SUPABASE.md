@@ -84,6 +84,28 @@ npm run test:auth
 
 This creates a temporary user, confirms it appears in Authentication → Users, tests login/session/logout, then deletes the user.
 
+### Support: update a user’s password
+
+When a customer cannot log in (and inbound `support@creatorexec.app` mail is unavailable), use the local support script with your service-role key. Do **not** put the service role key in the browser or Vercel `VITE_` vars.
+
+```bash
+# Set a temporary password (tell them out of band — text/DM)
+npm run set-password -- user@email.com 'TempPass123!'
+
+# Or generate a one-time recovery link to text/DM instead of emailing
+npm run set-password -- user@email.com --link
+
+# Confirm the account exists
+npm run set-password -- --lookup user@email.com
+```
+
+Requires `SUPABASE_URL` (or `VITE_SUPABASE_URL`) and `SUPABASE_SERVICE_ROLE_KEY` in `.env`.
+
+Self-service paths that already exist in the app:
+
+- `/forgot-password` — sends Supabase’s recovery email (needs Supabase Auth email delivery)
+- `/reset-password` — set a new password after opening a recovery link, or while already signed in (Change password in the app header)
+
 ## 5. Phase 3 — user data in Supabase
 
 Apply these migrations (in order) if you set up Phase 1 before later features shipped:
