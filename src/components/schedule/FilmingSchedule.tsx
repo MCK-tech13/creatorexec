@@ -16,6 +16,7 @@ import { getScheduleTierExplanation } from '../../lib/onboarding/beginnerCopy'
 import { ProductChoosingTips } from '../sample/ProductChoosingTips'
 import { TierBadge } from '../dashboard/TierBadge'
 import { ContentPolicyDisclaimer } from '../ui/ContentPolicyDisclaimer'
+import { ResetCurrentSprintModal } from '../sprint/ResetCurrentSprintModal'
 
 interface FilmingScheduleProps {
   schedule: DaySchedule[]
@@ -28,6 +29,8 @@ interface FilmingScheduleProps {
   onRemoveFromSchedule: (productKey: string) => void
   onBack: () => void
   onStartOver: () => void
+  /** Soft clear of the live sprint (no review). Optional — schedule may omit it. */
+  onResetCurrentSprint?: () => void
   retainerOnly?: boolean
 }
 
@@ -44,11 +47,13 @@ export function FilmingSchedule({
   onRemoveFromSchedule,
   onBack,
   onStartOver,
+  onResetCurrentSprint,
   retainerOnly = false,
 }: FilmingScheduleProps) {
   const [expandedDays, setExpandedDays] = useState<Set<number>>(
     () => new Set(schedule.map((d) => d.day)),
   )
+  const [showResetSprintConfirm, setShowResetSprintConfirm] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const filmedByProductId = useMemo(
@@ -291,16 +296,37 @@ export function FilmingSchedule({
         })}
       </div>
 
-      <div className="mt-14 flex gap-px">
-        {!retainerOnly && (
-          <button type="button" onClick={onBack} className="btn-outline flex-1 py-4">
-            Back
+      <div className="mt-14 flex flex-col gap-3">
+        <div className="flex gap-px">
+          {!retainerOnly && (
+            <button type="button" onClick={onBack} className="btn-outline flex-1 py-4">
+              Back
+            </button>
+          )}
+          <button type="button" onClick={onStartOver} className="btn-primary flex-1 py-4">
+            {retainerOnly ? 'Add Products' : 'Analyze New Report'}
+          </button>
+        </div>
+        {!retainerOnly && onResetCurrentSprint && (
+          <button
+            type="button"
+            onClick={() => setShowResetSprintConfirm(true)}
+            className="link-elegant self-center font-body text-sm text-stone"
+          >
+            Reset current sprint
           </button>
         )}
-        <button type="button" onClick={onStartOver} className="btn-primary flex-1 py-4">
-          {retainerOnly ? 'Add Products' : 'Analyze New Report'}
-        </button>
       </div>
+
+      {showResetSprintConfirm && onResetCurrentSprint && (
+        <ResetCurrentSprintModal
+          onCancel={() => setShowResetSprintConfirm(false)}
+          onConfirm={() => {
+            setShowResetSprintConfirm(false)
+            onResetCurrentSprint()
+          }}
+        />
+      )}
 
     </div>
   )

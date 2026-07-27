@@ -947,6 +947,32 @@ export default function CreatorExecApp() {
     beginNextSprint('start-over')
   }
 
+  /**
+   * Soft clear of the live sprint workspace — no end-of-sprint review.
+   * Catalog, trial progress, retainers, income, and scout stay intact.
+   */
+  const handleResetCurrentSprint = useCallback(() => {
+    setFirstSprintCelebration(null)
+    setSprintReview(null)
+    setPendingSprintReset(null)
+    resetSprintState()
+    setUploadLandingMode('empty')
+    setShowUploadPanel(false)
+    setShowProductEntry(false)
+    setMainSection('sprint')
+    navigate(appPathForSection('sprint'))
+    setStage('upload')
+  }, [navigate, resetSprintState])
+
+  const canResetCurrentSprint =
+    products.length > 0 ||
+    sampleProducts.length > 0 ||
+    schedule.length > 0 ||
+    stage === 'dashboard' ||
+    stage === 'config' ||
+    stage === 'schedule' ||
+    stage === 'sample'
+
   const topEarnerLine = usesSilentMomentum ? formatTopEarnerLine(products) : null
 
   const productFlags = useMemo(() => {
@@ -1134,6 +1160,8 @@ export default function CreatorExecApp() {
       onSignOut={handleSignOut}
       userEmail={user?.email ?? null}
       onResetOnboarding={handleResetOnboarding}
+      onResetCurrentSprint={handleResetCurrentSprint}
+      canResetCurrentSprint={canResetCurrentSprint}
       sprintSetupComplete={onboardingComplete}
       contentWidth={useWideContent ? 'wide' : 'narrow'}
       showSprintStepper={mainSection === 'sprint' && onboardingComplete}
@@ -1372,6 +1400,9 @@ export default function CreatorExecApp() {
           }
           onStartOver={
             showRetainerOnlySchedule ? handleAddProductsFromRetainer : handleStartOver
+          }
+          onResetCurrentSprint={
+            showRetainerOnlySchedule ? undefined : handleResetCurrentSprint
           }
           retainerOnly={showRetainerOnlySchedule}
         />

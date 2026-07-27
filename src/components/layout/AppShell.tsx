@@ -21,6 +21,8 @@ interface AppShellProps {
   userEmail?: string | null
   children: ReactNode
   onResetOnboarding: () => void
+  onResetCurrentSprint?: () => void
+  canResetCurrentSprint?: boolean
   sprintSetupComplete: boolean
   contentWidth?: PageContainerVariant
   showSprintStepper?: boolean
@@ -40,6 +42,8 @@ export function AppShell({
   userEmail,
   children,
   onResetOnboarding,
+  onResetCurrentSprint,
+  canResetCurrentSprint = false,
   sprintSetupComplete,
   contentWidth = 'narrow',
   showSprintStepper = false,
@@ -102,7 +106,13 @@ export function AppShell({
       <main className={`flex-1 bg-cream-warm ${isSprintUpload ? '' : 'py-10 sm:py-16'}`}>
         <PageContainer variant={contentWidth}>{children}</PageContainer>
       </main>
-      {sprintSetupComplete && <AppFooter onResetOnboarding={onResetOnboarding} />}
+      {sprintSetupComplete && (
+        <AppFooter
+          onResetOnboarding={onResetOnboarding}
+          onResetCurrentSprint={onResetCurrentSprint}
+          canResetCurrentSprint={canResetCurrentSprint}
+        />
+      )}
     </div>
   )
 }
