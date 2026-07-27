@@ -69,12 +69,26 @@ Phase 2 wires **Supabase Auth** (email/password signup, login, logout, password 
 
 ### Auth redirect URLs (Supabase Dashboard → Authentication → URL Configuration)
 
-Add your site URLs, including:
+Production traffic lives on **www** (apex `creatorexec.app` 308s there). Reset emails must
+redirect to `/reset-password` on an allowlisted URL.
 
-- `http://localhost:5173/reset-password` (local dev)
-- `https://creatorexec.app/reset-password` (production)
+| Field | Value |
+|-------|-------|
+| Site URL | `https://www.creatorexec.app` (preferred) or `https://creatorexec.app` |
+| Redirect URLs | `https://creatorexec.app/reset-password` |
+| | `https://www.creatorexec.app/reset-password` |
+| | `http://localhost:5173/reset-password` |
 
-Site URL can be `http://localhost:5173` for dev or your production domain.
+The app always requests the apex reset URL in production today, because www was not
+allowlisted and GoTrue was falling back to Site URL **with no path** (users landed on `/`
+instead of the reset form). Add the www redirect URL above so either host works.
+
+Self-serve reset flow:
+
+1. Login → **Forgot password?** → `/forgot-password`
+2. `resetPasswordForEmail` sends mail via Supabase Auth (Resend SMTP in the dashboard)
+3. User opens the link → `/reset-password` → chooses a new password
+4. App signs them out and sends them to `/login` with a success message
 
 ### Verify auth
 

@@ -9,6 +9,9 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/app'
+  const passwordJustReset = Boolean(
+    (location.state as { passwordReset?: boolean } | null)?.passwordReset,
+  )
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -49,6 +52,11 @@ export function LoginPage() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-5">
+        {passwordJustReset && (
+          <p className="font-body text-sm text-emerald" role="status">
+            Password updated. Log in with your new password.
+          </p>
+        )}
         <div>
           <label htmlFor="login-email" className="label-caps mb-2 block">
             Email

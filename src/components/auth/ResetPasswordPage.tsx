@@ -1,40 +1,56 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { hasPasswordRecoveryInUrl } from '../../lib/auth/passwordReset'
 import { getSupabaseClient } from '../../lib/supabase/client'
 import { AuthLayout, AuthLoadingScreen } from './AuthScreens'
 
 export function ResetPasswordPage() {
-  const { updatePassword, session, loading } = useAuth()
+  const { updatePassword, signOut, session, loading } = useAuth()
   const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [recoveryReady, setRecoveryReady] = useState(false)
+  const [bootstrapped, setBootstrapped] = useState(false)
+  const [updated, setUpdated] = useState(false)
+  const urlLooksLikeRecovery =
+    typeof window !== 'undefined' && hasPasswordRecoveryInUrl(window.location)
 
   useEffect(() => {
     const supabase = getSupabaseClient()
+    let cancelled = false
+
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (event === 'PASSWORD_RECOVERY' || nextSession) {
         setRecoveryReady(true)
       }
     })
 
-    supabase.auth.getSession().then(({ data: sessionData }) => {
+    void supabase.auth.getSession().then(({ data: sessionData }) => {
+      if (cancelled) return
       if (sessionData.session) {
         setRecoveryReady(true)
       }
+      // Allow detectSessionInUrl a beat to exchange hash/query tokens before we
+      // decide the link is invalid and bounce to forgot-password.
+      window.setTimeout(() => {
+        if (!cancelled) setBootstrapped(true)
+      }, urlLooksLikeRecovery ? 1200 : 0)
     })
 
-    return () => data.subscription.unsubscribe()
-  }, [])
+    return () => {
+      cancelled = true
+      data.subscription.unsubscribe()
+    }
+  }, [urlLooksLikeRecovery])
 
-  if (loading) {
+  if (loading || (!bootstrapped && urlLooksLikeRecovery)) {
     return <AuthLoadingScreen label="Preparing password reset…" />
   }
 
-  if (!loading && !recoveryReady && !session) {
+  if (bootstrapped && !recoveryReady && !session) {
     return <Navigate to="/forgot-password" replace />
   }
 
@@ -53,14 +69,20 @@ export function ResetPasswordPage() {
 
     setSubmitting(true)
     const result = await updatePassword(password)
-    setSubmitting(false)
-
     if (result.error) {
+      setSubmitting(false)
       setError(result.error)
       return
     }
 
-    navigate('/app', { replace: true })
+    setUpdated(true)
+    await signOut()
+    setSubmitting(false)
+    navigate('/login', { replace: true, state: { passwordReset: true } })
+  }
+
+  if (updated) {
+    return <AuthLoadingScreen label="Password updated. Taking you to log in…" />
   }
 
   return (
