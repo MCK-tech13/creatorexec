@@ -15,6 +15,8 @@ interface RetainerDealsProps {
   onMoveDeal: (dealId: string, stage: DealStage) => void
   onRemoveDeal: (id: string) => void
   onToggleChecklist: (dealId: string, itemId: string) => void
+  /** Preview: re-seed NovaGlow + SipWell retainers and reset caption-match history. */
+  onLoadCaptionMatchDemo?: () => void
   openNewDealRequest?: boolean
   onNewDealOpenHandled?: () => void
 }
@@ -27,6 +29,7 @@ export function RetainerDeals({
   onMoveDeal,
   onRemoveDeal,
   onToggleChecklist,
+  onLoadCaptionMatchDemo,
   openNewDealRequest = false,
   onNewDealOpenHandled,
 }: RetainerDealsProps) {
@@ -124,6 +127,15 @@ export function RetainerDeals({
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
           <TikTokConnectControl />
+          {onLoadCaptionMatchDemo && (
+            <button
+              type="button"
+              onClick={onLoadCaptionMatchDemo}
+              className="btn-outline inline-flex w-full items-center justify-center px-4 py-2.5 text-sm sm:w-auto"
+            >
+              Replay caption-match demo
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowNewDeal(true)}
