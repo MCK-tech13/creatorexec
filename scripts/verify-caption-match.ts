@@ -7,8 +7,13 @@ import {
   buildCaptionMatchSuggestions,
   CAPTION_MATCH_CONFIRM_SIMPLIFICATION,
   CAPTION_MATCH_DEMO_BRANDS,
+  confirmCaptionSuggestion,
+  dismissSuggestion,
+  loadConfirmedCaptionIds,
+  loadDismissedSuggestionIds,
   MOCK_CAPTION_POSTS,
   normalizeMatchText,
+  resetCaptionMatchSuggestionHistory,
   stripCaptionMatchDemoDeals,
 } from '../src/lib/pipeline/captionMatch'
 import type { BrandDeal } from '../src/types/pipeline'
@@ -232,6 +237,76 @@ assert.ok(ambiguousCaption.caption.includes('SipWell Co'))
     'replay must restore SipWell popup',
   )
   console.log('   ✓ strip + fresh seed restores popups')
+}
+
+// --- Back-to-back queue drain (same sitting, no remount) ---
+{
+  const memory = new Map<string, string>()
+  ;(globalThis as { localStorage?: Storage }).localStorage = {
+    getItem: (key) => memory.get(key) ?? null,
+    setItem: (key, value) => {
+      memory.set(key, value)
+    },
+    removeItem: (key) => {
+      memory.delete(key)
+    },
+    clear: () => memory.clear(),
+    key: () => null,
+    length: 0,
+  }
+
+  resetCaptionMatchSuggestionHistory()
+
+  const deals = [nova, sip]
+  const readQueue = () =>
+    buildCaptionMatchSuggestions(MOCK_CAPTION_POSTS, deals, {
+      dismissedIds: loadDismissedSuggestionIds(),
+      confirmedCaptionIds: loadConfirmedCaptionIds(),
+    })
+
+  let queue = readQueue()
+  console.log(
+    '\n8) BACK-TO-BACK — starting queue:',
+    queue.map((s) => `${s.captionPostId}→${s.brandName}`),
+  )
+  assert.ok(queue.length >= 2, 'need 2+ pending suggestions to prove back-to-back')
+
+  const seen: string[] = []
+  let steps = 0
+  while (queue.length > 0 && steps < 10) {
+    const current = queue[0]
+    seen.push(current.id)
+    const remainingAfter = queue.length - 1
+    console.log(
+      `   step ${steps + 1}: act on ${current.captionPostId} (${current.brandName}); ${remainingAfter} remaining after`,
+    )
+
+    // Alternate confirm / decline like a real sitting
+    if (steps % 2 === 0) {
+      confirmCaptionSuggestion(current.captionPostId, current.id)
+    } else {
+      dismissSuggestion(current.id)
+    }
+
+    // Immediate re-read — next item must be available without remount/navigation
+    const nextQueue = readQueue()
+    if (remainingAfter > 0) {
+      assert.ok(nextQueue.length > 0, 'next suggestion must appear immediately after act')
+      assert.notEqual(
+        nextQueue[0].id,
+        current.id,
+        'next suggestion must be a different item (queue advanced)',
+      )
+    } else {
+      assert.equal(nextQueue.length, 0, 'queue empty after last act')
+    }
+    queue = nextQueue
+    steps++
+  }
+
+  assert.ok(seen.length >= 2, 'drained at least 2 suggestions in one sitting')
+  assert.equal(queue.length, 0, 'queue fully drained')
+  console.log(`   ✓ drained ${seen.length} suggestions back-to-back in one sitting`)
 }
 
 console.log('\nverify-caption-match: PASS')

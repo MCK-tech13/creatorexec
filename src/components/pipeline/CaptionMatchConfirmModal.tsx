@@ -3,6 +3,8 @@ import type { CaptionMatchSuggestion } from '../../lib/pipeline/captionMatch/typ
 
 interface CaptionMatchConfirmModalProps {
   suggestion: CaptionMatchSuggestion
+  /** How many other pending suggestions will follow in this sitting. */
+  remainingAfterCurrent?: number
   onConfirm: () => void
   onDecline: () => void
 }
@@ -11,9 +13,14 @@ interface CaptionMatchConfirmModalProps {
  * Interruptive confirm — not a passive banner. Surfaces when a mock (later real)
  * caption likely matches an active retainer deal.
  * Portaled to document.body so PageContainer max-width never clips the overlay.
+ *
+ * Queue behavior: after Confirm / Not this one, the parent advances to the next
+ * pending suggestion immediately (same sitting). key={suggestion.id} remounts
+ * the panel so each item reads as a fresh step.
  */
 export function CaptionMatchConfirmModal({
   suggestion,
+  remainingAfterCurrent = 0,
   onConfirm,
   onDecline,
 }: CaptionMatchConfirmModalProps) {
@@ -29,7 +36,10 @@ export function CaptionMatchConfirmModal({
       aria-modal="true"
       aria-labelledby="caption-match-title"
     >
-      <div className="w-full max-w-md border border-border-warm bg-white p-8 fade-in shadow-lg">
+      <div
+        key={suggestion.id}
+        className="w-full max-w-md border border-border-warm bg-white p-8 fade-in shadow-lg"
+      >
         <p className="label-caps text-terracotta">Posted for a deal?</p>
         <h2
           id="caption-match-title"
@@ -44,6 +54,13 @@ export function CaptionMatchConfirmModal({
           “{suggestion.caption}”
         </blockquote>
         <p className="mt-2 font-body text-xs text-stone">Posted {suggestion.postedAt}</p>
+        {remainingAfterCurrent > 0 && (
+          <p className="mt-3 font-body text-xs text-stone">
+            {remainingAfterCurrent === 1
+              ? '1 more suggestion after this — you’ll see it next.'
+              : `${remainingAfterCurrent} more suggestions after this — you’ll work through them next.`}
+          </p>
+        )}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <button type="button" onClick={onConfirm} className="btn-primary flex-1 py-3">
             Confirm — mark filmed

@@ -42,8 +42,9 @@ export function AppRouter() {
           }
         />
         <Route path="/app" element={<AppShellProviders />}>
-          <Route index element={<CreatorExecApp />} />
-          <Route path=":section" element={<CreatorExecApp />} />
+          {/* Single optional segment so section switches do not remount CreatorExecApp
+              (remounts were restarting caption-match interrupts mid-queue). */}
+          <Route path=":section?" element={<CreatorExecApp />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -369,6 +369,7 @@ export default function CreatorExecApp() {
   const {
     ready: captionMatchReady,
     activeSuggestion: captionMatchSuggestion,
+    remainingAfterCurrent: captionMatchRemainingAfter,
     declineSuggestion: declineCaptionMatch,
     markSuggestionConfirmed,
     resetDemoHistory: resetCaptionMatchDemoHistory,
@@ -1451,6 +1452,7 @@ export default function CreatorExecApp() {
       {showCaptionMatchModal && captionMatchSuggestion && (
         <CaptionMatchConfirmModal
           suggestion={captionMatchSuggestion}
+          remainingAfterCurrent={captionMatchRemainingAfter}
           onConfirm={handleCaptionMatchConfirm}
           onDecline={handleCaptionMatchDecline}
         />
