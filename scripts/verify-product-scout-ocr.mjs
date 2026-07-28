@@ -12,6 +12,9 @@ import {
   PRODUCT_SCOUT_OCR_SYSTEM_PROMPT,
   PRODUCT_SCOUT_OCR_TOOL,
   PRODUCT_SCOUT_OCR_USER_PROMPT,
+  buildProductScoutOcrSystemPrompt,
+  buildProductScoutOcrTool,
+  buildProductScoutOcrUserPrompt,
   normalizeExtractedMetrics,
   extractTrendMetricsFromImage,
 } from '../server/productScoutOcr.mjs'
@@ -39,6 +42,15 @@ assert.deepEqual(PRODUCT_SCOUT_OCR_TOOL.input_schema.required, [
 assert.ok(PRODUCT_SCOUT_OCR_SYSTEM_PROMPT.includes('Do NOT guess'))
 assert.ok(PRODUCT_SCOUT_OCR_SYSTEM_PROMPT.includes('▲'))
 assert.ok(PRODUCT_SCOUT_OCR_USER_PROMPT.includes('delta_orders'))
+assert.ok(
+  PRODUCT_SCOUT_OCR_TOOL.input_schema.properties.orders.description.includes('30-day'),
+)
+
+const tool7 = buildProductScoutOcrTool('7')
+assert.ok(tool7.input_schema.properties.orders.description.includes('7-day'))
+assert.ok(buildProductScoutOcrSystemPrompt('7').includes('7-day'))
+assert.ok(buildProductScoutOcrUserPrompt('7').includes('7-day'))
+assert.ok(buildProductScoutOcrUserPrompt('30').includes('30-day'))
 
 assert.deepEqual(
   normalizeExtractedMetrics({

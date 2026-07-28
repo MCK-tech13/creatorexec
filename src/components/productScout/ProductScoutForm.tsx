@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ImagePlus, LoaderCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import type { ProductScoutMetrics } from '../../types/productScout'
-import { EMPTY_PRODUCT_SCOUT_METRICS } from '../../lib/productScout/formDefaults'
+import type { ProductScoutMetrics, ProductScoutRecent7dMetrics } from '../../types/productScout'
+import {
+  EMPTY_PRODUCT_SCOUT_METRICS,
+  EMPTY_PRODUCT_SCOUT_RECENT_7D,
+} from '../../lib/productScout/formDefaults'
 import {
   extractScreenshotMetrics,
   fileToDownsizedDataUrl,
   mergeExtractedIntoMetrics,
+  mergeExtractedIntoRecent7d,
   type ExtractConfidence,
+  type ProductScoutOcrPeriod,
 } from '../../lib/productScout/extractScreenshot'
 import { hasProductScoutData, scoreProductScout } from '../../lib/productScout/scorer'
 import {
@@ -20,7 +25,7 @@ import { ProductScoutResults } from './ProductScoutResults'
 import { ProductScoutWalkthrough } from './ProductScoutWalkthrough'
 
 const METRIC_FIELDS: {
-  key: keyof ProductScoutMetrics
+  key: keyof Omit<ProductScoutMetrics, 'recent7d'>
   label: string
   valuePlaceholder: string
   deltaPlaceholder: string
@@ -56,6 +61,29 @@ const METRIC_FIELDS: {
   },
 ]
 
+const RECENT_7D_FIELDS: {
+  key: keyof ProductScoutRecent7dMetrics
+  label: string
+  valuePlaceholder: string
+  deltaPlaceholder: string
+  hint: string
+}[] = [
+  {
+    key: 'orders',
+    label: 'Orders (7-day)',
+    valuePlaceholder: '8.2K',
+    deltaPlaceholder: 'e.g. -1.1K',
+    hint: 'Optional — 7-day orders and change from TikTok Product trends',
+  },
+  {
+    key: 'atcUsers',
+    label: 'Add-to-cart users (7-day)',
+    valuePlaceholder: '22K',
+    deltaPlaceholder: 'e.g. -3.4K',
+    hint: 'Optional — 7-day ATC users and change',
+  },
+]
+
 interface ProductScoutFormProps {
   initialName?: string
   initialMetrics?: ProductScoutMetrics
@@ -68,10 +96,40 @@ interface ProductScoutFormProps {
 
 const FORM_ID = 'product-scout'
 
+function recent7dEqual(
+  a: ProductScoutRecent7dMetrics | undefined,
+  b: ProductScoutRecent7dMetrics | undefined,
+): boolean {
+  const left = a ?? EMPTY_PRODUCT_SCOUT_RECENT_7D
+  const right = b ?? EMPTY_PRODUCT_SCOUT_RECENT_7D
+  return (['orders', 'atcUsers'] as const).every(
+    (key) => left[key].value === right[key].value && left[key].delta === right[key].delta,
+  )
+}
+
 function metricsEqual(a: ProductScoutMetrics, b: ProductScoutMetrics): boolean {
-  return (['orders', 'ctr', 'creators', 'atcUsers'] as const).every(
+  const core = (['orders', 'ctr', 'creators', 'atcUsers'] as const).every(
     (key) => a[key].value === b[key].value && a[key].delta === b[key].delta,
   )
+  return core && recent7dEqual(a.recent7d, b.recent7d)
+}
+
+function pruneEmptyRecent7d(metrics: ProductScoutMetrics): ProductScoutMetrics {
+  const recent = metrics.recent7d
+  if (!recent) {
+    const { recent7d: _drop, ...rest } = metrics
+    return rest
+  }
+  const hasAny =
+    recent.orders.value.trim() !== '' ||
+    recent.orders.delta.trim() !== '' ||
+    recent.atcUsers.value.trim() !== '' ||
+    recent.atcUsers.delta.trim() !== ''
+  if (!hasAny) {
+    const { recent7d: _drop, ...rest } = metrics
+    return rest
+  }
+  return metrics
 }
 
 export function ProductScoutForm({
@@ -84,15 +142,18 @@ export function ProductScoutForm({
   onCancel,
 }: ProductScoutFormProps) {
   const { session } = useAuth()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInput30Ref = useRef<HTMLInputElement>(null)
+  const fileInput7Ref = useRef<HTMLInputElement>(null)
   const [productName, setProductName] = useState(initialName)
   const [metrics, setMetrics] = useState<ProductScoutMetrics>(initialMetrics)
   const [nameError, setNameError] = useState<string | null>(null)
-  const [ocrReading, setOcrReading] = useState(false)
+  const [ocrReadingPeriod, setOcrReadingPeriod] = useState<ProductScoutOcrPeriod | null>(null)
   const [ocrError, setOcrError] = useState<string | null>(null)
   const [ocrConfidence, setOcrConfidence] = useState<ExtractConfidence | null>(null)
   const [ocrFileName, setOcrFileName] = useState<string | null>(null)
   const [versionChecking, setVersionChecking] = useState(false)
+
+  const ocrReading = ocrReadingPeriod !== null
 
   const previewResult = useMemo(() => {
     if (!hasProductScoutData(metrics)) return null
@@ -104,7 +165,6 @@ export function ProductScoutForm({
   const isDirty =
     productName.trim() !== initialName.trim() || !metricsEqual(metrics, initialMetrics)
 
-  // OCR in flight counts as unsaved work — version-guard reloads must wait / draft.
   const hasUnsavedWork = isDirty || ocrReading
 
   const persistDraft = () => {
@@ -127,7 +187,6 @@ export function ProductScoutForm({
     }
   }, [hasUnsavedWork])
 
-  // Debounced autosave so a focus-triggered reload (or SPA remount) can restore.
   useEffect(() => {
     if (!hasUnsavedWork) return
     const timer = window.setTimeout(() => {
@@ -137,7 +196,6 @@ export function ProductScoutForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- persist latest fields on dirty changes
   }, [hasUnsavedWork, productName, metrics, formMode, editId])
 
-  // Tab background / pagehide: flush draft immediately (mobile may discard the page).
   useEffect(() => {
     const flushIfNeeded = () => {
       if (!hasUnsavedWork) return
@@ -155,7 +213,6 @@ export function ProductScoutForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasUnsavedWork, productName, metrics, formMode, editId])
 
-  // Version-guard reload path (focus / dirty-cleared) must save draft before navigate.
   useEffect(() => {
     return registerBeforeClientReload(() => {
       if (hasUnsavedWork) persistDraft()
@@ -163,7 +220,11 @@ export function ProductScoutForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasUnsavedWork, productName, metrics, formMode, editId])
 
-  const updateMetric = (key: keyof ProductScoutMetrics, field: 'value' | 'delta', next: string) => {
+  const updateMetric = (
+    key: keyof Omit<ProductScoutMetrics, 'recent7d'>,
+    field: 'value' | 'delta',
+    next: string,
+  ) => {
     setMetrics((prev) => ({
       ...prev,
       [key]: {
@@ -171,6 +232,26 @@ export function ProductScoutForm({
         [field]: next,
       },
     }))
+  }
+
+  const updateRecent7d = (
+    key: keyof ProductScoutRecent7dMetrics,
+    field: 'value' | 'delta',
+    next: string,
+  ) => {
+    setMetrics((prev) => {
+      const recent = prev.recent7d ?? { ...EMPTY_PRODUCT_SCOUT_RECENT_7D }
+      return {
+        ...prev,
+        recent7d: {
+          ...recent,
+          [key]: {
+            ...recent[key],
+            [field]: next,
+          },
+        },
+      }
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -185,12 +266,13 @@ export function ProductScoutForm({
 
     setNameError(null)
     setVersionChecking(true)
+    const metricsToSave = pruneEmptyRecent7d(metrics)
     try {
       const current = await ensureClientVersionCurrent({
         beforeReload: () => {
           saveProductScoutDraft({
             productName: trimmedName,
-            metrics,
+            metrics: metricsToSave,
             mode: formMode,
             editId,
           })
@@ -200,7 +282,7 @@ export function ProductScoutForm({
       if (!current) return
       clearClientFormDirty(FORM_ID)
       clearProductScoutDraft()
-      await onSubmit(trimmedName, metrics)
+      await onSubmit(trimmedName, metricsToSave)
     } finally {
       setVersionChecking(false)
     }
@@ -212,7 +294,10 @@ export function ProductScoutForm({
     onCancel()
   }
 
-  const handleScreenshotSelected = async (file: File | undefined) => {
+  const handleScreenshotSelected = async (
+    period: ProductScoutOcrPeriod,
+    file: File | undefined,
+  ) => {
     if (!file) return
 
     setOcrError(null)
@@ -225,11 +310,15 @@ export function ProductScoutForm({
       return
     }
 
-    setOcrReading(true)
+    setOcrReadingPeriod(period)
     try {
       const imageDataUrl = await fileToDownsizedDataUrl(file)
-      const result = await extractScreenshotMetrics(accessToken, imageDataUrl)
-      setMetrics((prev) => mergeExtractedIntoMetrics(prev, result.metrics))
+      const result = await extractScreenshotMetrics(accessToken, imageDataUrl, period)
+      setMetrics((prev) =>
+        period === '7'
+          ? mergeExtractedIntoRecent7d(prev, result.metrics)
+          : mergeExtractedIntoMetrics(prev, result.metrics),
+      )
       setOcrConfidence(result.metrics.confidence)
     } catch (error) {
       setOcrConfidence(null)
@@ -239,10 +328,13 @@ export function ProductScoutForm({
           : 'Could not read that screenshot. Enter the numbers manually instead.',
       )
     } finally {
-      setOcrReading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      setOcrReadingPeriod(null)
+      if (period === '7' && fileInput7Ref.current) fileInput7Ref.current.value = ''
+      if (period === '30' && fileInput30Ref.current) fileInput30Ref.current.value = ''
     }
   }
+
+  const recent7d = metrics.recent7d ?? EMPTY_PRODUCT_SCOUT_RECENT_7D
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -273,7 +365,7 @@ export function ProductScoutForm({
           <div className="min-w-0 space-y-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="label-caps mb-1">TikTok Product trends</p>
+                <p className="label-caps mb-1">TikTok Product trends (30-day)</p>
                 <p className="font-body text-sm text-stone">
                   Enter the 30-day value and delta exactly as shown on TikTok Shop&apos;s product
                   promotion screen — or upload a screenshot to pre-fill the values.
@@ -281,25 +373,25 @@ export function ProductScoutForm({
               </div>
               <div className="shrink-0">
                 <input
-                  ref={fileInputRef}
+                  ref={fileInput30Ref}
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/gif"
                   className="sr-only"
-                  onChange={(e) => void handleScreenshotSelected(e.target.files?.[0])}
+                  onChange={(e) => void handleScreenshotSelected('30', e.target.files?.[0])}
                   disabled={ocrReading}
                 />
                 <button
                   type="button"
                   className="btn-outline inline-flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm sm:w-auto"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => fileInput30Ref.current?.click()}
                   disabled={ocrReading}
                 >
-                  {ocrReading ? (
+                  {ocrReadingPeriod === '30' ? (
                     <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
                   ) : (
                     <ImagePlus className="h-4 w-4" aria-hidden />
                   )}
-                  {ocrReading ? 'Reading…' : 'Upload screenshot'}
+                  {ocrReadingPeriod === '30' ? 'Reading…' : 'Upload 30-day screenshot'}
                 </button>
               </div>
             </div>
@@ -310,7 +402,7 @@ export function ProductScoutForm({
                 role="status"
                 aria-live="polite"
               >
-                Reading your screenshot…
+                Reading your {ocrReadingPeriod === '7' ? '7-day' : '30-day'} screenshot…
                 {ocrFileName ? (
                   <span className="mt-1 block text-xs text-stone">{ocrFileName}</span>
                 ) : null}
@@ -378,6 +470,76 @@ export function ProductScoutForm({
                   </div>
                 </fieldset>
               ))}
+            </div>
+
+            <div className="border-t border-border-warm pt-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="label-caps mb-1">7-day trends (optional)</p>
+                  <p className="font-body text-sm text-stone">
+                    Add a 7-day screenshot if you have one. Used only to flag recent cooling when
+                    30-day orders are still growing — skip this and scoring stays the same.
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <input
+                    ref={fileInput7Ref}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="sr-only"
+                    onChange={(e) => void handleScreenshotSelected('7', e.target.files?.[0])}
+                    disabled={ocrReading}
+                  />
+                  <button
+                    type="button"
+                    className="btn-outline inline-flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm sm:w-auto"
+                    onClick={() => fileInput7Ref.current?.click()}
+                    disabled={ocrReading}
+                  >
+                    {ocrReadingPeriod === '7' ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <ImagePlus className="h-4 w-4" aria-hidden />
+                    )}
+                    {ocrReadingPeriod === '7' ? 'Reading…' : 'Upload 7-day screenshot'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-6 xl:grid-cols-2">
+                {RECENT_7D_FIELDS.map((field) => (
+                  <fieldset key={`7d-${field.key}`} className="border border-border-warm p-5">
+                    <legend className="px-1 font-body text-sm font-semibold text-ink">
+                      {field.label}
+                    </legend>
+                    <p className="mb-4 font-body text-xs text-stone">{field.hint}</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="label-caps mb-2 block">Value</span>
+                        <input
+                          type="text"
+                          value={recent7d[field.key].value}
+                          onChange={(e) => updateRecent7d(field.key, 'value', e.target.value)}
+                          className="input-field w-full px-3 py-3"
+                          placeholder={field.valuePlaceholder}
+                          disabled={ocrReading}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="label-caps mb-2 block">Delta</span>
+                        <input
+                          type="text"
+                          value={recent7d[field.key].delta}
+                          onChange={(e) => updateRecent7d(field.key, 'delta', e.target.value)}
+                          className="input-field w-full px-3 py-3"
+                          placeholder={field.deltaPlaceholder}
+                          disabled={ocrReading}
+                        />
+                      </label>
+                    </div>
+                  </fieldset>
+                ))}
+              </div>
             </div>
           </div>
         </div>

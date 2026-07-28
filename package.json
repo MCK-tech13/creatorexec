@@ -12,6 +12,7 @@
     "test:supabase:local": "bash scripts/run-local-supabase-test.sh",
     "test:product-scout": "tsx scripts/product-scout-scenarios.mjs",
     "verify:product-scout-scoring-tiers": "tsx scripts/verify-product-scout-scoring-tiers.ts",
+    "verify:product-scout-7day-cooling": "tsx scripts/verify-product-scout-7day-cooling.ts",
     "verify:client-version-guard": "tsx scripts/verify-client-version-guard.ts",
     "verify:product-scout-ocr": "tsx scripts/verify-product-scout-ocr.mjs",
     "test:commission-upload": "tsx scripts/test-commission-upload.mjs",

@@ -5,77 +5,91 @@
 
 export const PRODUCT_SCOUT_OCR_MODEL = 'claude-sonnet-4-6'
 
-/** Structured output schema forced via tool_use tool_choice. */
-export const PRODUCT_SCOUT_OCR_TOOL = {
-  name: 'extract_trend_metrics',
-  description:
-    'Extract TikTok Shop Product Trends metric values and their period-over-period deltas from the screenshot. Use null when a value is missing or illegible. Never invent numbers.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      orders: {
-        type: ['number', 'null'],
-        description:
-          'Absolute 30-day orders count (expand K/M suffixes, e.g. 24.1K → 24100). Null if not shown or illegible.',
+/** @typedef {'7' | '30'} ProductScoutOcrPeriod */
+
+/**
+ * Structured output schema forced via tool_use tool_choice.
+ * @param {ProductScoutOcrPeriod} [period='30']
+ */
+export function buildProductScoutOcrTool(period = '30') {
+  const windowLabel = period === '7' ? '7-day' : '30-day'
+  return {
+    name: 'extract_trend_metrics',
+    description:
+      'Extract TikTok Shop Product Trends metric values and their period-over-period deltas from the screenshot. Use null when a value is missing or illegible. Never invent numbers.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        orders: {
+          type: ['number', 'null'],
+          description: `Absolute ${windowLabel} orders count (expand K/M suffixes, e.g. 24.1K → 24100). Null if not shown or illegible.`,
+        },
+        delta_orders: {
+          type: ['number', 'null'],
+          description:
+            'Period-over-period change for orders. Prefer the small green/red triangle indicator under the main value (▲190 → 190, ▼1.2K → -1200). Expand K/M. Null if missing or illegible.',
+        },
+        ctr: {
+          type: ['number', 'null'],
+          description:
+            'Click-through rate as a plain number (e.g. 3.5 for 3.5%). Null if not shown or illegible.',
+        },
+        delta_ctr: {
+          type: ['number', 'null'],
+          description:
+            'Period-over-period CTR change as a plain signed number (▲1.8% → 1.8, ▼0.5 → -0.5). Null if missing or illegible.',
+        },
+        creators: {
+          type: ['number', 'null'],
+          description:
+            'Number of creators count (expand K/M). Null if not shown or illegible.',
+        },
+        delta_creators: {
+          type: ['number', 'null'],
+          description:
+            'Period-over-period creators change from the small ▲/▼ indicator under the main value (expand K/M). Null if missing or illegible.',
+        },
+        atc: {
+          type: ['number', 'null'],
+          description:
+            'Add-to-cart users count (expand K/M). Null if not shown or illegible.',
+        },
+        delta_atc: {
+          type: ['number', 'null'],
+          description:
+            'Period-over-period add-to-cart change from the small ▲/▼ indicator under the main value (expand K/M). Null if missing or illegible.',
+        },
+        confidence: {
+          type: 'string',
+          enum: ['low', 'medium', 'high'],
+          description:
+            'low = blurry/cropped/hard to read; medium = mostly clear with some uncertainty; high = clearly readable values (including deltas when present).',
+        },
       },
-      delta_orders: {
-        type: ['number', 'null'],
-        description:
-          'Period-over-period change for orders. Prefer the small green/red triangle indicator under the main value (▲190 → 190, ▼1.2K → -1200). Expand K/M. Null if missing or illegible.',
-      },
-      ctr: {
-        type: ['number', 'null'],
-        description:
-          'Click-through rate as a plain number (e.g. 3.5 for 3.5%). Null if not shown or illegible.',
-      },
-      delta_ctr: {
-        type: ['number', 'null'],
-        description:
-          'Period-over-period CTR change as a plain signed number (▲1.8% → 1.8, ▼0.5 → -0.5). Null if missing or illegible.',
-      },
-      creators: {
-        type: ['number', 'null'],
-        description:
-          'Number of creators count (expand K/M). Null if not shown or illegible.',
-      },
-      delta_creators: {
-        type: ['number', 'null'],
-        description:
-          'Period-over-period creators change from the small ▲/▼ indicator under the main value (expand K/M). Null if missing or illegible.',
-      },
-      atc: {
-        type: ['number', 'null'],
-        description:
-          'Add-to-cart users count (expand K/M). Null if not shown or illegible.',
-      },
-      delta_atc: {
-        type: ['number', 'null'],
-        description:
-          'Period-over-period add-to-cart change from the small ▲/▼ indicator under the main value (expand K/M). Null if missing or illegible.',
-      },
-      confidence: {
-        type: 'string',
-        enum: ['low', 'medium', 'high'],
-        description:
-          'low = blurry/cropped/hard to read; medium = mostly clear with some uncertainty; high = clearly readable values (including deltas when present).',
-      },
+      required: [
+        'orders',
+        'delta_orders',
+        'ctr',
+        'delta_ctr',
+        'creators',
+        'delta_creators',
+        'atc',
+        'delta_atc',
+        'confidence',
+      ],
+      additionalProperties: false,
     },
-    required: [
-      'orders',
-      'delta_orders',
-      'ctr',
-      'delta_ctr',
-      'creators',
-      'delta_creators',
-      'atc',
-      'delta_atc',
-      'confidence',
-    ],
-    additionalProperties: false,
-  },
+  }
 }
 
-export const PRODUCT_SCOUT_OCR_SYSTEM_PROMPT = `You extract metrics from TikTok Shop "Product trends" / product promotion screenshots for CreatorExec Product Scout.
+/** Default 30-day tool (backward-compatible export for verify scripts). */
+export const PRODUCT_SCOUT_OCR_TOOL = buildProductScoutOcrTool('30')
+
+export function buildProductScoutOcrSystemPrompt(period = '30') {
+  const windowLabel = period === '7' ? '7-day' : '30-day'
+  return `You extract metrics from TikTok Shop "Product trends" / product promotion screenshots for CreatorExec Product Scout.
+
+This image is the ${windowLabel} Product trends view. Prefer metrics labeled or scoped to ${windowLabel} when both windows appear.
 
 Each metric usually has:
 1) A large primary VALUE (Orders, CTR, Number of creators, Add-to-cart users).
@@ -91,12 +105,20 @@ Rules (strict):
 - Do not copy the primary value into a delta field unless that same number is independently shown as the delta indicator text.
 - Set confidence based on image clarity of the metrics region: high only when values (and readable deltas) are clear; low when blurry, dark, tiny, or partly cut off.
 - Call the extract_trend_metrics tool with your answer. Do not wrap values in strings.`
+}
 
-export const PRODUCT_SCOUT_OCR_USER_PROMPT = `Read this TikTok Product trends screenshot and extract:
+export const PRODUCT_SCOUT_OCR_SYSTEM_PROMPT = buildProductScoutOcrSystemPrompt('30')
+
+export function buildProductScoutOcrUserPrompt(period = '30') {
+  const windowLabel = period === '7' ? '7-day' : '30-day'
+  return `Read this TikTok Product trends screenshot (${windowLabel} window) and extract:
 - primary values: orders, CTR, number of creators, add-to-cart users
 - deltas: the small ▲/▼ (or +/-) change indicators under each primary metric (delta_orders, delta_ctr, delta_creators, delta_atc)
 
-Return only what you can clearly read. Use null for anything illegible or missing.`
+Return only what you can clearly read for the ${windowLabel} view. Use null for anything illegible or missing.`
+}
+
+export const PRODUCT_SCOUT_OCR_USER_PROMPT = buildProductScoutOcrUserPrompt('30')
 
 const CONFIDENCE_VALUES = new Set(['low', 'medium', 'high'])
 
@@ -133,11 +155,17 @@ export async function extractTrendMetricsFromImage({
   apiKey,
   imageBase64,
   mediaType = 'image/jpeg',
+  period = '30',
   fetchImpl = fetch,
 }) {
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY is not configured')
   }
+
+  const resolvedPeriod = period === '7' ? '7' : '30'
+  const tool = buildProductScoutOcrTool(resolvedPeriod)
+  const system = buildProductScoutOcrSystemPrompt(resolvedPeriod)
+  const userPrompt = buildProductScoutOcrUserPrompt(resolvedPeriod)
 
   const response = await fetchImpl('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -150,9 +178,9 @@ export async function extractTrendMetricsFromImage({
       model: PRODUCT_SCOUT_OCR_MODEL,
       max_tokens: 768,
       temperature: 0,
-      system: PRODUCT_SCOUT_OCR_SYSTEM_PROMPT,
-      tools: [PRODUCT_SCOUT_OCR_TOOL],
-      tool_choice: { type: 'tool', name: PRODUCT_SCOUT_OCR_TOOL.name },
+      system,
+      tools: [tool],
+      tool_choice: { type: 'tool', name: tool.name },
       messages: [
         {
           role: 'user',
@@ -167,7 +195,7 @@ export async function extractTrendMetricsFromImage({
             },
             {
               type: 'text',
-              text: PRODUCT_SCOUT_OCR_USER_PROMPT,
+              text: userPrompt,
             },
           ],
         },
@@ -188,7 +216,7 @@ export async function extractTrendMetricsFromImage({
   }
 
   const toolBlock = Array.isArray(payload.content)
-    ? payload.content.find((block) => block.type === 'tool_use' && block.name === PRODUCT_SCOUT_OCR_TOOL.name)
+    ? payload.content.find((block) => block.type === 'tool_use' && block.name === tool.name)
     : null
 
   if (!toolBlock?.input) {

@@ -7,11 +7,22 @@ export interface MetricInput {
   delta: string
 }
 
+/** Optional 7-day orders/ATC window — only used for recent-cooling overlay. */
+export interface ProductScoutRecent7dMetrics {
+  orders: MetricInput
+  atcUsers: MetricInput
+}
+
 export interface ProductScoutMetrics {
   orders: MetricInput
   ctr: MetricInput
   creators: MetricInput
   atcUsers: MetricInput
+  /**
+   * Optional 7-day screenshot/fields. Absent or empty → score identical to
+   * 30-day-only behavior.
+   */
+  recent7d?: ProductScoutRecent7dMetrics
 }
 
 export interface ParsedMetric {
