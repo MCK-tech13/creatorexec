@@ -17,6 +17,9 @@ interface ProductTableProps {
   advancedControlsOpen?: boolean
   stalledKeys?: Set<string>
   slowingAnchorKeys?: Set<string>
+  linkMode?: boolean
+  selectedLinkIds?: string[]
+  onToggleLinkSelect?: (productId: string) => void
   onVideosFilmedChange: (productId: string, videosFilmed: number) => void
   onInRotationChange: (productId: string, inRotation: boolean) => void
   onMarkTrialPreviouslyCompleted: (productId: string) => void
@@ -66,6 +69,9 @@ export function ProductTable({
   advancedControlsOpen = false,
   stalledKeys,
   slowingAnchorKeys,
+  linkMode = false,
+  selectedLinkIds = [],
+  onToggleLinkSelect,
   onVideosFilmedChange,
   onInRotationChange,
   onMarkTrialPreviouslyCompleted,
@@ -74,6 +80,11 @@ export function ProductTable({
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const showRotationControls = !beginnerMode || advancedControlsOpen
+  const selectedIndex = useMemo(() => {
+    const map = new Map<string, number>()
+    selectedLinkIds.forEach((id, index) => map.set(id, index))
+    return map
+  }, [selectedLinkIds])
 
   const filtered = useMemo(() => {
     const list =
@@ -122,6 +133,30 @@ export function ProductTable({
     )
   }
 
+  const renderLinkSelect = (product: MergedProduct) => {
+    if (!linkMode || !onToggleLinkSelect) return null
+    const index = selectedIndex.get(product.id)
+    const isSelected = index !== undefined
+    const isSurvivor = index === 0
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2 md:mt-0">
+        <label className="flex items-center gap-2 font-body text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleLinkSelect(product.id)}
+            className="accent-checkbox h-4 w-4 border-border-warm"
+            aria-label={`Select ${product.productName} for merge`}
+          />
+          Link
+        </label>
+        {isSurvivor && (
+          <span className="label-caps text-emerald">Keep record</span>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div>
       <ul className="divide-y divide-border-warm border border-border-warm md:hidden">
@@ -132,7 +167,9 @@ export function ProductTable({
               key={product.id}
               className={`px-4 py-4 ${
                 !product.inRotation && showRotationControls ? 'opacity-60' : ''
-              } ${product.tier === 'Rising' ? 'border-t border-t-terracotta' : ''}`}
+              } ${product.tier === 'Rising' ? 'border-t border-t-terracotta' : ''} ${
+                linkMode && selectedIndex.has(product.id) ? 'bg-cream/50' : ''
+              }`}
             >
               <p
                 className={`line-clamp-2 font-body text-sm leading-snug text-ink ${
@@ -144,6 +181,7 @@ export function ProductTable({
               {product.isManual && (
                 <span className="label-caps mt-1 inline-block">Manual</span>
               )}
+              {renderLinkSelect(product)}
 
               <div className="mt-2 flex items-center justify-between gap-3">
                 <TierBadge tier={product.tier} showTooltip={beginnerMode} />
@@ -162,7 +200,7 @@ export function ProductTable({
                 {product.orderCount > 1 ? ` · ${product.orderCount} orders` : ''}
               </p>
 
-              {showRotationControls && (
+              {showRotationControls && !linkMode && (
                 <div className="mt-3 space-y-3 border-t border-border-warm pt-3">
                   <label className="flex items-center gap-2 font-body text-sm text-ink">
                     <input
@@ -201,7 +239,8 @@ export function ProductTable({
         <table className="w-full border-collapse text-left font-body text-sm">
           <thead>
             <tr className="border-b border-border-warm">
-              {showRotationControls && (
+              {linkMode && <th className="label-caps px-5 py-4 text-left">Link</th>}
+              {showRotationControls && !linkMode && (
                 <th className="label-caps px-5 py-4 text-left">In Rotation</th>
               )}
               <th className="label-caps px-5 py-4 text-left">Product</th>
@@ -224,7 +263,7 @@ export function ProductTable({
               >
                 Items Sold <SortIcon field="itemsSold" />
               </th>
-              {showRotationControls && (
+              {showRotationControls && !linkMode && (
                 <th className="label-caps min-w-[200px] px-5 py-4 text-left">Videos Filmed</th>
               )}
               <th className="label-caps px-5 py-4 text-left">Orders</th>
@@ -233,14 +272,33 @@ export function ProductTable({
           <tbody>
             {filtered.map((product) => {
               const isTopEarner = beginnerMode && product.tier === 'Anchor'
+              const linkIndex = selectedIndex.get(product.id)
               return (
                 <tr
                   key={product.id}
                   className={`border-b border-border-warm ${
                     product.tier === 'Rising' ? 'border-t border-t-terracotta' : ''
-                  } ${!product.inRotation && showRotationControls ? 'opacity-40' : ''}`}
+                  } ${!product.inRotation && showRotationControls && !linkMode ? 'opacity-40' : ''} ${
+                    linkMode && linkIndex !== undefined ? 'bg-cream/40' : ''
+                  }`}
                 >
-                  {showRotationControls && (
+                  {linkMode && (
+                    <td className="px-5 py-5">
+                      <div className="flex flex-col gap-1">
+                        <input
+                          type="checkbox"
+                          checked={linkIndex !== undefined}
+                          onChange={() => onToggleLinkSelect?.(product.id)}
+                          className="accent-checkbox h-4 w-4 border-border-warm"
+                          aria-label={`Select ${product.productName} for merge`}
+                        />
+                        {linkIndex === 0 && (
+                          <span className="label-caps text-emerald">Keep</span>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                  {showRotationControls && !linkMode && (
                     <td className="px-5 py-5">
                       <input
                         type="checkbox"
@@ -280,17 +338,19 @@ export function ProductTable({
                   </td>
                   <td className="px-5 py-5">
                     <TierBadge tier={product.tier} showTooltip={beginnerMode} />
-                    <TestTrialStatus
-                      product={product}
-                      onMarkTrialPreviouslyCompleted={onMarkTrialPreviouslyCompleted}
-                    />
+                    {!linkMode && (
+                      <TestTrialStatus
+                        product={product}
+                        onMarkTrialPreviouslyCompleted={onMarkTrialPreviouslyCompleted}
+                      />
+                    )}
                   </td>
                   <td className="px-5 py-5 font-semibold text-emerald">
                     {formatCurrency(product.commission)}
                   </td>
                   <td className="px-5 py-5 text-ink">{formatCurrency(product.gmv)}</td>
                   <td className="px-5 py-5 text-ink">{product.itemsSold}</td>
-                  {showRotationControls && (
+                  {showRotationControls && !linkMode && (
                     <td className="min-w-[200px] px-5 py-5">
                       <input
                         type="number"

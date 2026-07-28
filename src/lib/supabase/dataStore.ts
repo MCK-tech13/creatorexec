@@ -2,7 +2,7 @@ import type { IncomeTrackerStore } from '../../types/incomeTracker'
 import type { OnboardingProfile } from '../../types/onboarding'
 import type { BrandDeal } from '../../types/pipeline'
 import type { ProductScoutEntry } from '../../types/productScout'
-import type { CatalogProduct } from '../../types/productCatalog'
+import type { CatalogMergeRecord, CatalogProduct } from '../../types/productCatalog'
 import type { CurrentSprintState } from '../../types/currentSprint'
 import type { SprintSnapshot } from '../../types/sprintReview'
 import type { UserEngagementState } from '../../types/userEngagement'
@@ -16,6 +16,7 @@ export interface UserDataSnapshot {
   incomeTracker: IncomeTrackerStore
   productScoutEntries: ProductScoutEntry[]
   productCatalog: CatalogProduct[]
+  catalogMergeHistory: CatalogMergeRecord[]
   onboardingProfile: OnboardingProfile | null
   sprintEntrySeen: boolean
   welcomeSeen: boolean
@@ -32,6 +33,7 @@ const EMPTY_SNAPSHOT: UserDataSnapshot = {
   incomeTracker: [],
   productScoutEntries: [],
   productCatalog: [],
+  catalogMergeHistory: [],
   onboardingProfile: null,
   sprintEntrySeen: false,
   welcomeSeen: false,
@@ -91,6 +93,10 @@ export function updateProductScoutEntries(entries: ProductScoutEntry[]): void {
 
 export function updateProductCatalog(products: CatalogProduct[]): void {
   snapshot = { ...snapshot, productCatalog: products }
+}
+
+export function updateCatalogMergeHistory(history: CatalogMergeRecord[]): void {
+  snapshot = { ...snapshot, catalogMergeHistory: history }
 }
 
 export function updateOnboardingProfile(profile: OnboardingProfile | null): void {

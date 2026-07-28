@@ -12,7 +12,11 @@ import type { IncomeTrackerStore } from '../../types/incomeTracker'
 import type { OnboardingProfile } from '../../types/onboarding'
 import type { BrandDeal } from '../../types/pipeline'
 import type { ProductScoutEntry, ProductScoutMetrics } from '../../types/productScout'
-import type { CatalogProduct, CatalogProductSource } from '../../types/productCatalog'
+import type {
+  CatalogMergeRecord,
+  CatalogProduct,
+  CatalogProductSource,
+} from '../../types/productCatalog'
 import type { SprintSnapshot } from '../../types/sprintReview'
 import type { UserEngagementState } from '../../types/userEngagement'
 import { emptyUserEngagement } from '../../types/userEngagement'
@@ -30,6 +34,7 @@ type DealRow = Database['public']['Tables']['retainer_deals']['Row']
 type IncomeRow = Database['public']['Tables']['income_entries']['Row']
 type ScoutRow = Database['public']['Tables']['product_scout_list']['Row']
 type CatalogRow = Database['public']['Tables']['user_products']['Row']
+type CatalogMergeRow = Database['public']['Tables']['catalog_merge_history']['Row']
 type OnboardingRow = Database['public']['Tables']['onboarding_state']['Row']
 type CurrentSprintRow = Database['public']['Tables']['current_sprint_state']['Row']
 type UserEngagementRow = Database['public']['Tables']['user_engagement']['Row']
@@ -75,12 +80,25 @@ function parseCatalogSource(value: string | null | undefined): CatalogProductSou
   return 'manual'
 }
 
+function parseLinkedExternalIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return [
+    ...new Set(
+      value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ]
+}
+
 export function catalogProductFromRow(row: CatalogRow): CatalogProduct {
   return {
     id: row.id,
     displayName: row.display_name,
     brand: row.brand,
     externalProductId: row.external_product_id,
+    linkedExternalIds: parseLinkedExternalIds(row.linked_external_ids),
     source: parseCatalogSource(row.source),
     isFavorite: row.is_favorite,
     gmv: Number(row.gmv) || 0,
@@ -107,6 +125,7 @@ export function catalogProductToRow(
     display_name: product.displayName,
     brand: product.brand,
     external_product_id: product.externalProductId,
+    linked_external_ids: product.linkedExternalIds ?? [],
     source: product.source,
     is_favorite: product.isFavorite,
     gmv: product.gmv,
@@ -118,6 +137,92 @@ export function catalogProductToRow(
     date_received: product.dateReceived,
     first_video_deadline: product.firstVideoDeadline,
     archived_at: product.archivedAt,
+  }
+}
+
+function parseMergeProductSnapshots(value: unknown): CatalogProduct[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+    .map((item) => ({
+      id: String(item.id ?? ''),
+      displayName: String(item.displayName ?? ''),
+      brand: typeof item.brand === 'string' ? item.brand : null,
+      externalProductId:
+        typeof item.externalProductId === 'string' ? item.externalProductId : null,
+      linkedExternalIds: parseLinkedExternalIds(item.linkedExternalIds),
+      source: parseCatalogSource(
+        typeof item.source === 'string' ? item.source : undefined,
+      ),
+      isFavorite: Boolean(item.isFavorite),
+      gmv: Number(item.gmv) || 0,
+      commission: Number(item.commission) || 0,
+      itemsSold: Math.max(0, Number(item.itemsSold) || 0),
+      orderCount: Math.max(0, Number(item.orderCount) || 0),
+      inRotation: Boolean(item.inRotation),
+      isManual: Boolean(item.isManual),
+      dateReceived: typeof item.dateReceived === 'string' ? item.dateReceived : null,
+      firstVideoDeadline:
+        typeof item.firstVideoDeadline === 'string' ? item.firstVideoDeadline : null,
+      archivedAt: typeof item.archivedAt === 'string' ? item.archivedAt : null,
+      createdAt: String(item.createdAt ?? ''),
+      updatedAt: String(item.updatedAt ?? ''),
+    }))
+    .filter((product) => product.id && product.displayName)
+}
+
+function parseBeforeTrial(
+  value: unknown,
+): CatalogMergeRecord['beforeTrial'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const out: CatalogMergeRecord['beforeTrial'] = {}
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+    const videos = Number((entry as { videosFilmed?: unknown }).videosFilmed)
+    if (!Number.isFinite(videos)) continue
+    const source = (entry as { source?: unknown }).source
+    out[key] = {
+      videosFilmed: Math.max(0, videos),
+      ...(source === 'sales-history' || source === 'manual' ? { source } : {}),
+    }
+  }
+  return out
+}
+
+export function catalogMergeFromRow(row: CatalogMergeRow): CatalogMergeRecord {
+  const absorbedRaw = row.absorbed_ids
+  const absorbedIds = Array.isArray(absorbedRaw)
+    ? absorbedRaw.filter((id): id is string => typeof id === 'string')
+    : []
+
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    undoneAt: row.undone_at,
+    survivorId: row.survivor_id,
+    survivorDisplayName: row.survivor_display_name,
+    absorbedIds,
+    beforeProducts: parseMergeProductSnapshots(row.before_products),
+    beforeTrial: parseBeforeTrial(row.before_trial),
+    afterTrialVideosFilmed: Math.max(0, row.after_trial_videos_filmed),
+  }
+}
+
+export function catalogMergeToRow(
+  userId: string,
+  record: CatalogMergeRecord,
+): Database['public']['Tables']['catalog_merge_history']['Insert'] {
+  return {
+    id: record.id,
+    user_id: userId,
+    survivor_id: record.survivorId,
+    survivor_display_name: record.survivorDisplayName,
+    absorbed_ids: record.absorbedIds,
+    before_products: record.beforeProducts as unknown as Json,
+    before_trial: record.beforeTrial as unknown as Json,
+    after_trial_videos_filmed: Math.max(0, record.afterTrialVideosFilmed),
+    created_at: record.createdAt,
+    undone_at: record.undoneAt,
   }
 }
 

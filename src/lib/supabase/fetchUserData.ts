@@ -3,6 +3,7 @@ import type { Database } from './database.types'
 import type { UserDataSnapshot } from './dataStore'
 import {
   brandDealFromRow,
+  catalogMergeFromRow,
   catalogProductFromRow,
   currentSprintFromRow,
   incomeTrackerFromRows,
@@ -24,6 +25,7 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
     incomeResult,
     scoutResult,
     catalogResult,
+    mergeHistoryResult,
     onboardingResult,
     currentSprintResult,
     sprintHistory,
@@ -34,6 +36,11 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
     client.from('income_entries').select('*').eq('user_id', userId),
     client.from('product_scout_list').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
     client.from('user_products').select('*').eq('user_id', userId).order('display_name'),
+    client
+      .from('catalog_merge_history')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false }),
     client.from('onboarding_state').select('*').eq('user_id', userId).maybeSingle(),
     client.from('current_sprint_state').select('*').eq('user_id', userId).maybeSingle(),
     fetchSprintHistory(client, userId),
@@ -59,6 +66,20 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
       catalogResult.error.message,
     )
   }
+  if (mergeHistoryResult.error) {
+    const message = mergeHistoryResult.error.message?.toLowerCase() ?? ''
+    const missingTable =
+      mergeHistoryResult.error.code === '42P01' ||
+      mergeHistoryResult.error.code === 'PGRST205' ||
+      message.includes('catalog_merge_history') ||
+      message.includes('does not exist') ||
+      message.includes('schema cache')
+    if (!missingTable) throw mergeHistoryResult.error
+    console.warn(
+      'catalog_merge_history unavailable — apply migration 20260728000000_catalog_manual_product_links.sql',
+      mergeHistoryResult.error.message,
+    )
+  }
   if (onboardingResult.error) throw onboardingResult.error
   if (currentSprintResult.error) throw currentSprintResult.error
   if (engagementResult.error) throw engagementResult.error
@@ -73,6 +94,9 @@ export async function fetchUserDataFromSupabase(client: Client, userId: string):
     productCatalog: catalogResult.error
       ? []
       : (catalogResult.data ?? []).map(catalogProductFromRow),
+    catalogMergeHistory: mergeHistoryResult.error
+      ? []
+      : (mergeHistoryResult.data ?? []).map(catalogMergeFromRow),
     onboardingProfile: onboarding ? onboardingProfileFromRow(onboarding) : null,
     sprintEntrySeen: onboarding?.sprint_entry_seen ?? false,
     welcomeSeen: onboarding?.welcome_seen ?? false,
