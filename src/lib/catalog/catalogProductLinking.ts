@@ -10,7 +10,6 @@ import {
 import { scheduleCatalogMergeHistoryPersist, scheduleProductCatalogPersist, scheduleTrialProgressPersist } from '../supabase/sync'
 import {
   loadProductCatalog,
-  saveProductCatalog,
   allExternalIdsForProduct,
 } from './productCatalogStorage'
 
