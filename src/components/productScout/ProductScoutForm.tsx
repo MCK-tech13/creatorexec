@@ -82,6 +82,13 @@ const RECENT_7D_FIELDS: {
     deltaPlaceholder: 'e.g. -3.4K',
     hint: 'Optional — 7-day ATC users and change',
   },
+  {
+    key: 'creators',
+    label: 'Number of creators (7-day)',
+    valuePlaceholder: '1.2K',
+    deltaPlaceholder: 'e.g. +180',
+    hint: 'Optional — 7-day creator count and change (flags late-trend creator influx)',
+  },
 ]
 
 interface ProductScoutFormProps {
@@ -102,7 +109,7 @@ function recent7dEqual(
 ): boolean {
   const left = a ?? EMPTY_PRODUCT_SCOUT_RECENT_7D
   const right = b ?? EMPTY_PRODUCT_SCOUT_RECENT_7D
-  return (['orders', 'atcUsers'] as const).every(
+  return (['orders', 'atcUsers', 'creators'] as const).every(
     (key) => left[key].value === right[key].value && left[key].delta === right[key].delta,
   )
 }
@@ -124,7 +131,9 @@ function pruneEmptyRecent7d(metrics: ProductScoutMetrics): ProductScoutMetrics {
     recent.orders.value.trim() !== '' ||
     recent.orders.delta.trim() !== '' ||
     recent.atcUsers.value.trim() !== '' ||
-    recent.atcUsers.delta.trim() !== ''
+    recent.atcUsers.delta.trim() !== '' ||
+    recent.creators.value.trim() !== '' ||
+    recent.creators.delta.trim() !== ''
   if (!hasAny) {
     const { recent7d: _drop, ...rest } = metrics
     return rest

@@ -13,7 +13,7 @@ import {
 } from '../src/lib/productScout/scorer'
 import type { ProductScoutMetrics } from '../src/types/productScout'
 
-assert.equal(SCORING_LOGIC_VERSION, 3)
+assert.equal(SCORING_LOGIC_VERSION, 4)
 assert.equal(COOLING_DECLINE_NOISE_MAX, 0.15)
 assert.equal(COOLING_DECLINE_MILD_MAX, 0.35)
 
@@ -51,6 +51,7 @@ console.log(`\n30-day-only baseline total=${baselineTotal} signals=${baselineSig
     recent7d: {
       orders: { value: '', delta: '' },
       atcUsers: { value: '', delta: '' },
+      creators: { value: '', delta: '' },
     },
   })
   assert.equal(withEmpty?.totalScore, baselineTotal)
@@ -65,6 +66,7 @@ console.log(`\n30-day-only baseline total=${baselineTotal} signals=${baselineSig
     recent7d: {
       orders: { value: '10K', delta: '-1K' },
       atcUsers: { value: '20K', delta: '+500' },
+      creators: { value: '', delta: '' },
     },
   })
   assert.equal(result?.totalScore, baselineTotal)
@@ -82,6 +84,7 @@ console.log(`\n30-day-only baseline total=${baselineTotal} signals=${baselineSig
     recent7d: {
       orders: { value: '10K', delta: '-3K' },
       atcUsers: { value: '20K', delta: '' },
+      creators: { value: '', delta: '' },
     },
   })
   const cooling = result?.signals.find((s) => s.id === 'recent-cooling')
@@ -105,6 +108,7 @@ console.log(`\n30-day-only baseline total=${baselineTotal} signals=${baselineSig
     recent7d: {
       orders: { value: '10K', delta: '-6K' },
       atcUsers: { value: '20K', delta: '' },
+      creators: { value: '', delta: '' },
     },
   })
   const cooling = result?.signals.find((s) => s.id === 'recent-cooling')
@@ -127,6 +131,7 @@ console.log(`\n30-day-only baseline total=${baselineTotal} signals=${baselineSig
     recent7d: {
       orders: { value: '10K', delta: '-3K' }, // ~23%
       atcUsers: { value: '10K', delta: '-6K' }, // ~38%
+      creators: { value: '', delta: '' },
     },
   })
   const cooling = result?.signals.find((s) => s.id === 'recent-cooling')
@@ -146,10 +151,90 @@ console.log(`\n30-day-only baseline total=${baselineTotal} signals=${baselineSig
     recent7d: {
       orders: { value: '10K', delta: '-6K' },
       atcUsers: { value: '', delta: '' },
+      creators: { value: '', delta: '' },
     },
   })
   assert.equal(result?.signals.find((s) => s.id === 'recent-cooling'), undefined)
   console.log('\nGate: 30-day orders not growing → no cooling ✓')
+}
+
+// --- Creators joining while demand cools (additive, distinct badge) ---
+{
+  // Cooling significant (-2) + creators rising (+180) while orders decline → extra -1
+  const result = scoreProductScout({
+    ...thirtyDayOnly,
+    recent7d: {
+      orders: { value: '10K', delta: '-6K' },
+      atcUsers: { value: '20K', delta: '' },
+      creators: { value: '2.4K', delta: '+180' },
+    },
+  })
+  const cooling = result?.signals.find((s) => s.id === 'recent-cooling')
+  const influx = result?.signals.find((s) => s.id === 'creators-joining-while-cooling')
+  assert.ok(cooling)
+  assert.equal(cooling.points, -2)
+  assert.ok(influx)
+  assert.equal(influx.points, -1)
+  assert.match(influx.detail, /Creators still joining \(\+180\) as demand cools/)
+  assert.equal(influx.warning, influx.detail)
+  assert.equal(result?.totalScore, baselineTotal - 2 - 1)
+  console.log('\nCreators joining + cooling (additive):')
+  console.log(`  cooling: ${cooling.detail}`)
+  console.log(`  influx:  ${influx.detail}`)
+  console.log(`  total ${baselineTotal} → ${result?.totalScore} (−2 cooling, −1 influx) ✓`)
+}
+
+// Creators rising but demand NOT declining → influx check does not fire
+{
+  const result = scoreProductScout({
+    ...thirtyDayOnly,
+    recent7d: {
+      orders: { value: '10K', delta: '+500' },
+      atcUsers: { value: '20K', delta: '+200' },
+      creators: { value: '2K', delta: '+100' },
+    },
+  })
+  assert.equal(
+    result?.signals.find((s) => s.id === 'creators-joining-while-cooling'),
+    undefined,
+  )
+  console.log('\nCreators rising but demand not cooling → no influx badge ✓')
+}
+
+// Demand declining but creators not rising → influx does not fire; cooling still can
+{
+  const result = scoreProductScout({
+    ...thirtyDayOnly,
+    recent7d: {
+      orders: { value: '10K', delta: '-6K' },
+      atcUsers: { value: '', delta: '' },
+      creators: { value: '2K', delta: '-50' },
+    },
+  })
+  assert.ok(result?.signals.find((s) => s.id === 'recent-cooling'))
+  assert.equal(
+    result?.signals.find((s) => s.id === 'creators-joining-while-cooling'),
+    undefined,
+  )
+  console.log('\nCreators falling while cooling → cooling only, no influx badge ✓')
+}
+
+// Omitting creators field entirely → influx does not run
+{
+  const result = scoreProductScout({
+    ...thirtyDayOnly,
+    recent7d: {
+      orders: { value: '10K', delta: '-6K' },
+      atcUsers: { value: '', delta: '' },
+      creators: { value: '', delta: '' },
+    },
+  })
+  assert.ok(result?.signals.find((s) => s.id === 'recent-cooling'))
+  assert.equal(
+    result?.signals.find((s) => s.id === 'creators-joining-while-cooling'),
+    undefined,
+  )
+  console.log('\nCreators omitted → cooling still works; influx skipped ✓')
 }
 
 // Confirm 30-day-only fixture matches pre-cooling totals for a known case from tiers script
@@ -164,6 +249,7 @@ console.log(`\n30-day-only baseline total=${baselineTotal} signals=${baselineSig
   )
   assert.equal(low?.signals.find((s) => s.id === 'orders-trend')?.points, 1)
   assert.ok(!low?.signals.some((s) => s.id === 'recent-cooling'))
+  assert.ok(!low?.signals.some((s) => s.id === 'creators-joining-while-cooling'))
   console.log('\n30-day-only Orders Trend +1 (unchanged from prior behavior) ✓')
 }
 

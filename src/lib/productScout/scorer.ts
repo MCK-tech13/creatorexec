@@ -1,4 +1,4 @@
-import { formatTrendNumber, parseCompactNumber, parseDelta } from './metricParser'
+import { formatSignedDelta, formatTrendNumber, parseCompactNumber, parseDelta } from './metricParser'
 import type {
   ProductScoutFunnelRecommendation,
   ProductScoutMetrics,
@@ -14,8 +14,9 @@ import type {
  *
  * 2 = creator saturation informational + Orders/ATC growth magnitude tiers
  * 3 = optional 7-day cooling overlay (magnitude-tier penalty vs 30-day growth)
+ * 4 = 7-day creators rising while orders/ATC decline (late-trend influx badge)
  */
-export const SCORING_LOGIC_VERSION = 3
+export const SCORING_LOGIC_VERSION = 4
 
 interface ParsedScoutMetrics {
   orders: number | null
@@ -575,6 +576,53 @@ export function scoreRecentCooling(
   }
 }
 
+function recent7dDemandDeclining(recent: NonNullable<ProductScoutMetrics['recent7d']>): boolean {
+  const orders7 = parseCompactNumber(recent.orders.value)
+  const orders7Delta = parseDelta(recent.orders.delta)
+  const atc7 = parseCompactNumber(recent.atcUsers.value)
+  const atc7Delta = parseDelta(recent.atcUsers.delta)
+
+  if (orders7Delta != null && orders7Delta < 0 && declineFractionFromDelta(orders7, orders7Delta) != null) {
+    return true
+  }
+  if (atc7Delta != null && atc7Delta < 0 && declineFractionFromDelta(atc7, atc7Delta) != null) {
+    return true
+  }
+  // Also treat any negative delta as declining even when % can't be computed
+  // (no baseline) — still a directional fade for the influx gate.
+  if (orders7Delta != null && orders7Delta < 0) return true
+  if (atc7Delta != null && atc7Delta < 0) return true
+  return false
+}
+
+/**
+ * Late-trend pattern: 7-day creators still rising while 7-day orders and/or
+ * ATC are declining. Additive to recent-cooling — separate badge, −1.
+ */
+export function scoreCreatorsJoiningWhileCooling(
+  metrics: ProductScoutMetrics,
+): ProductScoutSignal | null {
+  const recent = metrics.recent7d
+  if (!recent) return null
+
+  const creatorsDelta = parseDelta(recent.creators.delta)
+  if (creatorsDelta == null || !(creatorsDelta > 0)) return null
+  if (!recent7dDemandDeclining(recent)) return null
+
+  const deltaLabel = formatSignedDelta(creatorsDelta, false)
+  const detail = `Creators still joining (${deltaLabel}) as demand cools`
+
+  return {
+    id: 'creators-joining-while-cooling',
+    label: 'Creators joining as demand cools',
+    detail,
+    points: -1,
+    sentiment: 'negative',
+    countsTowardScore: true,
+    warning: detail,
+  }
+}
+
 export function scoreProductScout(metrics: ProductScoutMetrics): ProductScoutScoreResult | null {
   if (!hasProductScoutData(metrics)) return null
 
@@ -589,6 +637,7 @@ export function scoreProductScout(metrics: ProductScoutMetrics): ProductScoutSco
   ))
 
   const cooling = scoreRecentCooling(metrics, parsed.ordersDelta)
+  const creatorsInflux = scoreCreatorsJoiningWhileCooling(metrics)
 
   const signals: ProductScoutSignal[] = [
     ordersTrend,
@@ -597,6 +646,7 @@ export function scoreProductScout(metrics: ProductScoutMetrics): ProductScoutSco
     scoreCtr(parsed.ctr, parsed.ctrDelta, parsed.creators),
     scoreConversion(parsed.orders, parsed.atcUsers),
     ...(cooling ? [cooling] : []),
+    ...(creatorsInflux ? [creatorsInflux] : []),
   ]
 
   const scoredSignals = signals.filter((signal) => signal.countsTowardScore)

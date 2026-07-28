@@ -99,7 +99,7 @@ export function mergeExtractedIntoMetrics(
   }
 }
 
-/** Merge OCR into the optional 7-day orders/ATC slot only. */
+/** Merge OCR into the optional 7-day orders/ATC/creators slot (not CTR). */
 export function mergeExtractedIntoRecent7d(
   current: ProductScoutMetrics,
   extracted: ExtractedTrendMetrics,
@@ -116,6 +116,10 @@ export function mergeExtractedIntoRecent7d(
       atcUsers: {
         value: mapped.atcUsers.value || prev?.atcUsers.value || '',
         delta: mapped.atcUsers.delta,
+      },
+      creators: {
+        value: mapped.creators.value || prev?.creators.value || '',
+        delta: mapped.creators.delta,
       },
     },
   }

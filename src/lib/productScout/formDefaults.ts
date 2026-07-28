@@ -10,6 +10,7 @@ export const EMPTY_METRIC_INPUT: MetricInput = { value: '', delta: '' }
 export const EMPTY_PRODUCT_SCOUT_RECENT_7D: ProductScoutRecent7dMetrics = {
   orders: { ...EMPTY_METRIC_INPUT },
   atcUsers: { ...EMPTY_METRIC_INPUT },
+  creators: { ...EMPTY_METRIC_INPUT },
 }
 
 export const EMPTY_PRODUCT_SCOUT_METRICS: ProductScoutMetrics = {
@@ -41,12 +42,15 @@ export function normalizeProductScoutMetrics(raw: unknown): ProductScoutMetrics 
     recent7d = {
       orders: asMetricInput(recent.orders),
       atcUsers: asMetricInput(recent.atcUsers),
+      creators: asMetricInput(recent.creators),
     }
     const hasAny =
       recent7d.orders.value.trim() !== '' ||
       recent7d.orders.delta.trim() !== '' ||
       recent7d.atcUsers.value.trim() !== '' ||
-      recent7d.atcUsers.delta.trim() !== ''
+      recent7d.atcUsers.delta.trim() !== '' ||
+      recent7d.creators.value.trim() !== '' ||
+      recent7d.creators.delta.trim() !== ''
     if (!hasAny) recent7d = undefined
   }
 
