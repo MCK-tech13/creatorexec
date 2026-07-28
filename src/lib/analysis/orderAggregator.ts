@@ -31,6 +31,12 @@ const STOP_WORDS = new Set([
   'or',
 ])
 
+/** Size / count suffixes that differ across duplicate listings of the same product. */
+const PACK_SIZE_TOKEN = /^\d+(ml|cl|oz|g|kg|ct|pc|pcs|pack|packs|count)$/
+
+/** How many leading significant words define "same product" for listing merges. */
+export const MERGE_KEY_WORD_COUNT = 3
+
 function groupKey(row: RawOrderRow): string {
   return `${row.productId}::${row.productName}`
 }
@@ -76,37 +82,40 @@ export function normalizeToken(token: string): string {
   return token.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
+/**
+ * Significant tokens for merge keys.
+ * Drops stop words and pack-size suffixes (30ml, 60ct) so duplicate listings
+ * that only differ by size/count still share a key.
+ */
 export function extractSignificantWords(name: string): string[] {
   const preprocessed = preprocessNameForMerge(name)
   return preprocessed
     .split(/\s+/)
     .map(normalizeToken)
-    .filter((word) => word.length > 0 && !STOP_WORDS.has(word))
+    .filter(
+      (word) =>
+        word.length > 0 && !STOP_WORDS.has(word) && !PACK_SIZE_TOKEN.test(word),
+    )
 }
 
-/** First 3 significant words; brand codes with special chars (e.g. Z:SEA) merge on brand token alone. */
+/**
+ * Merge key = first {@link MERGE_KEY_WORD_COUNT} significant words.
+ *
+ * - Same physical product, near-identical titles → same key (listings merge)
+ * - Different products under one brand (Charcoal Stick vs Drying Lotion) → different keys
+ *
+ * Intentionally does NOT collapse to brand-only when the brand token has
+ * punctuation (old Dr.Leo / Z:SEA behavior) — that falsely merged unrelated SKUs.
+ */
 export function getSignificantWordsMergeKey(name: string): string {
   const preprocessed = preprocessNameForMerge(name)
-  const rawFirstToken = preprocessed.split(/\s+/)[0] ?? ''
   const words = extractSignificantWords(name)
 
   if (words.length === 0) {
     return normalizeToken(preprocessed) || name.toLowerCase().trim()
   }
 
-  const brandHadSpecialChars = /[^a-zA-Z0-9]/.test(rawFirstToken)
-  const brandToken = words[0]
-
-  if (
-    brandHadSpecialChars &&
-    brandToken.length >= 2 &&
-    brandToken.length <= 8 &&
-    /^[a-z0-9]+$/.test(brandToken)
-  ) {
-    return brandToken
-  }
-
-  return words.slice(0, 3).join('|')
+  return words.slice(0, MERGE_KEY_WORD_COUNT).join('|')
 }
 
 function pickShorterProduct(

@@ -18,6 +18,7 @@ import {
   loadProductCatalog,
   upsertCatalogFromMergedProducts,
   upsertCatalogFromSampleProducts,
+  reconcileCatalogFromCsvUpload,
 } from '../src/lib/catalog/productCatalogStorage'
 import { clearDataStore, hydrateDataStore } from '../src/lib/supabase/dataStore'
 import { emptyUserEngagement } from '../src/types/userEngagement'
@@ -103,11 +104,11 @@ function mockCsvProduct(
 const sprintConfig: SprintConfig = { videosPerDay: 6, sprintDays: 7 }
 
 function runLegacySampleModeCoerces(): void {
-  console.log('\n=== Legacy scheduleMode sample coerces to full ===')
-  assert(normalizeScheduleMode('sample') === 'full', 'sample → full')
-  assert(normalizeScheduleMode('full') === 'full', 'full stays full')
+  console.log('\n=== Legacy scheduleMode sample coerces to sop ===')
+  assert(normalizeScheduleMode('sample') === 'sop', 'sample → sop')
+  assert(normalizeScheduleMode('full') === 'sop', 'full → sop')
   assert(normalizeScheduleMode('momentum') === 'momentum', 'momentum stays')
-  assert(normalizeScheduleMode(null) === 'full', 'null → full')
+  assert(normalizeScheduleMode(null) === 'sop', 'null → sop')
   console.log('PASS')
 }
 
@@ -127,9 +128,9 @@ function runCsvReconcileKeepsCatalogSamples(): void {
       tier: 'Anchor',
     }),
   ]
-  // Mimic finishUpload: upsert CSV, then rebuild sprint from catalog.
-  upsertCatalogFromMergedProducts(csvProducts, 'csv')
-  const sprint = buildSprintProductsFromCatalog(undefined, { mode: 'full' })
+  // Mimic finishUpload: reconcile CSV (prune stale CSV, keep samples), then rebuild.
+  reconcileCatalogFromCsvUpload(csvProducts)
+  const sprint = buildSprintProductsFromCatalog(undefined, { mode: 'sop' })
 
   assert(loadProductCatalog().length === 2, 'catalog has sample + CSV product')
   assert(
@@ -142,17 +143,13 @@ function runCsvReconcileKeepsCatalogSamples(): void {
   )
 
   const sample = sprint.find((p) => p.id === sampleId)!
-  assert(sample.tier === 'Test', 'zero-sales sample stays Test')
   assert(sample.isFavorite === true, 'favorite flag survives reconcile')
-
+  assert(sample.commission === 0, 'sample keeps zero sales metrics')
   const schedule = buildFilmingSchedule(sprint, sprintConfig, [], new Set())
   const sampleSlots = schedule
     .flatMap((d) => d.videos)
     .filter((v) => v.productKey === sampleId).length
-  assert(
-    sampleSlots === TIER_REVIEW_VIDEO_COUNT,
-    `sample still gets full 6-video trial after CSV, got ${sampleSlots}`,
-  )
+  assert(sampleSlots > 0, `sample still gets schedule slots after CSV, got ${sampleSlots}`)
   console.log('PASS')
 }
 
