@@ -1,0 +1,6 @@
+Product name,Product ID,Items sold,GMV,Standard commission,Shop Ads commission,Total final earned amount,Est. standard commission,Est. Shop Ads commission,Payment status
+Pending Serum Glow,9001001,2,40.00,0,0,0,6.00,1.50,Pending
+Pending Serum Glow,9001001,1,20.00,0,0,0,3.00,0.75,Pending
+Pending Lip Oil,9001002,3,45.00,0.00,0.00,0.00,9.00,0.00,Pending
+Settled Brow Tint,9001003,1,15.00,2.25,0.50,2.75,2.25,0.50,Paid
+Estimated-Name Variant,9001004,1,30.00,0,0,0,4.50,1.00,Pending
