@@ -11,7 +11,8 @@ import type { CurrentSprintState, FilmingProgressStore } from '../../types/curre
 import type { IncomeTrackerStore } from '../../types/incomeTracker'
 import type { OnboardingProfile } from '../../types/onboarding'
 import type { BrandDeal } from '../../types/pipeline'
-import type { ProductScoutEntry, ProductScoutMetrics } from '../../types/productScout'
+import type { ProductScoutEntry } from '../../types/productScout'
+import { normalizeProductScoutMetrics } from '../productScout/formDefaults'
 import type {
   CatalogMergeRecord,
   CatalogProduct,
@@ -321,7 +322,7 @@ export function productScoutFromRow(row: ScoutRow): ProductScoutEntry {
   return {
     id: row.id,
     productName: row.product_name,
-    metrics: row.metrics as unknown as ProductScoutMetrics,
+    metrics: normalizeProductScoutMetrics(row.metrics),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

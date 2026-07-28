@@ -1,4 +1,4 @@
-import { formatTrendNumber, parseCompactNumber, parseDelta } from './metricParser'
+import { formatSignedDelta, formatTrendNumber, parseCompactNumber, parseDelta } from './metricParser'
 import type {
   ProductScoutFunnelRecommendation,
   ProductScoutMetrics,
@@ -13,8 +13,10 @@ import type {
  * Persisted on product_scout_list.scoring_logic_version at save time.
  *
  * 2 = creator saturation informational + Orders/ATC growth magnitude tiers
+ * 3 = optional 7-day cooling overlay (magnitude-tier penalty vs 30-day growth)
+ * 4 = 7-day creators rising while orders/ATC decline (late-trend influx badge)
  */
-export const SCORING_LOGIC_VERSION = 2
+export const SCORING_LOGIC_VERSION = 4
 
 interface ParsedScoutMetrics {
   orders: number | null
@@ -29,6 +31,13 @@ interface ParsedScoutMetrics {
 
 /** Points above the base +1 direction score for an upward trend. */
 const MAGNITUDE_BONUS_CAP = 2
+
+/**
+ * 7-day cooling vs 30-day growth — decline % tiers (easy to tune later).
+ * Under NOISE_MAX: ignore as normal noise. Through MILD_MAX: −1. Above: −2.
+ */
+export const COOLING_DECLINE_NOISE_MAX = 0.15
+export const COOLING_DECLINE_MILD_MAX = 0.35
 
 function noDataSignal(
   id: string,
@@ -83,6 +92,28 @@ export function growthMultipleFromDelta(
     return { multiple: null, noBaseline: false }
   }
   return { multiple: current / previous, noBaseline: false }
+}
+
+/**
+ * Decline fraction from current level + negative delta.
+ * previous = current - delta; decline = |delta| / previous when previous > 0.
+ */
+export function declineFractionFromDelta(
+  current: number | null,
+  delta: number,
+): number | null {
+  if (current == null || !(delta < 0)) return null
+  const previous = current - delta
+  if (!(previous > 0)) return null
+  return Math.abs(delta) / previous
+}
+
+function formatDeclinePercent(fraction: number): string {
+  const pct = fraction * 100
+  if (pct >= 10 || Number.isInteger(pct)) {
+    return `${Math.round(pct)}%`
+  }
+  return `${pct.toFixed(1).replace(/\.0$/, '')}%`
 }
 
 function formatGrowthMultiple(multiple: number): string {
@@ -493,6 +524,105 @@ function funnelRecommendation(parsed: ParsedScoutMetrics): ProductScoutFunnelRec
   }
 }
 
+/**
+ * Optional 7-day cooling overlay.
+ * Fires only when 30-day orders are growing AND 7-day orders and/or ATC decline
+ * by at least COOLING_DECLINE_NOISE_MAX. Steeper decline drives the tier.
+ */
+export function scoreRecentCooling(
+  metrics: ProductScoutMetrics,
+  orders30Delta: number | null,
+): ProductScoutSignal | null {
+  const recent = metrics.recent7d
+  if (!recent) return null
+  // Gate: 30-day Orders Trend must be positive growth.
+  if (orders30Delta == null || !(orders30Delta > 0)) return null
+
+  const orders7 = parseCompactNumber(recent.orders.value)
+  const orders7Delta = parseDelta(recent.orders.delta)
+  const atc7 = parseCompactNumber(recent.atcUsers.value)
+  const atc7Delta = parseDelta(recent.atcUsers.delta)
+
+  const declined: Array<{ label: 'orders' | 'ATC'; fraction: number }> = []
+
+  if (orders7Delta != null && orders7Delta < 0) {
+    const fraction = declineFractionFromDelta(orders7, orders7Delta)
+    if (fraction != null) declined.push({ label: 'orders', fraction })
+  }
+  if (atc7Delta != null && atc7Delta < 0) {
+    const fraction = declineFractionFromDelta(atc7, atc7Delta)
+    if (fraction != null) declined.push({ label: 'ATC', fraction })
+  }
+
+  if (declined.length === 0) return null
+
+  const steeper = Math.max(...declined.map((d) => d.fraction))
+  if (steeper < COOLING_DECLINE_NOISE_MAX) return null
+
+  const points = steeper <= COOLING_DECLINE_MILD_MAX ? -1 : -2
+  const listed = declined
+    .map((d) => `${d.label} down ${formatDeclinePercent(d.fraction)}`)
+    .join(' and ')
+  const detail = `Cooling — ${listed} in the last 7 days despite 30-day growth`
+
+  return {
+    id: 'recent-cooling',
+    label: points === -1 ? 'Cooling (mild)' : 'Cooling (significant)',
+    detail,
+    points,
+    sentiment: 'negative',
+    countsTowardScore: true,
+    warning: detail,
+  }
+}
+
+function recent7dDemandDeclining(recent: NonNullable<ProductScoutMetrics['recent7d']>): boolean {
+  const orders7 = parseCompactNumber(recent.orders.value)
+  const orders7Delta = parseDelta(recent.orders.delta)
+  const atc7 = parseCompactNumber(recent.atcUsers.value)
+  const atc7Delta = parseDelta(recent.atcUsers.delta)
+
+  if (orders7Delta != null && orders7Delta < 0 && declineFractionFromDelta(orders7, orders7Delta) != null) {
+    return true
+  }
+  if (atc7Delta != null && atc7Delta < 0 && declineFractionFromDelta(atc7, atc7Delta) != null) {
+    return true
+  }
+  // Also treat any negative delta as declining even when % can't be computed
+  // (no baseline) — still a directional fade for the influx gate.
+  if (orders7Delta != null && orders7Delta < 0) return true
+  if (atc7Delta != null && atc7Delta < 0) return true
+  return false
+}
+
+/**
+ * Late-trend pattern: 7-day creators still rising while 7-day orders and/or
+ * ATC are declining. Additive to recent-cooling — separate badge, −1.
+ */
+export function scoreCreatorsJoiningWhileCooling(
+  metrics: ProductScoutMetrics,
+): ProductScoutSignal | null {
+  const recent = metrics.recent7d
+  if (!recent) return null
+
+  const creatorsDelta = parseDelta(recent.creators.delta)
+  if (creatorsDelta == null || !(creatorsDelta > 0)) return null
+  if (!recent7dDemandDeclining(recent)) return null
+
+  const deltaLabel = formatSignedDelta(creatorsDelta, false)
+  const detail = `Creators still joining (${deltaLabel}) as demand cools`
+
+  return {
+    id: 'creators-joining-while-cooling',
+    label: 'Creators joining as demand cools',
+    detail,
+    points: -1,
+    sentiment: 'negative',
+    countsTowardScore: true,
+    warning: detail,
+  }
+}
+
 export function scoreProductScout(metrics: ProductScoutMetrics): ProductScoutScoreResult | null {
   if (!hasProductScoutData(metrics)) return null
 
@@ -506,12 +636,17 @@ export function scoreProductScout(metrics: ProductScoutMetrics): ProductScoutSco
     atcTrend,
   ))
 
+  const cooling = scoreRecentCooling(metrics, parsed.ordersDelta)
+  const creatorsInflux = scoreCreatorsJoiningWhileCooling(metrics)
+
   const signals: ProductScoutSignal[] = [
     ordersTrend,
     atcTrend,
     scoreCreatorSaturation(parsed.creators, parsed.creatorsDelta, parsed.ordersDelta),
     scoreCtr(parsed.ctr, parsed.ctrDelta, parsed.creators),
     scoreConversion(parsed.orders, parsed.atcUsers),
+    ...(cooling ? [cooling] : []),
+    ...(creatorsInflux ? [creatorsInflux] : []),
   ]
 
   const scoredSignals = signals.filter((signal) => signal.countsTowardScore)

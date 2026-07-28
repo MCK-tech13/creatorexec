@@ -95,6 +95,33 @@ export function mergeExtractedIntoMetrics(
       value: mapped.atcUsers.value || current.atcUsers.value,
       delta: mapped.atcUsers.delta,
     },
+    ...(current.recent7d ? { recent7d: current.recent7d } : {}),
+  }
+}
+
+/** Merge OCR into the optional 7-day orders/ATC/creators slot (not CTR). */
+export function mergeExtractedIntoRecent7d(
+  current: ProductScoutMetrics,
+  extracted: ExtractedTrendMetrics,
+): ProductScoutMetrics {
+  const mapped = extractedMetricsToFormMetrics(extracted)
+  const prev = current.recent7d
+  return {
+    ...current,
+    recent7d: {
+      orders: {
+        value: mapped.orders.value || prev?.orders.value || '',
+        delta: mapped.orders.delta,
+      },
+      atcUsers: {
+        value: mapped.atcUsers.value || prev?.atcUsers.value || '',
+        delta: mapped.atcUsers.delta,
+      },
+      creators: {
+        value: mapped.creators.value || prev?.creators.value || '',
+        delta: mapped.creators.delta,
+      },
+    },
   }
 }
 
@@ -137,9 +164,12 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
+export type ProductScoutOcrPeriod = '7' | '30'
+
 export async function extractScreenshotMetrics(
   accessToken: string,
   imageDataUrl: string,
+  period: ProductScoutOcrPeriod = '30',
 ): Promise<ExtractScreenshotResult> {
   const response = await fetch('/api/product-scout/extract-screenshot', {
     method: 'POST',
@@ -147,7 +177,7 @@ export async function extractScreenshotMetrics(
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ imageDataUrl }),
+    body: JSON.stringify({ imageDataUrl, period }),
   })
 
   const payload = (await response.json().catch(() => ({}))) as {

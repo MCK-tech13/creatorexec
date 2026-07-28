@@ -290,6 +290,9 @@ export async function handleProductScoutExtractScreenshot(req, res) {
       return
     }
 
+    const periodRaw = req.body?.period
+    const period = periodRaw === '7' || periodRaw === 7 ? '7' : '30'
+
     // Reject absurd payloads early (client should downsize; this is a hard ceiling).
     if (imageDataUrl.length > 8_000_000) {
       res.status(413).json({ error: 'Screenshot is too large. Try a clearer crop of the metrics.' })
@@ -302,6 +305,7 @@ export async function handleProductScoutExtractScreenshot(req, res) {
       apiKey: anthropicApiKey,
       imageBase64: resized.buffer.toString('base64'),
       mediaType: resized.mediaType,
+      period,
     })
 
     res.status(200).json({
