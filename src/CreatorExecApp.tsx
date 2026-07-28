@@ -70,6 +70,7 @@ import {
 } from './lib/sprint/sprintSnapshotStorage'
 import {
   clearProductCatalog,
+  reconcileCatalogFromCsvUpload,
   upsertCatalogFromMergedProducts,
   upsertCatalogFromSampleProducts,
 } from './lib/catalog/productCatalogStorage'
@@ -497,9 +498,9 @@ export default function CreatorExecApp() {
   const finishUpload = useCallback(
     (tiered: MergedProduct[], mode: ScheduleMode, reportName: string | null = fileName) => {
       const effectiveMode = normalizeScheduleMode(mode)
-      // Stage 3: upsert CSV metrics into durable catalog, then rebuild sprint FROM catalog
-      // so sample/favorite-only rows stay in rotation alongside report products.
-      upsertCatalogFromMergedProducts(tiered, 'csv')
+      // Stage 3: reconcile CSV into durable catalog (prune stale CSV rows; keep
+      // manual/sample), then rebuild sprint FROM catalog.
+      reconcileCatalogFromCsvUpload(tiered)
       const fromCatalog = buildSprintProductsFromCatalog(undefined, {
         mode: effectiveMode,
         ...sopRetierOptions(sprintConfig),

@@ -78,6 +78,63 @@ function upsertById(
   return [...byId.values()].sort((a, b) => a.displayName.localeCompare(b.displayName))
 }
 
+/**
+ * Manual / sample rows survive a new commission report even when they have
+ * no TikTok ID match yet (still in testing). CSV (and non-manual backfill)
+ * rows are report-bound and may be pruned.
+ */
+export function isProtectedFromCsvPrune(product: CatalogProduct): boolean {
+  if (product.isManual) return true
+  return product.source === 'manual' || product.source === 'sample'
+}
+
+/**
+ * Upsert this report's CSV products, then drop unmatched CSV-sourced rows.
+ * Protected manual/sample products are always kept.
+ */
+function replaceCsvCatalogRows(
+  existing: CatalogProduct[],
+  incoming: CatalogProduct[],
+): CatalogProduct[] {
+  const protectedRows = existing.filter(isProtectedFromCsvPrune)
+  const csvRows = existing.filter((product) => !isProtectedFromCsvPrune(product))
+
+  const byId = new Map(csvRows.map((product) => [product.id, product]))
+  const byExternal = new Map(
+    csvRows
+      .filter((product) => product.externalProductId)
+      .map((product) => [product.externalProductId as string, product]),
+  )
+
+  const nextCsv: CatalogProduct[] = []
+  for (const product of incoming) {
+    const externalMatch = product.externalProductId
+      ? byExternal.get(product.externalProductId)
+      : undefined
+    const prev = externalMatch ?? byId.get(product.id)
+    if (prev) {
+      nextCsv.push({
+        ...prev,
+        ...product,
+        id: prev.id,
+        createdAt: prev.createdAt,
+        updatedAt: nowIso(),
+        externalProductId: product.externalProductId ?? prev.externalProductId,
+        firstVideoDeadline: product.firstVideoDeadline ?? prev.firstVideoDeadline,
+        isFavorite: Boolean(prev.isFavorite) || Boolean(product.isFavorite),
+        source: 'csv',
+      })
+    } else {
+      nextCsv.push(product)
+    }
+  }
+
+  // Unmatched prior CSV rows are intentionally omitted (prune).
+  return [...protectedRows, ...nextCsv].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName),
+  )
+}
+
 export function catalogProductFromMerged(
   product: MergedProduct,
   source: CatalogProductSource = product.isManual ? 'manual' : 'csv',
@@ -147,6 +204,19 @@ export function upsertCatalogFromMergedProducts(
     ),
   )
   const next = upsertById(loadProductCatalog(), incoming)
+  saveProductCatalog(next)
+  return next
+}
+
+/**
+ * Commission-report reconcile: refresh matched CSV rows from this file and
+ * prune CSV-sourced rows that are absent. Manual/sample products are kept.
+ */
+export function reconcileCatalogFromCsvUpload(
+  products: MergedProduct[],
+): CatalogProduct[] {
+  const incoming = products.map((product) => catalogProductFromMerged(product, 'csv'))
+  const next = replaceCsvCatalogRows(loadProductCatalog(), incoming)
   saveProductCatalog(next)
   return next
 }
