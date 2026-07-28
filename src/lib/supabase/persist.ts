@@ -3,6 +3,7 @@ import type { Database } from './database.types'
 import type { UserDataSnapshot } from './dataStore'
 import {
   brandDealToRow,
+  catalogMergeToRow,
   catalogProductToRow,
   currentSprintToRow,
   incomeEntryToRow,
@@ -191,13 +192,71 @@ export async function persistProductCatalog(
 
   const rows = products.map((product) => catalogProductToRow(userId, product))
   const { error } = await client.from('user_products').upsert(rows)
-  if (error) throw error
+  if (error) {
+    // Soft-fail when linked_external_ids column is not migrated yet.
+    const message = error.message?.toLowerCase() ?? ''
+    const missingLinked =
+      error.code === 'PGRST204' ||
+      message.includes('linked_external_ids') ||
+      message.includes('schema cache')
+    if (missingLinked) {
+      console.warn(
+        'user_products.linked_external_ids unavailable — apply migration 20260728000000_catalog_manual_product_links.sql',
+        error.message,
+      )
+      // Retry without the new column so catalog sales still persist.
+      const legacyRows = rows.map(({ linked_external_ids: _drop, ...rest }) => rest)
+      const { error: legacyError } = await client.from('user_products').upsert(legacyRows)
+      if (legacyError) throw legacyError
+      return
+    }
+    throw error
+  }
 }
 
 /** Full catalog wipe — onboarding reset only, never Start Over / sprint reset. */
 export async function clearProductCatalogRows(client: Client, userId: string): Promise<void> {
   const { error } = await client.from('user_products').delete().eq('user_id', userId)
   if (error) throw error
+}
+
+function isMissingCatalogMergeSchema(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  const message = error.message?.toLowerCase() ?? ''
+  return (
+    error.code === '42P01' ||
+    error.code === 'PGRST204' ||
+    error.code === 'PGRST205' ||
+    message.includes('catalog_merge_history') ||
+    message.includes('linked_external_ids') ||
+    message.includes('does not exist') ||
+    message.includes('schema cache')
+  )
+}
+
+/**
+ * Upsert manual merge undo history. Soft-fails until migration
+ * 20260728000000_catalog_manual_product_links.sql is applied.
+ */
+export async function persistCatalogMergeHistory(
+  client: Client,
+  userId: string,
+  history: UserDataSnapshot['catalogMergeHistory'],
+): Promise<void> {
+  if (history.length === 0) return
+
+  const rows = history.map((record) => catalogMergeToRow(userId, record))
+  const { error } = await client.from('catalog_merge_history').upsert(rows)
+  if (error) {
+    if (isMissingCatalogMergeSchema(error)) {
+      console.warn(
+        'catalog_merge_history unavailable — apply migration 20260728000000_catalog_manual_product_links.sql',
+        error.message,
+      )
+      return
+    }
+    throw error
+  }
 }
 
 export async function persistOnboardingState(

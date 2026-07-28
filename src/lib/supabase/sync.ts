@@ -4,6 +4,7 @@ import {
   clearCurrentSprintStateRow,
   clearProductCatalogRows,
   persistBrandDeals,
+  persistCatalogMergeHistory,
   persistCurrentSprintState,
   persistIncomeTracker,
   persistOnboardingState,
@@ -115,6 +116,13 @@ export function scheduleProductCatalogPersist(): void {
 export function scheduleProductCatalogClear(): void {
   withClient(async (userId, client) => {
     await clearProductCatalogRows(client, userId)
+  })
+}
+
+export function scheduleCatalogMergeHistoryPersist(): void {
+  const history = getUserDataSnapshot().catalogMergeHistory
+  withClient(async (userId, client) => {
+    await persistCatalogMergeHistory(client, userId, history)
   })
 }
 

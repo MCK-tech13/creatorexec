@@ -29,6 +29,7 @@
     "verify:catalog-stage2": "tsx scripts/verify-catalog-stage2.ts",
     "verify:catalog-stage3": "tsx scripts/verify-catalog-stage3.ts",
     "verify:catalog-stale-and-merge": "tsx scripts/verify-catalog-stale-and-merge.ts",
+    "verify:catalog-manual-link": "tsx scripts/verify-catalog-manual-link.ts",
     "preview:upload-reminder": "node scripts/preview-upload-reminder.mjs",
     "audit:sprint-history": "node --env-file=.env scripts/audit-sprint-history.mjs",
     "test:welcome-email": "node scripts/test-welcome-email.mjs",

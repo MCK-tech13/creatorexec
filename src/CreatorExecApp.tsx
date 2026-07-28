@@ -11,6 +11,8 @@ import { TierTabs } from './components/dashboard/TierTabs'
 import { ProductTable } from './components/dashboard/ProductTable'
 import { UploadReminderBanner } from './components/dashboard/UploadReminderBanner'
 import { AddProductModal } from './components/dashboard/AddProductModal'
+import { MergeConfirmModal } from './components/dashboard/MergeConfirmModal'
+import { ProductLinkControls } from './components/dashboard/ProductLinkControls'
 import { SprintConfigForm } from './components/config/SprintConfigForm'
 import { FilmingSchedule } from './components/schedule/FilmingSchedule'
 import { RetainerDeals } from './components/pipeline/RetainerDeals'
@@ -68,6 +70,13 @@ import {
   clearSprintSnapshots,
   saveSprintStartSnapshot,
 } from './lib/sprint/sprintSnapshotStorage'
+import {
+  formatMergeConfirmSummary,
+  latestUndoableMerge,
+  mergeCatalogProducts,
+  previewCatalogProductMerge,
+  undoCatalogProductMerge,
+} from './lib/catalog/catalogProductLinking'
 import {
   clearProductCatalog,
   reconcileCatalogFromCsvUpload,
@@ -252,6 +261,10 @@ export default function CreatorExecApp() {
   const [error, setError] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(() => restored?.fileName ?? null)
   const [showAddProductModal, setShowAddProductModal] = useState(false)
+  const [linkMode, setLinkMode] = useState(false)
+  const [selectedLinkIds, setSelectedLinkIds] = useState<string[]>([])
+  const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false)
+  const [linkActionNotice, setLinkActionNotice] = useState<string | null>(null)
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>(
     () => normalizeScheduleMode(restored?.scheduleMode),
   )
@@ -715,6 +728,89 @@ export default function CreatorExecApp() {
       excludedFromSchedule,
     ],
   )
+
+  const refreshProductsFromCatalog = useCallback(() => {
+    const fromCatalog = buildSprintProductsFromCatalog(undefined, {
+      mode: scheduleMode,
+      ...sopRetierOptions(sprintConfig),
+    })
+    setProducts(fromCatalog)
+    if (stage === 'schedule') {
+      rebuildSchedule(
+        fromCatalog,
+        deadlineProducts,
+        sprintConfig,
+        excludedFromSchedule,
+        scheduleMode,
+      )
+    }
+    return fromCatalog
+  }, [
+    scheduleMode,
+    sprintConfig,
+    sopRetierOptions,
+    stage,
+    rebuildSchedule,
+    deadlineProducts,
+    excludedFromSchedule,
+  ])
+
+  const handleToggleLinkMode = useCallback(() => {
+    setLinkMode((prev) => {
+      if (prev) {
+        setSelectedLinkIds([])
+        setMergeConfirmOpen(false)
+        return false
+      }
+      return true
+    })
+  }, [])
+
+  const handleToggleLinkSelect = useCallback((productId: string) => {
+    setSelectedLinkIds((prev) => {
+      if (prev.includes(productId)) {
+        return prev.filter((id) => id !== productId)
+      }
+      return [...prev, productId]
+    })
+  }, [])
+
+  const mergeConfirmCopy = useMemo(() => {
+    if (!mergeConfirmOpen || selectedLinkIds.length < 2) return null
+    try {
+      return formatMergeConfirmSummary(previewCatalogProductMerge(selectedLinkIds))
+    } catch {
+      return null
+    }
+  }, [mergeConfirmOpen, selectedLinkIds])
+
+  const undoableMerge = useMemo(() => latestUndoableMerge(), [products, linkActionNotice])
+
+  const handleConfirmMerge = useCallback(() => {
+    if (selectedLinkIds.length < 2) return
+    try {
+      const record = mergeCatalogProducts(selectedLinkIds)
+      refreshProductsFromCatalog()
+      setSelectedLinkIds([])
+      setLinkMode(false)
+      setMergeConfirmOpen(false)
+      setLinkActionNotice(
+        `Merged into “${record.survivorDisplayName}”. Undo is available if you change your mind.`,
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not merge products.')
+      setMergeConfirmOpen(false)
+    }
+  }, [selectedLinkIds, refreshProductsFromCatalog])
+
+  const handleUndoLatestMerge = useCallback(() => {
+    const latest = latestUndoableMerge()
+    if (!latest) return
+    const ok = undoCatalogProductMerge(latest.id)
+    if (!ok) return
+    refreshProductsFromCatalog()
+    setLinkActionNotice(`Undid merge of “${latest.survivorDisplayName}”.`)
+  }, [refreshProductsFromCatalog])
 
   const handleAddManualProduct = useCallback(
     (data: ManualProductFormData) => {
@@ -1327,6 +1423,20 @@ export default function CreatorExecApp() {
               </div>
             )}
           </div>
+          <div className="mt-4 space-y-3">
+            <ProductLinkControls
+              linkMode={linkMode}
+              selectedCount={selectedLinkIds.length}
+              canUndo={Boolean(undoableMerge)}
+              undoLabel={undoableMerge?.survivorDisplayName ?? null}
+              onToggleLinkMode={handleToggleLinkMode}
+              onOpenMergeConfirm={() => setMergeConfirmOpen(true)}
+              onUndoLatest={handleUndoLatestMerge}
+            />
+            {linkActionNotice && (
+              <p className="font-body text-sm text-emerald">{linkActionNotice}</p>
+            )}
+          </div>
           <ProductTable
             products={products}
             activeTier={activeTier}
@@ -1334,6 +1444,9 @@ export default function CreatorExecApp() {
             advancedControlsOpen={showAdvancedControls}
             stalledKeys={productFlags.stalled}
             slowingAnchorKeys={productFlags.slowingAnchors}
+            linkMode={linkMode}
+            selectedLinkIds={selectedLinkIds}
+            onToggleLinkSelect={handleToggleLinkSelect}
             onVideosFilmedChange={handleVideosFilmedChange}
             onInRotationChange={handleInRotationChange}
             onMarkTrialPreviouslyCompleted={handleMarkTrialPreviouslyCompleted}
@@ -1413,6 +1526,15 @@ export default function CreatorExecApp() {
         <AddProductModal
           onClose={() => setShowAddProductModal(false)}
           onSubmit={handleAddManualProduct}
+        />
+      )}
+
+      {mergeConfirmOpen && mergeConfirmCopy && (
+        <MergeConfirmModal
+          title={mergeConfirmCopy.title}
+          bodyLines={mergeConfirmCopy.bodyLines}
+          onConfirm={handleConfirmMerge}
+          onCancel={() => setMergeConfirmOpen(false)}
         />
       )}
 

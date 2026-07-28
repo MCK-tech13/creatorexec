@@ -25,12 +25,37 @@ function normalizeExternalProductId(productId: string | null | undefined): strin
   return trimmed
 }
 
+function withLinkedIds(product: CatalogProduct): CatalogProduct {
+  return {
+    ...product,
+    linkedExternalIds: product.linkedExternalIds ?? [],
+  }
+}
+
+/** All TikTok IDs that should resolve to this catalog row. */
+export function allExternalIdsForProduct(product: CatalogProduct): string[] {
+  const ids = [...(product.linkedExternalIds ?? [])]
+  if (product.externalProductId) ids.unshift(product.externalProductId)
+  return [...new Set(ids.filter(Boolean))]
+}
+
+export function findCatalogProductByExternalId(
+  products: CatalogProduct[],
+  externalId: string | null | undefined,
+): CatalogProduct | undefined {
+  if (!externalId) return undefined
+  return products.find(
+    (product) =>
+      !product.archivedAt && allExternalIdsForProduct(product).includes(externalId),
+  )
+}
+
 export function loadProductCatalog(): CatalogProduct[] {
-  return getUserDataSnapshot().productCatalog
+  return getUserDataSnapshot().productCatalog.map(withLinkedIds)
 }
 
 export function saveProductCatalog(products: CatalogProduct[]): void {
-  updateProductCatalog(products)
+  updateProductCatalog(products.map(withLinkedIds))
   scheduleProductCatalogPersist()
 }
 
@@ -44,17 +69,12 @@ function upsertById(
   existing: CatalogProduct[],
   incoming: CatalogProduct[],
 ): CatalogProduct[] {
-  const byId = new Map(existing.map((product) => [product.id, product]))
-  const byExternal = new Map(
-    existing
-      .filter((product) => product.externalProductId)
-      .map((product) => [product.externalProductId as string, product]),
-  )
+  const live = existing.filter((product) => !product.archivedAt).map(withLinkedIds)
+  const archived = existing.filter((product) => product.archivedAt).map(withLinkedIds)
+  const byId = new Map(live.map((product) => [product.id, product]))
 
   for (const product of incoming) {
-    const externalMatch = product.externalProductId
-      ? byExternal.get(product.externalProductId)
-      : undefined
+    const externalMatch = findCatalogProductByExternalId(live, product.externalProductId)
     const prev = externalMatch ?? byId.get(product.id)
     const merged: CatalogProduct = prev
       ? {
@@ -63,19 +83,17 @@ function upsertById(
           id: prev.id,
           createdAt: prev.createdAt,
           updatedAt: nowIso(),
-          // Keep an existing TikTok id if the incoming row lost it.
           externalProductId: product.externalProductId ?? prev.externalProductId,
+          linkedExternalIds: prev.linkedExternalIds ?? [],
           firstVideoDeadline: product.firstVideoDeadline ?? prev.firstVideoDeadline,
-          // CSV rows do not carry favorites — never wipe a catalog Priority flag.
           isFavorite: Boolean(prev.isFavorite) || Boolean(product.isFavorite),
         }
-      : product
+      : withLinkedIds(product)
     byId.set(merged.id, merged)
-    if (merged.externalProductId) {
-      byExternal.set(merged.externalProductId, merged)
-    }
   }
-  return [...byId.values()].sort((a, b) => a.displayName.localeCompare(b.displayName))
+  return [...archived, ...byId.values()].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName),
+  )
 }
 
 /**
@@ -89,48 +107,76 @@ export function isProtectedFromCsvPrune(product: CatalogProduct): boolean {
 }
 
 /**
- * Upsert this report's CSV products, then drop unmatched CSV-sourced rows.
- * Protected manual/sample products are always kept.
+ * Refresh matched rows (including manual links / multi-ID survivors), prune
+ * unmatched CSV rows, keep protected manuals/samples and archived merges.
  */
 function replaceCsvCatalogRows(
   existing: CatalogProduct[],
   incoming: CatalogProduct[],
 ): CatalogProduct[] {
-  const protectedRows = existing.filter(isProtectedFromCsvPrune)
-  const csvRows = existing.filter((product) => !isProtectedFromCsvPrune(product))
+  const archived = existing.filter((product) => product.archivedAt).map(withLinkedIds)
+  const live = existing.filter((product) => !product.archivedAt).map(withLinkedIds)
 
-  const byId = new Map(csvRows.map((product) => [product.id, product]))
-  const byExternal = new Map(
-    csvRows
-      .filter((product) => product.externalProductId)
-      .map((product) => [product.externalProductId as string, product]),
-  )
+  const updates = new Map<string, CatalogProduct>()
+  const unmatchedIncoming: CatalogProduct[] = []
 
-  const nextCsv: CatalogProduct[] = []
-  for (const product of incoming) {
-    const externalMatch = product.externalProductId
-      ? byExternal.get(product.externalProductId)
-      : undefined
-    const prev = externalMatch ?? byId.get(product.id)
-    if (prev) {
-      nextCsv.push({
-        ...prev,
-        ...product,
-        id: prev.id,
-        createdAt: prev.createdAt,
+  for (const row of incoming) {
+    const match =
+      findCatalogProductByExternalId(live, row.externalProductId) ??
+      live.find((product) => product.id === row.id)
+
+    if (!match) {
+      unmatchedIncoming.push(withLinkedIds(row))
+      continue
+    }
+
+    const prior = updates.get(match.id)
+    if (!prior) {
+      updates.set(match.id, {
+        ...match,
+        gmv: row.gmv,
+        commission: row.commission,
+        itemsSold: row.itemsSold,
+        orderCount: row.orderCount,
         updatedAt: nowIso(),
-        externalProductId: product.externalProductId ?? prev.externalProductId,
-        firstVideoDeadline: product.firstVideoDeadline ?? prev.firstVideoDeadline,
-        isFavorite: Boolean(prev.isFavorite) || Boolean(product.isFavorite),
-        source: 'csv',
+        // Keep manual/sample source when the user linked TikTok IDs onto it.
+        source: isProtectedFromCsvPrune(match) ? match.source : 'csv',
+        firstVideoDeadline: row.firstVideoDeadline ?? match.firstVideoDeadline,
+        isFavorite: Boolean(match.isFavorite) || Boolean(row.isFavorite),
+        linkedExternalIds: match.linkedExternalIds ?? [],
+        externalProductId: match.externalProductId ?? row.externalProductId,
       })
     } else {
-      nextCsv.push(product)
+      // Multiple CSV listings mapped to the same linked product → sum this report.
+      updates.set(match.id, {
+        ...prior,
+        gmv: prior.gmv + row.gmv,
+        commission: prior.commission + row.commission,
+        itemsSold: prior.itemsSold + row.itemsSold,
+        orderCount: prior.orderCount + row.orderCount,
+        updatedAt: nowIso(),
+      })
     }
   }
 
-  // Unmatched prior CSV rows are intentionally omitted (prune).
-  return [...protectedRows, ...nextCsv].sort((a, b) =>
+  const nextLive: CatalogProduct[] = []
+  for (const product of live) {
+    const updated = updates.get(product.id)
+    if (updated) {
+      nextLive.push(updated)
+      continue
+    }
+    if (isProtectedFromCsvPrune(product)) {
+      nextLive.push(product)
+    }
+    // Unmatched prior CSV/backfill rows are pruned.
+  }
+
+  for (const row of unmatchedIncoming) {
+    nextLive.push(row)
+  }
+
+  return [...archived, ...nextLive].sort((a, b) =>
     a.displayName.localeCompare(b.displayName),
   )
 }
@@ -141,13 +187,13 @@ export function catalogProductFromMerged(
 ): CatalogProduct {
   const timestamp = nowIso()
   const externalProductId = normalizeExternalProductId(product.productId)
-  // Prefer stable UUID ids; otherwise mint one (CSV similar-name merges use non-UUID ids).
   const id = isUuid(product.id) ? product.id : crypto.randomUUID()
   return {
     id,
     displayName: product.productName,
     brand: null,
     externalProductId,
+    linkedExternalIds: [],
     source,
     isFavorite: product.isFavorite ?? false,
     gmv: product.gmv,
@@ -173,6 +219,7 @@ export function catalogProductFromSample(product: SampleProduct): CatalogProduct
     displayName: product.productName,
     brand: product.brand.trim() ? product.brand.trim() : null,
     externalProductId: null,
+    linkedExternalIds: [],
     source: 'sample',
     isFavorite: product.type === 'favorite',
     gmv: 0,
@@ -211,6 +258,7 @@ export function upsertCatalogFromMergedProducts(
 /**
  * Commission-report reconcile: refresh matched CSV rows from this file and
  * prune CSV-sourced rows that are absent. Manual/sample products are kept.
+ * Manually linked TikTok IDs continue to resolve to the survivor row.
  */
 export function reconcileCatalogFromCsvUpload(
   products: MergedProduct[],

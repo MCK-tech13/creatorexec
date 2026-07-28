@@ -50,6 +50,7 @@ function emptySnapshot() {
     incomeTracker: [],
     productScoutEntries: [],
     productCatalog: [],
+    catalogMergeHistory: [],
     onboardingProfile: null,
     sprintEntrySeen: false,
     welcomeSeen: false,

@@ -262,6 +262,7 @@ export type Database = {
           display_name: string
           brand: string | null
           external_product_id: string | null
+          linked_external_ids: Json
           source: Database['public']['Enums']['catalog_product_source']
           is_favorite: boolean
           gmv: number
@@ -282,6 +283,7 @@ export type Database = {
           display_name: string
           brand?: string | null
           external_product_id?: string | null
+          linked_external_ids?: Json
           source?: Database['public']['Enums']['catalog_product_source']
           is_favorite?: boolean
           gmv?: number
@@ -302,6 +304,7 @@ export type Database = {
           display_name?: string
           brand?: string | null
           external_product_id?: string | null
+          linked_external_ids?: Json
           source?: Database['public']['Enums']['catalog_product_source']
           is_favorite?: boolean
           gmv?: number
@@ -315,6 +318,45 @@ export type Database = {
           archived_at?: string | null
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      catalog_merge_history: {
+        Row: {
+          id: string
+          user_id: string
+          survivor_id: string
+          survivor_display_name: string
+          absorbed_ids: Json
+          before_products: Json
+          before_trial: Json
+          after_trial_videos_filmed: number
+          created_at: string
+          undone_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          survivor_id: string
+          survivor_display_name: string
+          absorbed_ids?: Json
+          before_products?: Json
+          before_trial?: Json
+          after_trial_videos_filmed?: number
+          created_at?: string
+          undone_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          survivor_id?: string
+          survivor_display_name?: string
+          absorbed_ids?: Json
+          before_products?: Json
+          before_trial?: Json
+          after_trial_videos_filmed?: number
+          created_at?: string
+          undone_at?: string | null
         }
         Relationships: []
       }

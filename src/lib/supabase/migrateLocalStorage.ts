@@ -139,6 +139,7 @@ export function readLocalStorageSnapshot(): UserDataSnapshot {
     incomeTracker: readLocalIncomeTracker(),
     productScoutEntries: readLocalProductScout(),
     productCatalog: [],
+    catalogMergeHistory: [],
     onboardingProfile: readLocalOnboardingProfile(),
     sprintEntrySeen,
     welcomeSeen,
