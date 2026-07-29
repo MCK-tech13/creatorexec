@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, List, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { ProductScoutEntry, ProductScoutMetrics } from '../../types/productScout'
 import { scoreProductScout } from '../../lib/productScout/scorer'
+import { isScoutPromotedToSprint } from '../../lib/productScout/promoteScoutToSprint'
 import { entryToFormDefaults } from '../../lib/productScout/formDefaults'
 import { takeProductScoutDraft } from '../../lib/version/productScoutDraft'
 import { ProductScoutForm } from './ProductScoutForm'
@@ -10,6 +11,10 @@ import { ProductScoutResults } from './ProductScoutResults'
 import { ProductScoutVerdictBadge } from './ProductScoutVerdictBadge'
 
 type ViewMode = 'list' | 'new' | 'detail' | 'edit'
+
+export type PromoteScoutToSprintResult =
+  | { ok: true; message: string }
+  | { ok: false; message: string }
 
 interface ProductScoutProps {
   entries: ProductScoutEntry[]
@@ -21,9 +26,15 @@ interface ProductScoutProps {
   ) => ProductScoutEntry | Promise<ProductScoutEntry>
   onUpdateEntry: (
     id: string,
-    patch: Partial<Pick<ProductScoutEntry, 'productName' | 'metrics'>>,
+    patch: Partial<
+      Pick<
+        ProductScoutEntry,
+        'productName' | 'metrics' | 'promotedCatalogProductId' | 'promotedAt'
+      >
+    >,
   ) => void | Promise<void>
   onRemoveEntry: (id: string) => void | Promise<void>
+  onPromoteToSprint: (id: string) => Promise<PromoteScoutToSprintResult>
 }
 
 export function ProductScout({
@@ -33,6 +44,7 @@ export function ProductScout({
   onAddEntry,
   onUpdateEntry,
   onRemoveEntry,
+  onPromoteToSprint,
 }: ProductScoutProps) {
   const restoredDraft = useMemo(() => takeProductScoutDraft(), [])
   const [view, setView] = useState<ViewMode>(() => {
@@ -51,6 +63,9 @@ export function ProductScout({
       ? { productName: restoredDraft.productName, metrics: restoredDraft.metrics }
       : null,
   )
+  const [promoteNotice, setPromoteNotice] = useState<string | null>(null)
+  const [promoteNoticeTone, setPromoteNoticeTone] = useState<'ok' | 'block'>('ok')
+  const [promotingId, setPromotingId] = useState<string | null>(null)
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === selectedId) ?? null,
@@ -91,6 +106,27 @@ export function ProductScout({
     }
   }
 
+  const handleAddToSprint = async (id: string) => {
+    if (promotingId) return
+    setPromotingId(id)
+    setPromoteNotice(null)
+    try {
+      const result = await onPromoteToSprint(id)
+      setPromoteNoticeTone(result.ok ? 'ok' : 'block')
+      setPromoteNotice(result.message)
+    } catch (err) {
+      console.error(err)
+      setPromoteNoticeTone('block')
+      setPromoteNotice(err instanceof Error ? err.message : 'Could not add to sprint.')
+    } finally {
+      setPromotingId(null)
+    }
+  }
+
+  const selectedAlreadyInSprint = selectedEntry
+    ? isScoutPromotedToSprint(selectedEntry)
+    : false
+
   const newFormDefaults = draftSeed
     ? { initialName: draftSeed.productName, initialMetrics: draftSeed.metrics }
     : {}
@@ -126,6 +162,25 @@ export function ProductScout({
               Dismiss
             </button>
           )}
+        </div>
+      )}
+      {promoteNotice && (
+        <div
+          className={`mb-6 border px-4 py-3 ${
+            promoteNoticeTone === 'ok'
+              ? 'border-emerald/40 bg-emerald/5'
+              : 'border-terracotta/50 bg-terracotta-tint'
+          }`}
+          role="status"
+        >
+          <p className="font-body text-sm text-ink">{promoteNotice}</p>
+          <button
+            type="button"
+            className="mt-2 font-body text-sm text-stone underline"
+            onClick={() => setPromoteNotice(null)}
+          >
+            Dismiss
+          </button>
         </div>
       )}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -171,6 +226,8 @@ export function ProductScout({
               entries={entries}
               selectedId={selectedId}
               onSelect={openDetail}
+              onAddToSprint={handleAddToSprint}
+              promotingId={promotingId}
             />
           </div>
           <div className="border border-border-warm bg-white p-6">
@@ -184,6 +241,20 @@ export function ProductScout({
                     </h2>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {selectedAlreadyInSprint ? (
+                      <span className="inline-flex items-center px-4 py-2 font-body text-sm font-medium text-emerald">
+                        Added to sprint
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={promotingId === selectedEntry.id}
+                        onClick={() => handleAddToSprint(selectedEntry.id)}
+                        className="btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-60"
+                      >
+                        {promotingId === selectedEntry.id ? 'Adding…' : 'Add to Sprint'}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setView('edit')}
@@ -274,6 +345,20 @@ export function ProductScout({
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                {selectedAlreadyInSprint ? (
+                  <span className="inline-flex items-center px-4 py-2 font-body text-sm font-medium text-emerald">
+                    Added to sprint
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={promotingId === selectedEntry.id}
+                    onClick={() => handleAddToSprint(selectedEntry.id)}
+                    className="btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-60"
+                  >
+                    {promotingId === selectedEntry.id ? 'Adding…' : 'Add to Sprint'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setView('edit')}

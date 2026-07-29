@@ -226,6 +226,8 @@ export type Database = {
           total_score: number | null
           scoring_logic_version: number | null
           funnel_recommendation: Json | null
+          promoted_catalog_product_id: string | null
+          promoted_at: string | null
           created_at: string
           updated_at: string
         }
@@ -238,6 +240,8 @@ export type Database = {
           total_score?: number | null
           scoring_logic_version?: number | null
           funnel_recommendation?: Json | null
+          promoted_catalog_product_id?: string | null
+          promoted_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -250,6 +254,8 @@ export type Database = {
           total_score?: number | null
           scoring_logic_version?: number | null
           funnel_recommendation?: Json | null
+          promoted_catalog_product_id?: string | null
+          promoted_at?: string | null
           created_at?: string
           updated_at?: string
         }

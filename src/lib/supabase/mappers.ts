@@ -325,6 +325,8 @@ export function productScoutFromRow(row: ScoutRow): ProductScoutEntry {
     metrics: normalizeProductScoutMetrics(row.metrics),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    promotedCatalogProductId: row.promoted_catalog_product_id ?? null,
+    promotedAt: row.promoted_at ?? null,
   }
 }
 
@@ -342,6 +344,8 @@ export function productScoutToRow(
     total_score: scored?.totalScore ?? null,
     scoring_logic_version: scored ? SCORING_LOGIC_VERSION : null,
     funnel_recommendation: scored?.funnel ? asJson(scored.funnel) : null,
+    promoted_catalog_product_id: entry.promotedCatalogProductId ?? null,
+    promoted_at: entry.promotedAt ?? null,
     created_at: entry.createdAt,
     updated_at: entry.updatedAt,
   }

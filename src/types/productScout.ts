@@ -64,6 +64,13 @@ export interface ProductScoutEntry {
   metrics: ProductScoutMetrics
   createdAt: string
   updatedAt: string
+  /**
+   * Catalog (`user_products`) id when this Scout entry was promoted via
+   * “Add to Sprint”. Null/undefined = not promoted (or link cleared).
+   */
+  promotedCatalogProductId?: string | null
+  /** ISO timestamp of promotion; null/undefined when not promoted. */
+  promotedAt?: string | null
 }
 
 export interface ProductScoutEntryInsert {

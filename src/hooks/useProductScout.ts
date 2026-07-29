@@ -6,6 +6,7 @@ import {
   loadProductScoutEntries,
   syncProductScoutEntriesLocal,
   updateProductScoutEntryInList,
+  type ProductScoutEntryPatch,
 } from '../lib/productScout/productScoutStorage'
 import { persistProductScoutEntriesNow } from '../lib/supabase/sync'
 
@@ -79,15 +80,12 @@ export function useProductScout() {
     return entry
   }, [])
 
-  const updateEntry = useCallback(
-    (id: string, patch: Partial<Pick<ProductScoutEntry, 'productName' | 'metrics'>>) => {
-      const next = updateProductScoutEntryInList(entriesRef.current, id, patch)
-      entriesRef.current = next
-      syncProductScoutEntriesLocal(next)
-      setEntries(next)
-    },
-    [],
-  )
+  const updateEntry = useCallback((id: string, patch: ProductScoutEntryPatch) => {
+    const next = updateProductScoutEntryInList(entriesRef.current, id, patch)
+    entriesRef.current = next
+    syncProductScoutEntriesLocal(next)
+    setEntries(next)
+  }, [])
 
   const removeEntry = useCallback((id: string) => {
     const next = deleteProductScoutEntry(entriesRef.current, id)

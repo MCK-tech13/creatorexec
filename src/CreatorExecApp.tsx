@@ -21,6 +21,7 @@ import { ProductScout } from './components/productScout/ProductScout'
 import { DashboardHome } from './components/dashboard/DashboardHome'
 import { useProductScout } from './hooks/useProductScout'
 import { useFilmingProgress } from './hooks/useFilmingProgress'
+import { promoteScoutEntryToSprint } from './lib/productScout/promoteScoutToSprint'
 import {
   buildIncomeHomePreview,
   buildProductScoutHomePreview,
@@ -864,6 +865,61 @@ export default function CreatorExecApp() {
     ],
   )
 
+  const handlePromoteScoutToSprint = useCallback(
+    async (entryId: string) => {
+      const entry = productScoutEntries.find((item) => item.id === entryId)
+      if (!entry) {
+        return { ok: false as const, message: 'Scout entry not found.' }
+      }
+
+      const result = promoteScoutEntryToSprint(entry)
+      if (!result.ok) {
+        if (result.clearStalePromotion) {
+          updateProductScoutEntry(entryId, {
+            promotedCatalogProductId: null,
+            promotedAt: null,
+          })
+          await persistProductScoutNow()
+        }
+        return { ok: false as const, message: result.message }
+      }
+
+      setProducts((prev) => {
+        const modeForTier = scheduleMode
+        const combined = retierPreservingManual([...prev, result.product], modeForTier)
+        if (stage === 'schedule') {
+          rebuildSchedule(
+            combined,
+            deadlineProducts,
+            sprintConfig,
+            excludedFromSchedule,
+            modeForTier,
+          )
+        }
+        return combined
+      })
+
+      updateProductScoutEntry(entryId, result.scoutPatch)
+      const { error } = await persistProductScoutNow()
+      if (error) {
+        return { ok: false as const, message: error }
+      }
+      return { ok: true as const, message: result.message }
+    },
+    [
+      productScoutEntries,
+      updateProductScoutEntry,
+      persistProductScoutNow,
+      scheduleMode,
+      retierPreservingManual,
+      stage,
+      rebuildSchedule,
+      deadlineProducts,
+      sprintConfig,
+      excludedFromSchedule,
+    ],
+  )
+
   const resetSprintState = useCallback(() => {
     setPersistEnabled(false)
     clearingRef.current = true
@@ -1323,6 +1379,7 @@ export default function CreatorExecApp() {
               throw new Error(error)
             }
           }}
+          onPromoteToSprint={handlePromoteScoutToSprint}
         />
       ) : mainSection === 'sprint' && !onboardingComplete ? (
         <OnboardingQuiz onComplete={handleOnboardingComplete} embedded />
