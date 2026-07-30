@@ -8,8 +8,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
 const publicDir = path.join(root, 'public')
 const brandDir = path.join(publicDir, 'brand')
-/** Prefer the exact GitHub-uploaded mark; fall back to ce-monogram.png. */
-const preferredSource = path.join(publicDir, 'logo', 'creatorexec-logo-1024x1024.png')
+/**
+ * Prefer the true interlocking weave (C over/under E on emerald).
+ * Fall back to the GitHub upload / ce-monogram copy.
+ */
+const preferredSource = path.join(publicDir, 'logo', 'ce-interlock-emerald.png')
+const uploadSource = path.join(publicDir, 'logo', 'creatorexec-logo-1024x1024.png')
 const fallbackSource = path.join(publicDir, 'logo', 'ce-monogram.png')
 
 async function exists(filePath) {
@@ -77,8 +81,7 @@ async function resizePng(imagePath, size) {
 
 /**
  * Build a modern ICO that embeds PNG payloads (not BMP).
- * `to-ico` writes BMP frames that corrupt this mark into RGB stripes;
- * Safari loads /favicon.ico, so PNG-in-ICO is required.
+ * BMP ICO frames corrupt this mark; Safari loads /favicon.ico.
  */
 function buildPngIco(pngBuffersWithSizes) {
   const count = pngBuffersWithSizes.length
@@ -91,18 +94,18 @@ function buildPngIco(pngBuffersWithSizes) {
   })
 
   const out = Buffer.alloc(offset)
-  out.writeUInt16LE(0, 0) // reserved
-  out.writeUInt16LE(1, 2) // type = icon
+  out.writeUInt16LE(0, 0)
+  out.writeUInt16LE(1, 2)
   out.writeUInt16LE(count, 4)
 
   entries.forEach((entry, index) => {
     const o = 6 + index * 16
     out[o] = entry.size >= 256 ? 0 : entry.size
     out[o + 1] = entry.size >= 256 ? 0 : entry.size
-    out[o + 2] = 0 // color palette
-    out[o + 3] = 0 // reserved
-    out.writeUInt16LE(1, o + 4) // color planes
-    out.writeUInt16LE(32, o + 6) // bits per pixel
+    out[o + 2] = 0
+    out[o + 3] = 0
+    out.writeUInt16LE(1, o + 4)
+    out.writeUInt16LE(32, o + 6)
     out.writeUInt32LE(entry.bytes, o + 8)
     out.writeUInt32LE(entry.offset, o + 12)
     entry.png.copy(out, entry.offset)
@@ -111,12 +114,9 @@ function buildPngIco(pngBuffersWithSizes) {
   return out
 }
 
-/** Ensure every ICO frame starts with a PNG signature (not BMP DIB). */
 function assertPngIco(icoBuffer) {
   const count = icoBuffer.readUInt16LE(4)
-  if (count < 1) {
-    throw new Error('ICO has no frames.')
-  }
+  if (count < 1) throw new Error('ICO has no frames.')
   for (let i = 0; i < count; i++) {
     const o = 6 + i * 16
     const byteLength = icoBuffer.readUInt32LE(o + 8)
@@ -127,9 +127,7 @@ function assertPngIco(icoBuffer) {
         `ICO frame ${i} is not PNG-compressed (got ${magic.toString('hex')}). Refusing BMP ICO.`,
       )
     }
-    if (byteLength < 50) {
-      throw new Error(`ICO frame ${i} is too small.`)
-    }
+    if (byteLength < 50) throw new Error(`ICO frame ${i} is too small.`)
   }
 }
 
@@ -153,11 +151,18 @@ async function assertInterlockingFrame(pngBuffer, label) {
   }
 }
 
+async function resolveSource() {
+  for (const candidate of [preferredSource, uploadSource, fallbackSource]) {
+    if (await exists(candidate)) return candidate
+  }
+  return null
+}
+
 async function main() {
-  const sourcePath = (await exists(preferredSource)) ? preferredSource : fallbackSource
-  if (!(await exists(sourcePath))) {
+  const sourcePath = await resolveSource()
+  if (!sourcePath) {
     throw new Error(
-      'Missing logo source. Add public/logo/creatorexec-logo-1024x1024.png then run npm run generate:favicons.',
+      'Missing logo source. Add public/logo/ce-interlock-emerald.png then run npm run generate:favicons.',
     )
   }
 
@@ -179,26 +184,31 @@ async function main() {
   ])
   assertPngIco(faviconIco)
 
-  // Round-trip: extract largest PNG frame and re-validate interlocking mark.
   const largestOffset = faviconIco.readUInt32LE(6 + 2 * 16 + 12)
   const largestBytes = faviconIco.readUInt32LE(6 + 2 * 16 + 8)
-  await assertInterlockingFrame(faviconIco.slice(largestOffset, largestOffset + largestBytes), 'ICO 48 PNG frame')
+  await assertInterlockingFrame(
+    faviconIco.slice(largestOffset, largestOffset + largestBytes),
+    'ICO 48 PNG frame',
+  )
 
   await mkdir(brandDir, { recursive: true })
 
-  // Legacy root paths (Safari address bar often uses /favicon.ico only).
   await writeFile(path.join(publicDir, 'favicon-16x16.png'), favicon16)
   await writeFile(path.join(publicDir, 'favicon-32x32.png'), favicon32)
   await writeFile(path.join(publicDir, 'apple-touch-icon.png'), appleTouchIcon)
   await writeFile(path.join(publicDir, 'favicon.ico'), faviconIco)
 
-  // Unique /brand/* paths referenced from index.html — busts sticky favicon caches.
+  // Legacy brand names (kept for older HTML) + weave names (new cache-busting paths).
   await writeFile(path.join(brandDir, 'ce-icon-16.png'), favicon16)
   await writeFile(path.join(brandDir, 'ce-icon-32.png'), favicon32)
   await writeFile(path.join(brandDir, 'ce-apple-touch.png'), appleTouchIcon)
   await writeFile(path.join(brandDir, 'ce-icon.ico'), faviconIco)
+  await writeFile(path.join(brandDir, 'ce-weave-16.png'), favicon16)
+  await writeFile(path.join(brandDir, 'ce-weave-32.png'), favicon32)
+  await writeFile(path.join(brandDir, 'ce-weave-apple.png'), appleTouchIcon)
+  await writeFile(path.join(brandDir, 'ce-weave.ico'), faviconIco)
 
-  console.log('Generated root favicons + public/brand/ce-icon-* (PNG-in-ICO, interlocking CE).')
+  console.log('Generated favicons from interlocking weave mark (PNG-in-ICO).')
 }
 
 main().catch((error) => {
