@@ -3,7 +3,6 @@ import { constants } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
-import toIco from 'to-ico'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -76,6 +75,84 @@ async function resizePng(imagePath, size) {
   return sharp(imagePath).resize(size, size, { fit: 'cover' }).png().toBuffer()
 }
 
+/**
+ * Build a modern ICO that embeds PNG payloads (not BMP).
+ * `to-ico` writes BMP frames that corrupt this mark into RGB stripes;
+ * Safari loads /favicon.ico, so PNG-in-ICO is required.
+ */
+function buildPngIco(pngBuffersWithSizes) {
+  const count = pngBuffersWithSizes.length
+  const headerSize = 6 + count * 16
+  let offset = headerSize
+  const entries = pngBuffersWithSizes.map(({ size, png }) => {
+    const entry = { size, bytes: png.length, offset, png }
+    offset += png.length
+    return entry
+  })
+
+  const out = Buffer.alloc(offset)
+  out.writeUInt16LE(0, 0) // reserved
+  out.writeUInt16LE(1, 2) // type = icon
+  out.writeUInt16LE(count, 4)
+
+  entries.forEach((entry, index) => {
+    const o = 6 + index * 16
+    out[o] = entry.size >= 256 ? 0 : entry.size
+    out[o + 1] = entry.size >= 256 ? 0 : entry.size
+    out[o + 2] = 0 // color palette
+    out[o + 3] = 0 // reserved
+    out.writeUInt16LE(1, o + 4) // color planes
+    out.writeUInt16LE(32, o + 6) // bits per pixel
+    out.writeUInt32LE(entry.bytes, o + 8)
+    out.writeUInt32LE(entry.offset, o + 12)
+    entry.png.copy(out, entry.offset)
+  })
+
+  return out
+}
+
+/** Ensure every ICO frame starts with a PNG signature (not BMP DIB). */
+function assertPngIco(icoBuffer) {
+  const count = icoBuffer.readUInt16LE(4)
+  if (count < 1) {
+    throw new Error('ICO has no frames.')
+  }
+  for (let i = 0; i < count; i++) {
+    const o = 6 + i * 16
+    const byteLength = icoBuffer.readUInt32LE(o + 8)
+    const frameOffset = icoBuffer.readUInt32LE(o + 12)
+    const magic = icoBuffer.slice(frameOffset, frameOffset + 8)
+    if (magic[0] !== 0x89 || magic.toString('ascii', 1, 4) !== 'PNG') {
+      throw new Error(
+        `ICO frame ${i} is not PNG-compressed (got ${magic.toString('hex')}). Refusing BMP ICO.`,
+      )
+    }
+    if (byteLength < 50) {
+      throw new Error(`ICO frame ${i} is too small.`)
+    }
+  }
+}
+
+async function assertInterlockingFrame(pngBuffer, label) {
+  const { data, info } = await sharp(pngBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  let cream = 0
+  let emerald = 0
+  for (let i = 0; i < data.length; i += info.channels) {
+    const r = data[i]
+    const g = data[i + 1]
+    const b = data[i + 2]
+    if (r > 200 && g > 190 && b > 160) cream += 1
+    if (r < 80 && g > 50 && g > r && b < g) emerald += 1
+  }
+  const total = info.width * info.height
+  if (cream < total * 0.02) {
+    throw new Error(`${label}: missing cream interlocking CE pixels (cream=${cream}/${total}).`)
+  }
+  if (emerald < total * 0.4) {
+    throw new Error(`${label}: missing emerald field (emerald=${emerald}/${total}).`)
+  }
+}
+
 async function main() {
   const sourcePath = (await exists(preferredSource)) ? preferredSource : fallbackSource
   if (!(await exists(sourcePath))) {
@@ -91,7 +168,21 @@ async function main() {
   const favicon32 = await resizePng(sourcePath, 32)
   const favicon48 = await resizePng(sourcePath, 48)
   const appleTouchIcon = await resizePng(sourcePath, 180)
-  const faviconIco = await toIco([favicon16, favicon32, favicon48])
+
+  await assertInterlockingFrame(favicon32, '32x32 PNG')
+  await assertInterlockingFrame(favicon48, '48x48 PNG')
+
+  const faviconIco = buildPngIco([
+    { size: 16, png: favicon16 },
+    { size: 32, png: favicon32 },
+    { size: 48, png: favicon48 },
+  ])
+  assertPngIco(faviconIco)
+
+  // Round-trip: extract largest PNG frame and re-validate interlocking mark.
+  const largestOffset = faviconIco.readUInt32LE(6 + 2 * 16 + 12)
+  const largestBytes = faviconIco.readUInt32LE(6 + 2 * 16 + 8)
+  await assertInterlockingFrame(faviconIco.slice(largestOffset, largestOffset + largestBytes), 'ICO 48 PNG frame')
 
   await mkdir(brandDir, { recursive: true })
 
@@ -107,7 +198,7 @@ async function main() {
   await writeFile(path.join(brandDir, 'ce-apple-touch.png'), appleTouchIcon)
   await writeFile(path.join(brandDir, 'ce-icon.ico'), faviconIco)
 
-  console.log('Generated root favicons + public/brand/ce-icon-* (16/32/48 ICO, no SVG).')
+  console.log('Generated root favicons + public/brand/ce-icon-* (PNG-in-ICO, interlocking CE).')
 }
 
 main().catch((error) => {

@@ -69,7 +69,6 @@
     "playwright": "^1.61.1",
     "sharp": "^0.35.3",
     "tailwindcss": "^4.3.1",
-    "to-ico": "^1.1.5",
     "tsx": "^4.23.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.0"
