@@ -89,12 +89,13 @@ async function main() {
 
   const favicon16 = await resizePng(sourcePath, 16)
   const favicon32 = await resizePng(sourcePath, 32)
+  const favicon48 = await resizePng(sourcePath, 48)
   const appleTouchIcon = await resizePng(sourcePath, 180)
-  const faviconIco = await toIco([favicon16, favicon32])
+  const faviconIco = await toIco([favicon16, favicon32, favicon48])
 
   await mkdir(brandDir, { recursive: true })
 
-  // Legacy root paths (browsers may still auto-request /favicon.ico).
+  // Legacy root paths (Safari address bar often uses /favicon.ico only).
   await writeFile(path.join(publicDir, 'favicon-16x16.png'), favicon16)
   await writeFile(path.join(publicDir, 'favicon-32x32.png'), favicon32)
   await writeFile(path.join(publicDir, 'apple-touch-icon.png'), appleTouchIcon)
@@ -106,7 +107,7 @@ async function main() {
   await writeFile(path.join(brandDir, 'ce-apple-touch.png'), appleTouchIcon)
   await writeFile(path.join(brandDir, 'ce-icon.ico'), faviconIco)
 
-  console.log('Generated root favicons + public/brand/ce-icon-* (no SVG).')
+  console.log('Generated root favicons + public/brand/ce-icon-* (16/32/48 ICO, no SVG).')
 }
 
 main().catch((error) => {
