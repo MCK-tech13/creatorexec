@@ -10,6 +10,9 @@ const root = path.resolve(__dirname, '..')
 const publicDir = path.join(root, 'public')
 const sourcePath = path.join(publicDir, 'logo', 'ce-monogram.png')
 
+/** Brand emerald — matches the monogram circle fill. */
+const EMERALD = { r: 26, g: 74, b: 58, alpha: 255 }
+
 async function exists(filePath) {
   try {
     await access(filePath, constants.F_OK)
@@ -73,6 +76,40 @@ async function validateSource(imagePath) {
   }
 }
 
+/**
+ * Tab icons need a solid emerald field. The monogram source keeps cream outside
+ * the circle for logo use — remap that cream to emerald so 16/32px tabs read green.
+ */
+async function monogramOnEmeraldBackground(imagePath) {
+  const { data, info } = await sharp(imagePath)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+
+  const channels = info.channels
+  for (let i = 0; i < data.length; i += channels) {
+    const pixel = { r: data[i], g: data[i + 1], b: data[i + 2] }
+    if (isCreamish(pixel)) {
+      data[i] = EMERALD.r
+      data[i + 1] = EMERALD.g
+      data[i + 2] = EMERALD.b
+      data[i + 3] = EMERALD.alpha
+    }
+  }
+
+  return sharp(data, {
+    raw: { width: info.width, height: info.height, channels },
+  })
+}
+
+async function resizePng(pipeline, size) {
+  return pipeline
+    .clone()
+    .resize(size, size, { fit: 'cover' })
+    .png()
+    .toBuffer()
+}
+
 async function main() {
   if (!(await exists(sourcePath))) {
     throw new Error(
@@ -83,12 +120,22 @@ async function main() {
   await validateSource(sourcePath)
   console.log(`Using source: ${path.relative(root, sourcePath)}`)
 
-  const favicon16 = await sharp(sourcePath).resize(16, 16, { fit: 'cover' }).png().toBuffer()
-  const favicon32 = await sharp(sourcePath).resize(32, 32, { fit: 'cover' }).png().toBuffer()
-  const appleTouchIcon = await sharp(sourcePath)
-    .resize(180, 180, { fit: 'cover' })
-    .png()
-    .toBuffer()
+  const onEmerald = await monogramOnEmeraldBackground(sourcePath)
+
+  // Sanity: corners must be emerald after remap (not cream).
+  const corner = await sampleRgb(onEmerald, 2, 2)
+  if (isCreamish(corner)) {
+    throw new Error('Favicon background remap failed — corners still cream.')
+  }
+  if (!isEmeraldish(corner)) {
+    throw new Error(
+      `Favicon background remap failed — corner rgba=(${corner.r},${corner.g},${corner.b}) is not emerald.`,
+    )
+  }
+
+  const favicon16 = await resizePng(onEmerald, 16)
+  const favicon32 = await resizePng(onEmerald, 32)
+  const appleTouchIcon = await resizePng(onEmerald, 180)
   const faviconIco = await toIco([favicon16, favicon32])
 
   await writeFile(path.join(publicDir, 'favicon-16x16.png'), favicon16)
@@ -97,6 +144,7 @@ async function main() {
   await writeFile(path.join(publicDir, 'favicon.ico'), faviconIco)
 
   console.log('Generated favicon.ico, favicon-16x16.png, favicon-32x32.png, apple-touch-icon.png')
+  console.log('Tab icons use solid emerald background (cream corners remapped).')
 }
 
 main().catch((error) => {
