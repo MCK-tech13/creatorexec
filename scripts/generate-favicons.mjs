@@ -9,11 +9,10 @@ const root = path.resolve(__dirname, '..')
 const publicDir = path.join(root, 'public')
 const brandDir = path.join(publicDir, 'brand')
 /**
- * Prefer the true interlocking weave (C over/under E on emerald).
- * Fall back to the GitHub upload / ce-monogram copy.
+ * Prefer the exact GitHub-uploaded mark (creatorexec-logo-1024x1024.png).
+ * Do not use the AI weave recreation (ce-interlock-emerald.png) for tab icons.
  */
-const preferredSource = path.join(publicDir, 'logo', 'ce-interlock-emerald.png')
-const uploadSource = path.join(publicDir, 'logo', 'creatorexec-logo-1024x1024.png')
+const preferredSource = path.join(publicDir, 'logo', 'creatorexec-logo-1024x1024.png')
 const fallbackSource = path.join(publicDir, 'logo', 'ce-monogram.png')
 
 async function exists(filePath) {
@@ -152,7 +151,7 @@ async function assertInterlockingFrame(pngBuffer, label) {
 }
 
 async function resolveSource() {
-  for (const candidate of [preferredSource, uploadSource, fallbackSource]) {
+  for (const candidate of [preferredSource, fallbackSource]) {
     if (await exists(candidate)) return candidate
   }
   return null
@@ -162,7 +161,7 @@ async function main() {
   const sourcePath = await resolveSource()
   if (!sourcePath) {
     throw new Error(
-      'Missing logo source. Add public/logo/ce-interlock-emerald.png then run npm run generate:favicons.',
+      'Missing logo source. Add public/logo/creatorexec-logo-1024x1024.png then run npm run generate:favicons.',
     )
   }
 
@@ -198,17 +197,17 @@ async function main() {
   await writeFile(path.join(publicDir, 'apple-touch-icon.png'), appleTouchIcon)
   await writeFile(path.join(publicDir, 'favicon.ico'), faviconIco)
 
-  // Legacy brand names (kept for older HTML) + weave names (new cache-busting paths).
+  // Brand paths — ce-exact-* are unique URLs to bust sticky Safari caches.
   await writeFile(path.join(brandDir, 'ce-icon-16.png'), favicon16)
   await writeFile(path.join(brandDir, 'ce-icon-32.png'), favicon32)
   await writeFile(path.join(brandDir, 'ce-apple-touch.png'), appleTouchIcon)
   await writeFile(path.join(brandDir, 'ce-icon.ico'), faviconIco)
-  await writeFile(path.join(brandDir, 'ce-weave-16.png'), favicon16)
-  await writeFile(path.join(brandDir, 'ce-weave-32.png'), favicon32)
-  await writeFile(path.join(brandDir, 'ce-weave-apple.png'), appleTouchIcon)
-  await writeFile(path.join(brandDir, 'ce-weave.ico'), faviconIco)
+  await writeFile(path.join(brandDir, 'ce-exact-16.png'), favicon16)
+  await writeFile(path.join(brandDir, 'ce-exact-32.png'), favicon32)
+  await writeFile(path.join(brandDir, 'ce-exact-apple.png'), appleTouchIcon)
+  await writeFile(path.join(brandDir, 'ce-exact.ico'), faviconIco)
 
-  console.log('Generated favicons from interlocking weave mark (PNG-in-ICO).')
+  console.log('Generated favicons from exact uploaded creatorexec logo (PNG-in-ICO).')
 }
 
 main().catch((error) => {
