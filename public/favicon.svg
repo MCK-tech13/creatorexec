@@ -2,13 +2,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
   <rect width="32" height="32" fill="#1a4a3a"/>
   <text
-    x="16"
-    y="22"
+    x="15.2"
+    y="22.5"
     text-anchor="middle"
     font-family="Georgia, 'Times New Roman', serif"
-    font-size="15"
+    font-size="18"
     font-weight="700"
     fill="#faf7f2"
-    letter-spacing="-0.04em"
+    letter-spacing="-0.08em"
   >CE</text>
 </svg>
