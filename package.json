@@ -18,6 +18,7 @@
     "test:commission-upload": "tsx scripts/test-commission-upload.mjs",
     "verify:est-commission-columns": "tsx scripts/verify-est-commission-columns.ts",
     "test:auth": "node scripts/test-auth.mjs",
+    "set-password": "node scripts/set-user-password.mjs",
     "test:phase3": "node scripts/test-phase3-data.mjs",
     "test:stripe": "node scripts/test-stripe.mjs",
     "verify:current-sprint": "tsx scripts/verify-current-sprint-persist.ts",

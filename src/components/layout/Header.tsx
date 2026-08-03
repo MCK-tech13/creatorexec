@@ -1,4 +1,5 @@
 import { Home } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { CreatorExecWordmark } from '../ui/CreatorExecWordmark'
 import type { MainSection } from '../../types'
 
@@ -34,6 +35,15 @@ export function Header({
               >
                 {userEmail}
               </span>
+            )}
+            {userEmail && (
+              <Link
+                to="/reset-password"
+                className="btn-outline inline-flex shrink-0 items-center px-2.5 py-2 font-body text-xs font-medium uppercase tracking-[0.08em] text-stone sm:px-3 sm:text-sm"
+              >
+                <span className="sm:hidden">Password</span>
+                <span className="hidden sm:inline">Change password</span>
+              </Link>
             )}
             {onSignOut && (
               <button

@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { mapAuthErrorMessage } from '../lib/auth/errors'
+import { getPasswordResetRedirectTo } from '../lib/auth/passwordReset'
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase/client'
 
 interface AuthContextValue {
@@ -101,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const resetPassword = useCallback(async (email: string) => {
-    const redirectTo = `${window.location.origin}/reset-password`
+    const redirectTo = getPasswordResetRedirectTo()
     const { error } = await getSupabaseClient().auth.resetPasswordForEmail(email, {
       redirectTo,
     })

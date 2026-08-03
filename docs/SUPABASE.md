@@ -69,12 +69,26 @@ Phase 2 wires **Supabase Auth** (email/password signup, login, logout, password 
 
 ### Auth redirect URLs (Supabase Dashboard → Authentication → URL Configuration)
 
-Add your site URLs, including:
+Production traffic lives on **www** (apex `creatorexec.app` 308s there). Reset emails must
+redirect to `/reset-password` on an allowlisted URL.
 
-- `http://localhost:5173/reset-password` (local dev)
-- `https://creatorexec.app/reset-password` (production)
+| Field | Value |
+|-------|-------|
+| Site URL | `https://www.creatorexec.app` (preferred) or `https://creatorexec.app` |
+| Redirect URLs | `https://creatorexec.app/reset-password` |
+| | `https://www.creatorexec.app/reset-password` |
+| | `http://localhost:5173/reset-password` |
 
-Site URL can be `http://localhost:5173` for dev or your production domain.
+The app always requests the apex reset URL in production today, because www was not
+allowlisted and GoTrue was falling back to Site URL **with no path** (users landed on `/`
+instead of the reset form). Add the www redirect URL above so either host works.
+
+Self-serve reset flow:
+
+1. Login → **Forgot password?** → `/forgot-password`
+2. `resetPasswordForEmail` sends mail via Supabase Auth (Resend SMTP in the dashboard)
+3. User opens the link → `/reset-password` → chooses a new password
+4. App signs them out and sends them to `/login` with a success message
 
 ### Verify auth
 
@@ -83,6 +97,28 @@ npm run test:auth
 ```
 
 This creates a temporary user, confirms it appears in Authentication → Users, tests login/session/logout, then deletes the user.
+
+### Support: update a user’s password
+
+When a customer cannot log in (and inbound `support@creatorexec.app` mail is unavailable), use the local support script with your service-role key. Do **not** put the service role key in the browser or Vercel `VITE_` vars.
+
+```bash
+# Set a temporary password (tell them out of band — text/DM)
+npm run set-password -- user@email.com 'TempPass123!'
+
+# Or generate a one-time recovery link to text/DM instead of emailing
+npm run set-password -- user@email.com --link
+
+# Confirm the account exists
+npm run set-password -- --lookup user@email.com
+```
+
+Requires `SUPABASE_URL` (or `VITE_SUPABASE_URL`) and `SUPABASE_SERVICE_ROLE_KEY` in `.env`.
+
+Self-service paths that already exist in the app:
+
+- `/forgot-password` — sends Supabase’s recovery email (needs Supabase Auth email delivery)
+- `/reset-password` — set a new password after opening a recovery link, or while already signed in (Change password in the app header)
 
 ## 5. Phase 3 — user data in Supabase
 

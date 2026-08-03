@@ -147,8 +147,15 @@ Supabase Dashboard → **Authentication** → **URL Configuration**:
 
 | Field | Value |
 |-------|-------|
-| Site URL | `https://creatorexec.app` |
-| Redirect URLs | `https://creatorexec.app/reset-password` |
+| Site URL | `https://www.creatorexec.app` (preferred) |
+| Redirect URLs | `https://www.creatorexec.app/reset-password` |
+| | `https://creatorexec.app/reset-password` |
+| | `http://localhost:5173/reset-password` |
+
+**Important:** Production users browse on **www**. If only the apex Site URL is
+allowlisted, password-reset emails fall back to `https://creatorexec.app` (no
+`/reset-password` path) and the recovery session lands on the marketing home.
+Always include both www and apex reset URLs.
 
 (Keep `http://localhost:5173/reset-password` for local dev.)
 
