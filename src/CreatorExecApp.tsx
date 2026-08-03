@@ -59,6 +59,10 @@ import {
   trialStorageKey,
 } from './lib/schedule/trialProgressStorage'
 import { persistScheduleFilmedDelta } from './lib/schedule/scheduleFilmingTrialSync'
+import {
+  migrateFilmingProgressForMove,
+  moveCollapsedProductDay,
+} from './lib/schedule/moveCollapsedRow'
 import { captureSprintEndReview } from './lib/sprint/finalizeSprint'
 import {
   clearCurrentSprintState,
@@ -1040,6 +1044,32 @@ export default function CreatorExecApp() {
     [products, deadlineProducts, sprintConfig, rebuildSchedule, scheduleMode],
   )
 
+  /**
+   * Manual drag-and-drop: move a collapsed product row between days.
+   * Day placement only — does not re-tier. Persists via current sprint autosave.
+   * Regenerating the schedule replaces this with a fresh auto build.
+   */
+  const handleMoveProductDay = useCallback(
+    (productKey: string, fromDay: number, toDay: number) => {
+      if (fromDay === toDay) return
+
+      const productName = schedule
+        .find((day) => day.day === fromDay)
+        ?.videos.find((video) => video.productKey === productKey)?.productName
+
+      const nextSchedule = moveCollapsedProductDay(schedule, productKey, fromDay, toDay)
+      if (nextSchedule === schedule) return
+
+      setSchedule(nextSchedule)
+      if (productName) {
+        setFilmingProgress((progress) =>
+          migrateFilmingProgressForMove(progress, productName, fromDay, toDay),
+        )
+      }
+    },
+    [schedule, setFilmingProgress],
+  )
+
   const handleStartOver = () => {
     beginNextSprint('start-over')
   }
@@ -1503,12 +1533,14 @@ export default function CreatorExecApp() {
         <FilmingSchedule
           schedule={schedule}
           products={products}
+          videosPerDay={sprintConfig.videosPerDay}
           beginnerMode={isBeginnerMode && !usesSilentMomentum}
           momentumMode={false}
           getFilmedCount={getFilmedCount}
           onFilmedIncrement={handleScheduleFilmedIncrement}
           onFilmedDecrement={handleScheduleFilmedDecrement}
           onRemoveFromSchedule={handleRemoveFromSchedule}
+          onMoveProductDay={handleMoveProductDay}
           onBack={
             showRetainerOnlySchedule ? () => {} : () => setStage('config')
           }
