@@ -1,4 +1,5 @@
 import { scoreProductScout } from '../../lib/productScout/scorer'
+import { isScoutPromotedToSprint } from '../../lib/productScout/promoteScoutToSprint'
 import type { ProductScoutEntry } from '../../types/productScout'
 import { ProductScoutVerdictBadge } from './ProductScoutVerdictBadge'
 
@@ -14,10 +15,14 @@ export function ProductScoutList({
   entries,
   selectedId,
   onSelect,
+  onAddToSprint,
+  promotingId,
 }: {
   entries: ProductScoutEntry[]
   selectedId: string | null
   onSelect: (id: string) => void
+  onAddToSprint: (id: string) => void
+  promotingId: string | null
 }) {
   if (entries.length === 0) {
     return (
@@ -36,17 +41,21 @@ export function ProductScoutList({
       {entries.map((entry) => {
         const result = scoreProductScout(entry.metrics)
         const isSelected = entry.id === selectedId
+        const alreadyInSprint = isScoutPromotedToSprint(entry)
+        const isPromoting = promotingId === entry.id
 
         return (
-          <button
+          <div
             key={entry.id}
-            type="button"
-            onClick={() => onSelect(entry.id)}
-            className={`flex w-full items-start justify-between gap-4 px-5 py-4 text-left transition hover:bg-terracotta-tint/60 ${
+            className={`flex w-full items-start justify-between gap-3 px-5 py-4 transition hover:bg-terracotta-tint/60 ${
               isSelected ? 'bg-terracotta-tint ring-1 ring-inset ring-emerald/30' : 'bg-white'
             }`}
           >
-            <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => onSelect(entry.id)}
+              className="min-w-0 flex-1 text-left"
+            >
               <p className="font-body text-sm font-semibold text-ink sm:text-base">
                 {entry.productName}
               </p>
@@ -62,15 +71,35 @@ export function ProductScoutList({
                   </>
                 )}
               </p>
+              {alreadyInSprint && (
+                <p className="mt-1 font-body text-xs font-medium text-emerald">Added to sprint</p>
+              )}
+            </button>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              {result && (
+                <ProductScoutVerdictBadge
+                  verdict={result.verdict}
+                  label={result.verdictLabel}
+                  compact
+                />
+              )}
+              {alreadyInSprint ? (
+                <span className="font-body text-xs text-stone">In sprint</span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isPromoting}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onAddToSprint(entry.id)
+                  }}
+                  className="btn-outline px-3 py-1.5 text-xs disabled:opacity-60"
+                >
+                  {isPromoting ? 'Adding…' : 'Add to Sprint'}
+                </button>
+              )}
             </div>
-            {result && (
-              <ProductScoutVerdictBadge
-                verdict={result.verdict}
-                label={result.verdictLabel}
-                compact
-              />
-            )}
-          </button>
+          </div>
         )
       })}
     </div>

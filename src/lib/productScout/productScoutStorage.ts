@@ -16,6 +16,13 @@ export function syncProductScoutEntriesLocal(entries: ProductScoutEntry[]): void
   updateProductScoutEntries(entries)
 }
 
+export type ProductScoutEntryPatch = Partial<
+  Pick<
+    ProductScoutEntry,
+    'productName' | 'metrics' | 'promotedCatalogProductId' | 'promotedAt'
+  >
+>
+
 export function createProductScoutEntry(partial: ProductScoutEntryInsert): ProductScoutEntry {
   const now = new Date().toISOString()
   return {
@@ -24,13 +31,15 @@ export function createProductScoutEntry(partial: ProductScoutEntryInsert): Produ
     metrics: partial.metrics,
     createdAt: now,
     updatedAt: now,
+    promotedCatalogProductId: null,
+    promotedAt: null,
   }
 }
 
 export function updateProductScoutEntryInList(
   entries: ProductScoutEntry[],
   id: string,
-  patch: Partial<Pick<ProductScoutEntry, 'productName' | 'metrics'>>,
+  patch: ProductScoutEntryPatch,
 ): ProductScoutEntry[] {
   return entries.map((entry) =>
     entry.id === id
