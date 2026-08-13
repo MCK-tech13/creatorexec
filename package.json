@@ -19,7 +19,7 @@
     "verify:est-commission-columns": "tsx scripts/verify-est-commission-columns.ts",
     "test:auth": "node scripts/test-auth.mjs",
     "test:phase3": "node scripts/test-phase3-data.mjs",
-    "test:stripe": "node scripts/test-stripe.mjs",
+    "verify:stripe-webhook-signature": "node scripts/verify-stripe-webhook-signature.mjs",
     "verify:current-sprint": "tsx scripts/verify-current-sprint-persist.ts",
     "verify:product-flags": "tsx scripts/verify-product-flags.ts",
     "verify:upload-reminder": "tsx scripts/verify-upload-reminder.ts",

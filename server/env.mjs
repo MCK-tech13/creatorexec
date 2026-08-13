@@ -42,6 +42,7 @@ export function getServerEnv() {
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY
   const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() || null
+  const stripeWebhookSecretTest = process.env.STRIPE_WEBHOOK_SECRET_TEST?.trim() || null
   const stripeBetaPriceId = process.env.STRIPE_BETA_PRICE_ID
   const resendApiKey = process.env.RESEND_API_KEY?.trim() || null
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim() || null
@@ -66,6 +67,7 @@ export function getServerEnv() {
     supabaseServiceRoleKey,
     stripeSecretKey,
     stripeWebhookSecret,
+    stripeWebhookSecretTest,
     stripeBetaPriceId,
     resendApiKey,
     anthropicApiKey,
@@ -94,11 +96,17 @@ export function assertBillingEnv() {
 
 export function getWebhookEnvStatus(env = getServerEnv()) {
   const secret = env.stripeWebhookSecret
+  const testSecret = env.stripeWebhookSecretTest
+  const secrets = [secret, testSecret].filter((value, index, all) => {
+    return Boolean(value) && all.indexOf(value) === index
+  })
   return {
-    configured: Boolean(secret),
-    prefix: secret ? secret.slice(0, 6) : null,
-    looksLikeCliSecret: secret?.startsWith('whsec_') ?? false,
+    configured: secrets.length > 0,
+    prefix: secret ? secret.slice(0, 6) : testSecret ? testSecret.slice(0, 6) : null,
+    looksLikeCliSecret: secrets.some((value) => value.startsWith('whsec_')),
     length: secret?.length ?? 0,
+    secretCount: secrets.length,
+    testSecretConfigured: Boolean(testSecret),
   }
 }
 
@@ -132,7 +140,10 @@ export function logServerStartup(env, envFileResult) {
   )
   console.log(`  APP_URL: ${env.appUrl}`)
   console.log(
-    `  STRIPE_WEBHOOK_SECRET: ${webhook.configured ? maskSecret(env.stripeWebhookSecret) : 'MISSING'}`,
+    `  STRIPE_WEBHOOK_SECRET: ${env.stripeWebhookSecret ? maskSecret(env.stripeWebhookSecret) : 'MISSING'}`,
+  )
+  console.log(
+    `  STRIPE_WEBHOOK_SECRET_TEST: ${env.stripeWebhookSecretTest ? maskSecret(env.stripeWebhookSecretTest) : 'MISSING'}`,
   )
 
   if (!webhook.configured) {
