@@ -1,5 +1,10 @@
 import { getWebhookEnvStatus, getServerEnv } from './env.mjs'
 import { getBillingContext } from './billingContext.mjs'
+import {
+  constructEventWithSecrets,
+  listWebhookSecrets,
+  shouldProcessWebhookEvent,
+} from './webhookSignature.mjs'
 import { verifySupabaseAccessToken } from './supabaseAdmin.mjs'
 import { downsizeScreenshotForVision, parseDataUrl } from './imageDownsize.mjs'
 import { extractTrendMetricsFromImage } from './productScoutOcr.mjs'
@@ -27,6 +32,8 @@ export async function handleHealth(_req, res) {
       configured: webhook.configured,
       prefix: webhook.prefix,
       looksLikeCliSecret: webhook.looksLikeCliSecret,
+      secretCount: webhook.secretCount,
+      testSecretConfigured: webhook.testSecretConfigured,
     },
   })
 }
@@ -168,7 +175,8 @@ export async function handleStripeWebhook(req, res, rawBody) {
   try {
     const { env, stripe, admin } = getBillingContext()
 
-    if (!env.stripeWebhookSecret) {
+    const webhookSecrets = listWebhookSecrets(env)
+    if (webhookSecrets.length === 0) {
       console.error(
         `[billing-api] webhook:${requestId} STRIPE_WEBHOOK_SECRET is not configured — returning 500`,
       )
@@ -192,15 +200,31 @@ export async function handleStripeWebhook(req, res, rawBody) {
     }
 
     let event
+    let secretIndex
     try {
-      event = stripe.webhooks.constructEvent(body, signature, env.stripeWebhookSecret)
+      ;({ event, secretIndex } = constructEventWithSecrets(
+        stripe,
+        body,
+        signature,
+        webhookSecrets,
+      ))
     } catch (error) {
       console.error(`[billing-api] webhook:${requestId} signature verification failed`, error)
       res.status(400).send(`Webhook Error: ${error instanceof Error ? error.message : 'invalid'}`)
       return
     }
 
-    console.log(`[billing-api] webhook:${requestId} verified event=${event.type} id=${event.id}`)
+    console.log(
+      `[billing-api] webhook:${requestId} verified event=${event.type} id=${event.id} livemode=${event.livemode} secretIndex=${secretIndex}`,
+    )
+
+    if (!shouldProcessWebhookEvent(event.livemode, env.stripeSecretKey)) {
+      console.warn(
+        `[billing-api] webhook:${requestId} acknowledging test-mode event without processing (livemode=false on live API keys)`,
+      )
+      res.status(200).json({ received: true, ignored: 'test_mode_on_live_keys' })
+      return
+    }
 
     switch (event.type) {
       case 'checkout.session.completed':

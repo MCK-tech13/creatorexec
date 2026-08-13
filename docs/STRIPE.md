@@ -79,6 +79,8 @@ curl http://localhost:4242/api/health
 
 If `webhook.configured` is `false`, webhooks return 500 — add `STRIPE_WEBHOOK_SECRET` to `.env` and restart the billing API.
 
+Production (`https://www.creatorexec.app/api/stripe/webhook`) uses the **live** Dashboard signing secret. Apex (`https://creatorexec.app/…`) 308-redirects to www; Stripe will not follow that redirect. If a **test-mode** Dashboard endpoint also posts to the www URL, set `STRIPE_WEBHOOK_SECRET_TEST` as well — the two `whsec_` values are different.
+
 Trigger test events (optional):
 
 ```bash

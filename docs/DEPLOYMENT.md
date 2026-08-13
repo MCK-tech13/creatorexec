@@ -52,7 +52,8 @@ Same Vercel project, but only used by `/api/*` serverless functions. **Never** p
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → **service_role** (secret) |
 | `STRIPE_SECRET_KEY` | Stripe → Developers → API keys → **Secret key** |
 | `STRIPE_BETA_PRICE_ID` | Stripe → Product catalog → your $25/mo price → **Price ID** (`price_…`) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks → your **production** endpoint → Signing secret (see Part C) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe **Live** mode → Developers → Webhooks → `https://www.creatorexec.app/api/stripe/webhook` → Signing secret (see Part C) |
+| `STRIPE_WEBHOOK_SECRET_TEST` | Optional. Stripe **Test** mode → same www URL → Signing secret. Required if a test-mode endpoint also posts to production (test and live `whsec_` values are different). |
 | `RESEND_API_KEY` | Resend Dashboard → API Keys (used to send the post-checkout welcome email) |
 | `CRON_SECRET` | Long random secret; required for `/api/cron/upload-reminder` (Vercel Cron sends `Authorization: Bearer $CRON_SECRET`). Also used as TikTok OAuth state signing secret unless `TIKTOK_OAUTH_STATE_SECRET` is set. |
 | `APP_URL` | Your live site URL: `https://www.creatorexec.app` (preferred; apex redirects to www) |
@@ -116,11 +117,13 @@ No separate API hosting setup required.
 
 Local `stripe listen` is **only for development**. Production uses a Dashboard webhook.
 
+**Use the www URL.** Apex (`https://creatorexec.app/…`) 308-redirects to www. Stripe does not follow redirects, so an apex webhook is delivered as a failure (`308`), not to the function.
+
 1. Stripe Dashboard → **Developers** → **Webhooks** → **Add endpoint**
-2. **Endpoint URL:**
+2. **Endpoint URL (exact — no trailing slash):**
 
    ```
-   https://creatorexec.app/api/stripe/webhook
+   https://www.creatorexec.app/api/stripe/webhook
    ```
 
 3. **Events to send** (minimum):
@@ -138,6 +141,14 @@ Local `stripe listen` is **only for development**. Production uses a Dashboard w
 6. Redeploy Vercel
 
 Use the **Dashboard** signing secret in production — not the secret from `stripe listen`.
+
+### Live vs test mode
+
+Live and test webhook endpoints have **different** signing secrets. Production `STRIPE_SECRET_KEY` should be `sk_live_…`.
+
+- **Live mode webhook** (required for real billing): www URL + `STRIPE_WEBHOOK_SECRET` from the **live** endpoint.
+- **Test mode webhook** to the same www URL: also set `STRIPE_WEBHOOK_SECRET_TEST` from the **test** endpoint, then redeploy. Without it, Stripe test-mode deliveries fail with HTTP **400** (signature mismatch). Verified test-mode events are acknowledged (`200`) but not written to production billing rows.
+- Prefer pointing test-mode webhooks at a Preview URL (test keys) or `stripe listen` instead of production.
 
 ---
 
@@ -159,12 +170,13 @@ Supabase Dashboard → **Authentication** → **URL Configuration**:
 ### You do
 
 1. [ ] Vercel → Settings → Environment Variables → add all vars from Part A1 + A2
-2. [ ] Set `APP_URL` = `https://creatorexec.app`
+2. [ ] Set `APP_URL` = `https://www.creatorexec.app`
 3. [ ] Redeploy Vercel after env vars are saved
 4. [ ] Supabase → Auth URL Configuration (Part D)
-5. [ ] Stripe → Add production webhook `https://creatorexec.app/api/stripe/webhook` (Part C)
-6. [ ] Copy production `whsec_…` → Vercel `STRIPE_WEBHOOK_SECRET` → Redeploy again
-7. [ ] Confirm Supabase migration `20260710000000_user_subscriptions.sql` is applied (if not already)
+5. [ ] Stripe **Live** → Add webhook `https://www.creatorexec.app/api/stripe/webhook` (Part C). Never use the apex host.
+6. [ ] Copy **live** `whsec_…` → Vercel `STRIPE_WEBHOOK_SECRET` → Redeploy again
+7. [ ] If a **test-mode** webhook also targets www: copy that endpoint’s `whsec_…` → `STRIPE_WEBHOOK_SECRET_TEST` → Redeploy
+8. [ ] Confirm Supabase migration `20260710000000_user_subscriptions.sql` is applied (if not already)
 
 ### Code (done in repo)
 
@@ -179,16 +191,16 @@ Supabase Dashboard → **Authentication** → **URL Configuration**:
 ### 1. Health check
 
 ```bash
-curl https://creatorexec.app/api/health
+curl https://www.creatorexec.app/api/health
 ```
 
 Expected:
 
 ```json
-{"ok":true,"webhook":{"configured":true,"prefix":"whsec_","looksLikeCliSecret":true}}
+{"ok":true,"webhook":{"configured":true,"prefix":"whsec_","looksLikeCliSecret":true,"secretCount":1,"testSecretConfigured":false}}
 ```
 
-If `webhook.configured` is `false`, `STRIPE_WEBHOOK_SECRET` is missing on Vercel.
+If `webhook.configured` is `false`, `STRIPE_WEBHOOK_SECRET` is missing on Vercel. `testSecretConfigured` is `true` when `STRIPE_WEBHOOK_SECRET_TEST` is set.
 
 ### 2. Frontend / Supabase
 
@@ -243,6 +255,8 @@ Local `.env` stays on your machine — never commit it.
 |---------|-----|
 | "Supabase not configured" on live site | Add `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` on Vercel, redeploy |
 | Checkout button errors / "billing API" | Add server vars (Part A2), redeploy; check `/api/health` |
-| Webhook 500 | Set `STRIPE_WEBHOOK_SECRET` to **production** Dashboard secret, redeploy |
-| Webhook 400 signature | Wrong secret (CLI secret on production) — use Dashboard `whsec_` |
+| Webhook 500 | Set `STRIPE_WEBHOOK_SECRET` to the **live** Dashboard secret, redeploy |
+| Webhook 400 signature (test mode) | Test and live `whsec_` differ. Set `STRIPE_WEBHOOK_SECRET_TEST` from the test-mode endpoint, or point test webhooks at Preview / `stripe listen` |
+| Webhook 400 signature (live mode) | Wrong secret (CLI secret or test-mode secret on production) — use the **live** Dashboard `whsec_` |
+| Webhook 308 | Endpoint is still `https://creatorexec.app/…` (apex). Change it to `https://www.creatorexec.app/api/stripe/webhook` — Stripe does not follow redirects |
 | 404 on `/app` after refresh | Redeploy — `vercel.json` SPA rewrite must be active |
